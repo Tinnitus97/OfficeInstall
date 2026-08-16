@@ -1,0 +1,321 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:OfficeInstall.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="OfficeInstall.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding WindowTitle}"
+        MinWidth="940" MinHeight="520"
+        Width="1180" Height="720"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BaseBrush}"
+        Icon="/Assets/app.ico">
+
+    <Grid Margin="10" RowDefinitions="Auto,*">
+
+        <!-- ============ Kopfzeile ============ -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="2,0,2,7">
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Classes="appTitle" Text="{Binding WindowTitle}"/>
+                <TextBlock Classes="appSubtitle" Text="{Binding AppSubtitle}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                <Button Classes="secondary" Width="38" Content="{Binding ThemeIcon}"
+                        FontSize="14" ToolTip.Tip="Hell-/Dunkelmodus"
+                        Command="{Binding ToggleThemeCommand}"/>
+                <ComboBox Classes="quick" Width="120" VerticalAlignment="Center"
+                          ItemsSource="{Binding Languages}"
+                          SelectedIndex="{Binding SelectedLanguageIndex}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ============ Hauptbereich: zwei Spalten ============ -->
+        <Grid Grid.Row="1" ColumnDefinitions="6*,4*">
+
+            <!-- ============ Linke Spalte ============ -->
+            <Grid Grid.Column="0" Margin="0,0,8,0" RowDefinitions="Auto,*,Auto,Auto">
+
+                <!-- Paketordner, Architektur und Modus -->
+                <Border Grid.Row="0" Classes="panel">
+                    <StackPanel>
+                        <TextBlock Classes="section" Text="{Binding SectionSource}"/>
+
+                        <!-- Ordner + Schaltflächen in einer Zeile -->
+                        <Grid ColumnDefinitions="72,*,34,Auto,Auto" Margin="0,0,0,5">
+                            <TextBlock Classes="fieldLabel" Text="{Binding LabelFolder}"/>
+                            <TextBox Grid.Column="1" Classes="path" Text="{Binding RootFolder}"
+                                     ToolTip.Tip="{Binding RootFolder}"/>
+                            <Button Grid.Column="2" Content="…" Margin="4,0,0,0" Classes="secondary"
+                                    Command="{Binding SelectRootCommand}" IsEnabled="{Binding UiEnabled}"/>
+                            <Button Grid.Column="3" Classes="secondary" Margin="4,0,0,0"
+                                    Content="{Binding BtnRescan}"
+                                    Command="{Binding ScanCommand}" IsEnabled="{Binding UiEnabled}"/>
+                            <Button Grid.Column="4" Classes="secondary" Margin="4,0,0,0"
+                                    Content="{Binding BtnResetFolder}"
+                                    Command="{Binding ResetRootCommand}" IsEnabled="{Binding UiEnabled}"/>
+                        </Grid>
+
+                        <!-- Architektur und Modus nebeneinander -->
+                        <Grid ColumnDefinitions="*,1.6*">
+                            <Border Grid.Column="0" Classes="segmentBar" Margin="0,0,4,0">
+                                <Grid ColumnDefinitions="*,*">
+                                    <RadioButton Grid.Column="0" Classes="segment" GroupName="arch"
+                                                 Content="{Binding TabX64}"
+                                                 IsChecked="{Binding IsX64, Mode=TwoWay}"
+                                                 IsEnabled="{Binding UiEnabled}"/>
+                                    <RadioButton Grid.Column="1" Classes="segment" GroupName="arch"
+                                                 Content="{Binding TabX86}"
+                                                 IsChecked="{Binding IsX86, Mode=TwoWay}"
+                                                 IsEnabled="{Binding UiEnabled}"/>
+                                </Grid>
+                            </Border>
+                            <Border Grid.Column="1" Classes="segmentBar" Margin="4,0,0,0">
+                                <Grid ColumnDefinitions="*,*,*">
+                                    <RadioButton Grid.Column="0" Classes="segment" GroupName="mode"
+                                                 Content="{Binding TabAutomatic}"
+                                                 IsChecked="{Binding IsAutomaticMode, Mode=TwoWay}"
+                                                 IsEnabled="{Binding UiEnabled}"/>
+                                    <RadioButton Grid.Column="1" Classes="segment" GroupName="mode"
+                                                 Content="{Binding TabOnline}"
+                                                 IsChecked="{Binding IsOnlineMode, Mode=TwoWay}"
+                                                 IsEnabled="{Binding UiEnabled}"/>
+                                    <RadioButton Grid.Column="2" Classes="segment" GroupName="mode"
+                                                 Content="{Binding TabOffline}"
+                                                 IsChecked="{Binding IsOfflineMode, Mode=TwoWay}"
+                                                 IsEnabled="{Binding UiEnabled}"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Modus-Erklärung, Suchergebnis und die Aufräum-Option in EINER Zeile.
+                             Die Erklärung darf umbrechen - sie ist der einzige längere Text
+                             hier und würde sonst mitten im Satz abgeschnitten. Das
+                             Suchergebnis daneben bleibt einzeilig und erscheint nur,
+                             solange etwas im Suchfeld steht. -->
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="2,5,0,0">
+                            <TextBlock Grid.Column="0" Text="{Binding ModeHint}"
+                                       FontSize="10" TextWrapping="Wrap" LineHeight="13"
+                                       VerticalAlignment="Center" Margin="0,0,8,0"
+                                       Foreground="{DynamicResource SubtextBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ScanStatus}"
+                                       FontSize="10" TextWrapping="NoWrap"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"
+                                       Foreground="{DynamicResource SubtextBrush}"/>
+                            <CheckBox Grid.Column="2" Classes="opt" VerticalAlignment="Center"
+                                      Content="{Binding OptCleanup}"
+                                      ToolTip.Tip="{Binding OptCleanupHint}"
+                                      IsChecked="{Binding CleanupAfterUpdate}"
+                                      IsEnabled="{Binding UiEnabled}"/>
+                        </Grid>
+
+                        <ProgressBar IsIndeterminate="True" Height="3" CornerRadius="2"
+                                     Margin="2,4,2,0" IsVisible="{Binding IsBusy}"/>
+
+                        <!-- Deployment Tool und Sammel-Aktualisierung -->
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,6,0,0">
+                            <TextBlock Grid.Column="0" Text="{Binding OdtStatusText}"
+                                       Foreground="{Binding OdtStatusBrush}"
+                                       FontSize="10" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Margin="2,0,6,0"/>
+                            <Button Grid.Column="1" Classes="secondary" Margin="0"
+                                    Content="{Binding BtnOdtUpdate}"
+                                    Command="{Binding UpdateDeploymentToolCommand}"
+                                    IsEnabled="{Binding UiEnabled}"/>
+                            <Button Grid.Column="2" Classes="secondary" Margin="4,0,0,0"
+                                    Content="{Binding BtnOdtPage}"
+                                    Command="{Binding OpenDeploymentToolPageCommand}"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                            <Button Grid.Column="0" Classes="secondary" Margin="0"
+                                    HorizontalAlignment="Stretch"
+                                    Content="{Binding BtnUpdateAll}"
+                                    Command="{Binding UpdateAllOfflineCommand}"
+                                    IsEnabled="{Binding UiEnabled}"/>
+                            <Button Grid.Column="1" Classes="secondary exit" Margin="4,0,0,0" Width="86"
+                                    Content="{Binding BtnCancelBatch}"
+                                    Command="{Binding CancelBatchCommand}"
+                                    IsVisible="{Binding IsBatchRunning}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Produktliste -->
+                <Border Grid.Row="1" Classes="panel" Margin="0,8,0,0">
+                    <Grid RowDefinitions="Auto,Auto,*">
+
+                        <!-- Überschrift mit Kurzhinweis rechts -->
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0" Classes="section" Text="{Binding SectionProducts}"/>
+                            <TextBlock Grid.Column="1" Classes="headlineWarning"
+                                       Text="{Binding WarningShort}"
+                                       ToolTip.Tip="{Binding WarningText}"
+                                       IsVisible="{Binding WarningVisible}"
+                                       HorizontalAlignment="Right" Margin="8,0,2,4"/>
+                        </Grid>
+
+                        <!-- Suchfeld -->
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+                            <TextBox Grid.Column="0" Classes="search"
+                                     Text="{Binding SearchText}"
+                                     PlaceholderText="{Binding SearchHint}"/>
+                            <Button Grid.Column="1" Classes="secondary" Width="28" Margin="4,0,0,0"
+                                    Content="✕" ToolTip.Tip="{Binding BtnClearSearch}"
+                                    Command="{Binding ClearSearchCommand}"/>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,3,0">
+                            <ItemsControl ItemsSource="{Binding Entries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:OfficeEntryViewModel">
+                                        <Border Classes="entryCard">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Margin="0,0,6,0"
+                                                            VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                                        <TextBlock Classes="entryTitle" Text="{Binding Title}"
+                                                                   VerticalAlignment="Center"/>
+                                                        <Border Classes="channelBadge"
+                                                                ToolTip.Tip="{Binding ChannelTitle}">
+                                                            <TextBlock Classes="channelBadgeText"
+                                                                       Text="{Binding ChannelBadge}"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <Grid ColumnDefinitions="Auto,*">
+                                                        <TextBlock Grid.Column="0" Classes="entryStatus"
+                                                                   Text="{Binding StatusText}"
+                                                                   Foreground="{Binding StatusBrush}"
+                                                                   ToolTip.Tip="{Binding StatusText}"/>
+                                                        <TextBlock Grid.Column="1" Classes="entryFile"
+                                                                   Text="{Binding FileName}" Margin="6,1,0,0"
+                                                                   ToolTip.Tip="{Binding SubTitle}"/>
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                                            VerticalAlignment="Center">
+                                                    <Button Classes="action" Width="92"
+                                                            Content="{Binding InstallLabel}"
+                                                            Command="{Binding InstallCommand}"
+                                                            IsEnabled="{Binding CanInstall}"/>
+                                                    <Button Classes="secondary" Width="108" Margin="0"
+                                                            Content="{Binding OfflineLabel}"
+                                                            Command="{Binding DownloadOfflineCommand}"
+                                                            IsEnabled="{Binding CanInstall}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Ältere Fassungen: nur Download, ausgeklappt nur bei Bedarf.
+                     Bewusst ein eigener, zugeklappter Bereich - er kostet im
+                     Normalbetrieb genau eine Zeile Platz. -->
+                <Border Grid.Row="2" Classes="panel" Margin="0,8,0,0" Padding="8,4"
+                        IsVisible="{Binding HasLegacyEntries}">
+                    <Expander Padding="0" Margin="0" BorderThickness="0"
+                              Background="Transparent" HorizontalAlignment="Stretch"
+                              IsExpanded="False">
+                        <Expander.Header>
+                            <TextBlock Classes="section" Margin="0" VerticalAlignment="Center"
+                                       Text="{Binding LegacyHeader}"/>
+                        </Expander.Header>
+
+                        <StackPanel Margin="0,4,0,4">
+                            <TextBlock Text="{Binding LegacyHint}" FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SubtextBrush}" Margin="2,0,2,6"/>
+
+                            <ScrollViewer MaxHeight="188" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" Padding="0,0,3,0">
+                                <ItemsControl ItemsSource="{Binding LegacyEntries}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:LegacyEntryViewModel">
+                                            <Border Classes="entryCard">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Margin="0,0,6,0"
+                                                                VerticalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <TextBlock Classes="entryTitle" Text="{Binding Title}"
+                                                                       VerticalAlignment="Center"/>
+                                                            <Border Classes="channelBadge">
+                                                                <TextBlock Classes="channelBadgeText"
+                                                                           Text="{Binding YearBadge}"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                        <TextBlock Classes="entryStatus"
+                                                                   Text="{Binding StatusText}"
+                                                                   Foreground="{Binding StatusBrush}"
+                                                                   ToolTip.Tip="{Binding StatusText}"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                                                VerticalAlignment="Center">
+                                                        <Button Classes="action" Width="92"
+                                                                Content="{Binding ImageLabel}"
+                                                                ToolTip.Tip="{Binding ImageTip}"
+                                                                Command="{Binding OpenImageCommand}"/>
+                                                        <Button Classes="secondary" Width="108" Margin="0"
+                                                                Content="{Binding SetupLabel}"
+                                                                ToolTip.Tip="{Binding SetupTip}"
+                                                                Command="{Binding OpenSetupCommand}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Expander>
+                </Border>
+
+                <!-- Fusszeile -->
+                <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                    <Border Grid.Column="0" IsVisible="{Binding IsBusy}" Padding="8,4" CornerRadius="5"
+                            Margin="0,0,8,0" VerticalAlignment="Center"
+                            Background="{DynamicResource Surface0Brush}">
+                        <TextBlock Text="{Binding BusyText}" FontSize="10.5" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextBrush}"/>
+                    </Border>
+                    <Button Grid.Column="1" Classes="secondary exit" Width="100"
+                            Content="{Binding BtnExit}" Command="{Binding ExitCommand}"/>
+                </Grid>
+            </Grid>
+
+            <!-- ============ Rechte Spalte: Protokoll ============ -->
+            <Border Grid.Column="1" Classes="panel" Margin="0" Padding="10">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                        <TextBlock Grid.Column="0" Text="{Binding LogTitle}"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="{Binding BtnClearLog}"
+                                Padding="8,1" FontSize="10.5" Height="21" Command="{Binding ClearLogCommand}"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="{DynamicResource CrustBrush}"
+                            BorderBrush="{DynamicResource Surface0Brush}" BorderThickness="1"
+                            CornerRadius="5">
+                        <ScrollViewer Name="LogScroll" Padding="7"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <SelectableTextBlock Name="TBLog"
+                                     Foreground="{DynamicResource GreenBrush}"
+                                     FontFamily="Consolas,Cascadia Mono,monospace" FontSize="10.5"
+                                     TextWrapping="Wrap"
+                                     Text="{Binding LogText}"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
