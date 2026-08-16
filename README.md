@@ -4,7 +4,7 @@
 
 **Microsoft Office installieren — online oder aus vorliegenden Offline-Dateien, mit Warnung bei veraltetem Stand.**
 
-![Version](https://img.shields.io/badge/Version-1.1.1-blue)
+![Version](https://img.shields.io/badge/Version-1.2.1-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 
@@ -139,6 +139,28 @@ mit Dateinamen, damit sie sich dort berichtigen lässt.
 
 ---
 
+## Erster Start: Erste Schritte
+
+Frisch heruntergeladen liegt neben der EXE nichts — keine Konfigurationsdateien,
+kein Deployment Tool. Statt einer leeren Liste erscheint dann eine kurze
+Anleitung mit genau den Schaltflächen, die es braucht:
+
+| | Schritt | Was passiert |
+| --- | --- | --- |
+| **1** | Konfigurationsdateien | Holt die Vorlagen aus der Veröffentlichung — wenige Kilobyte |
+| **2** | Office Deployment Tool | Holt `setup.exe` vom Microsoft Download Center |
+| **3** | Offline-Bestand *(kann warten)* | Mehrere Gigabyte, nur für Installationen ohne Internet |
+
+Erledigte Schritte bekommen ein grünes Häkchen. Sobald 1 und 2 stehen,
+verschwindet die Anleitung und die Produktliste erscheint. **Alles Nötige
+einrichten** erledigt beide der Reihe nach.
+
+Liegt die EXE in *Downloads*, auf dem *Desktop* oder in `%TEMP%`, weist das
+Programm darauf hin: Dorthin gehört kein Paketordner, denn Vorlagen und
+Offline-Bestand landen daneben.
+
+---
+
 ## Selbstaktualisierung
 
 Beim Start holt das Programm **eine** Datei:
@@ -151,7 +173,7 @@ Darin stehen zwei getrennte Stände:
 
 | | Nummer | Woher | Was passiert |
 | --- | --- | --- | --- |
-| **Programm** | `1.1.1` aus der EXE | Release `v1.1.1` | Neue EXE laden, Prüfsumme vergleichen, austauschen, neu starten |
+| **Programm** | `1.2.1` aus der EXE | Release `v1.2.1` | Neue EXE laden, Prüfsumme vergleichen, austauschen, neu starten |
 | **Konfigurationen** | `Versionscheck\Version.txt` | Release `configs-70` | `configs.zip` laden, XML-Dateien in den Paketordner schreiben |
 
 Gibt es etwas Neueres, erscheint über der Produktliste ein Streifen mit den

@@ -193,8 +193,98 @@
                                     Command="{Binding ClearSearchCommand}"/>
                         </Grid>
 
+                        <!-- Einrichtungshilfe: tritt an die Stelle der leeren Liste,
+                             solange Vorlagen oder Deployment Tool fehlen. -->
                         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,3,0">
+                                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,3,0"
+                                      IsVisible="{Binding SetupVisible}">
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="{Binding SetupTitle}" Classes="entryTitle"
+                                           FontSize="13" Margin="2,2,2,0"/>
+                                <TextBlock Text="{Binding SetupIntro}" FontSize="10.5"
+                                           TextWrapping="Wrap" Margin="2,0,2,4"
+                                           Foreground="{DynamicResource SubtextBrush}"/>
+
+                                <!-- Schritt 1: Vorlagen -->
+                                <Border Classes="entryCard">
+                                    <Grid ColumnDefinitions="24,*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding Step1Icon}"
+                                                   Foreground="{Binding Step1Brush}"
+                                                   FontSize="14" FontWeight="Bold"
+                                                   VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBlock Classes="entryTitle" Text="{Binding Step1Title}"/>
+                                            <TextBlock Classes="entryHint" Text="{Binding Step1Hint}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Classes="action" Width="112"
+                                                VerticalAlignment="Center"
+                                                Content="{Binding Step1Button}"
+                                                Command="{Binding Step1Command}"
+                                                IsEnabled="{Binding Step1Enabled}"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Schritt 2: Deployment Tool -->
+                                <Border Classes="entryCard">
+                                    <Grid ColumnDefinitions="24,*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding Step2Icon}"
+                                                   Foreground="{Binding Step2Brush}"
+                                                   FontSize="14" FontWeight="Bold"
+                                                   VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBlock Classes="entryTitle" Text="{Binding Step2Title}"/>
+                                            <TextBlock Classes="entryHint" Text="{Binding Step2Hint}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Classes="action" Width="112"
+                                                VerticalAlignment="Center"
+                                                Content="{Binding Step2Button}"
+                                                Command="{Binding UpdateDeploymentToolCommand}"
+                                                IsEnabled="{Binding Step2Enabled}"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Schritt 3: Offline-Bestand, ausdrücklich freiwillig -->
+                                <Border Classes="entryCard">
+                                    <Grid ColumnDefinitions="24,*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding Step3Icon}"
+                                                   Foreground="{Binding Step3Brush}"
+                                                   FontSize="14" FontWeight="Bold"
+                                                   VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBlock Classes="entryTitle" Text="{Binding Step3Title}"/>
+                                            <TextBlock Classes="entryHint" Text="{Binding Step3Hint}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Classes="secondary" Width="112" Margin="0"
+                                                VerticalAlignment="Center"
+                                                Content="{Binding Step3Button}"
+                                                Command="{Binding UpdateAllOfflineCommand}"
+                                                IsEnabled="{Binding Step3Enabled}"/>
+                                    </Grid>
+                                </Border>
+
+                                <Button Classes="action" HorizontalAlignment="Stretch" Margin="0,4,0,0"
+                                        Content="{Binding BtnSetupAll}"
+                                        Command="{Binding SetupAllCommand}"
+                                        IsEnabled="{Binding SetupAllEnabled}"/>
+
+                                <Border Classes="warning" Margin="0,4,0,0"
+                                        IsVisible="{Binding SetupFolderNoteVisible}">
+                                    <TextBlock Classes="warningText" Text="{Binding SetupFolderNote}"/>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Kein Treffer: besser als eine wortlose leere Fläche -->
+                        <TextBlock Grid.Row="2" Text="{Binding EmptySearchText}"
+                                   IsVisible="{Binding EmptySearchVisible}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   HorizontalAlignment="Center" VerticalAlignment="Top"
+                                   Margin="8,18,8,0"
+                                   Foreground="{DynamicResource SubtextBrush}"/>
+
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,3,0"
+                                      IsVisible="{Binding !SetupVisible}">
                             <ItemsControl ItemsSource="{Binding Entries}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:OfficeEntryViewModel">

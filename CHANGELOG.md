@@ -2,6 +2,70 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.2.1] – 2026-08-16
+
+### Behoben
+
+- **„Alles Nötige einrichten" erledigte immer nur einen Schritt.** Beide
+  Vorgänge beginnen mit einer Sperre gegen Doppelklicks
+  (`if (!UiEnabled) return;`). Im Sammelbetrieb schaltet der erste Vorgang die
+  Bedienung ab — der zweite lief damit in genau diese Sperre und brach wortlos
+  ab, ohne eine einzige Zeile im Protokoll.
+
+  Während der Sammeleinrichtung gilt die Sperre jetzt nicht. Zusätzlich schreibt
+  der Knopf mit, was er tut und **warum er etwas auslässt**:
+
+  ```
+  Einrichtung: die fehlenden Schritte werden nacheinander erledigt.
+    Schritt 1 übersprungen - die Vorlagen sind bereits vorhanden.
+    Schritt 2 übersprungen - setup.exe 16.0.20228.20124 ist bereits vorhanden.
+  Einrichtung abgeschlossen - die Installationen stehen jetzt in der Liste.
+  ```
+
+  Fehlt danach noch etwas, steht das ebenfalls da (`[!] Es fehlt weiterhin: …`)
+  — vorher war der einzige Hinweis eine unverändert leere Liste.
+
+- Ist zu den Konfigurationsdateien **noch keine Veröffentlichung hinterlegt**,
+  wird Schritt 1 nicht mehr stillschweigend übergangen, sondern mit Begründung
+  im Protokoll vermerkt.
+
+## [1.2.0] – 2026-08-16
+
+### Neu
+
+- **Einrichtungshilfe beim ersten Start.** Wer die EXE frisch herunterlädt, hat
+  weder Konfigurationsdateien noch das Deployment Tool. Bisher stand dann eine
+  leere Liste da und im Protokoll „Keine Konfigurationsdateien gefunden" — ohne
+  einen Hinweis, was jetzt zu tun ist.
+
+  An die Stelle der leeren Liste tritt jetzt **Erste Schritte** mit drei
+  nummerierten Punkten, jeder mit eigener Schaltfläche:
+
+  | | Schritt | Was passiert |
+  | --- | --- | --- |
+  | 1 | Konfigurationsdateien | Holt die Vorlagen aus der Veröffentlichung (wenige KB) |
+  | 2 | Office Deployment Tool | Holt `setup.exe` vom Microsoft Download Center |
+  | 3 | Offline-Bestand *(kann warten)* | Mehrere GB, nur für Installationen ohne Internet |
+
+  Erledigte Schritte bekommen ein grünes Häkchen statt der Nummer. Sind 1 und 2
+  erledigt, verschwindet die Anleitung von selbst und die Produktliste erscheint.
+  Ein Knopf **Alles Nötige einrichten** erledigt 1 und 2 der Reihe nach.
+
+  Schritt 3 lässt sich erst anklicken, wenn die ersten beiden stehen — ohne
+  Vorlagen und ohne `setup.exe` gäbe es nichts herunterzuladen.
+
+- **Keine Sackgasse ohne Veröffentlichung.** Ist zu den Konfigurationsdateien
+  noch nichts hinterlegt, wird Schritt 1 nicht einfach grau: Die Schaltfläche
+  heißt dann *Seite öffnen* und führt zur Übersicht der Veröffentlichungen.
+
+- **Hinweis bei einem flüchtigen Ordner.** Liegt die EXE in *Downloads*, auf dem
+  *Desktop*, unter *Dokumente* oder in `%TEMP%`, erscheint ein Hinweis: Dorthin
+  gehört kein Paketordner, denn Vorlagen und Offline-Bestand landen daneben.
+
+- **Statt leerer Fläche ein Satz.** Findet die Suche nichts, steht dort jetzt
+  „Kein Treffer für …" — und wenn für die gewählte Architektur nichts vorliegt,
+  der Hinweis, oben auf die andere umzuschalten.
+
 ## [1.1.1] – 2026-08-16
 
 ### Behoben

@@ -57,6 +57,13 @@ public static class UpdateService
         "https://raw.githubusercontent.com/Tinnitus97/OfficeInstall/main/update.json";
 
     /// <summary>
+    /// Uebersicht der Veroeffentlichungen - der Rueckfallweg von Hand, wenn zu
+    /// den Konfigurationsdateien noch nichts hinterlegt ist.
+    /// </summary>
+    public const string ReleasesPageUrl =
+        "https://github.com/Tinnitus97/OfficeInstall/releases";
+
+    /// <summary>
     /// Eigener Arbeitsordner - ausdruecklich NICHT der von TempWorkspace.
     /// Der wird beim Beenden geleert, und genau dann laeuft der Austausch der
     /// EXE noch.

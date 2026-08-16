@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,7 +21,7 @@ namespace OfficeInstall.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private const string VersionString = "1.1.1";
+    private const string VersionString = "1.2.1";
 
     private readonly object _logLock = new();
     private readonly StringBuilder _logBuffer = new();
@@ -38,6 +39,23 @@ public partial class MainWindowViewModel : ObservableObject
     private const int LogColumnMinimum = 19;
 
     private int _logColumn = LogColumnMinimum;
+
+    /// <summary>
+    /// true, sobald der Paketordner einmal durchsucht wurde. Ohne diese Sperre
+    /// blitzt die Einrichtungshilfe bei jedem Start kurz auf, auch wenn alles
+    /// vorhanden ist - die Liste ist in den ersten Millisekunden noch leer.
+    /// </summary>
+    private bool _scanned;
+
+    /// <summary>
+    /// true, waehrend "Alles Noetige einrichten" laeuft.
+    ///
+    /// Die einzelnen Vorgaenge beginnen mit "if (!UiEnabled) return;" - eine
+    /// Sperre gegen Doppelklicks. Im Sammelbetrieb schaltet der erste Vorgang
+    /// die Bedienung ab, und der zweite waere daran wortlos gescheitert. Genau
+    /// das war der Fall: Es lief immer nur ein Schritt.
+    /// </summary>
+    private bool _batchSetup;
     private CancellationTokenSource? _scanCts;
     private string _packageInfo = "";
 
@@ -131,6 +149,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(OdtStatusText));
         OnPropertyChanged(nameof(OdtStatusBrush));
         OnPropertyChanged(nameof(BtnOdtUpdate));
+        RefreshSetupState();
     }
 
     public bool OdtNeedsUpdate => DeploymentToolService.NeedsUpdate(OdtLocalVersion, OdtOnlineVersion);
@@ -185,6 +204,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnUiEnabledChanged(bool value)
     {
         foreach (var entry in Entries) entry.ParentEnabled = value;
+        RefreshSetupState();
     }
 
     partial void OnRootFolderChanged(string value) => _ = Scan();
@@ -417,8 +437,10 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (_catalog.Entries.Count == 0)
             {
-                Log(Tr("Keine Konfigurationsdateien gefunden. Erwartet werden die Ordner x32 und x64 mit den Installationsbasen.",
-                       "No configuration files found. The folders x32 and x64 with the installation bases are expected."));
+                Log(Tr("Noch keine Konfigurationsdateien in diesem Ordner - die nötigen Schritte " +
+                       "stehen im Fenster unter \"Erste Schritte\".",
+                       "No configuration files in this folder yet - the necessary steps are shown " +
+                       "under \"Getting started\"."));
             }
             else
             {
@@ -468,6 +490,7 @@ public partial class MainWindowViewModel : ObservableObject
                        $"does not match folder {folder} - the folder wins"));
             }
 
+            _scanned = true;
             RebuildEntries();
             RefreshDeploymentToolVersion();
         }
@@ -528,6 +551,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         UpdateWarning();
         RebuildLegacyEntries();
+        RefreshSetupState();
     }
 
     // ------------------------------------------------------------ Ältere Fassungen
@@ -782,6 +806,9 @@ public partial class MainWindowViewModel : ObservableObject
             : "";
 
         foreach (var teil in teile) Log($"  [!] {teil}");
+
+        // Ohne hinterlegte Veröffentlichung kann Schritt 1 nichts laden.
+        RefreshSetupState();
     }
 
     /// <summary>Laedt die neue EXE, prueft ihre Pruefsumme und tauscht sie aus.</summary>
@@ -865,7 +892,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task UpdateConfigs()
     {
-        if (!UiEnabled || _manifest is null) return;
+        if (!UiEnabled && !_batchSetup) return;
+        if (_manifest is null) return;
         var window = ActiveWindow;
         var entry = _manifest.Configs;
 
@@ -952,6 +980,266 @@ public partial class MainWindowViewModel : ObservableObject
         var url = ProgramUpdateAvailable ? _manifest?.Program.Notes : _manifest?.Configs.Notes;
         if (!string.IsNullOrWhiteSpace(url)) LegacyOfficeReleases.OpenInBrowser(url);
     }
+
+    // ------------------------------------------------------------ Einrichtungshilfe
+
+    /// <summary>
+    /// Beim ersten Start liegt neben der EXE noch nichts: keine
+    /// Konfigurationsdateien, kein Deployment Tool. Frueher stand dann nur eine
+    /// leere Liste da und im Protokoll "Keine Konfigurationsdateien gefunden" -
+    /// ohne einen Hinweis, was jetzt zu tun ist.
+    ///
+    /// Deshalb tritt an die Stelle der leeren Liste eine kurze Anleitung mit
+    /// genau den Schaltflaechen, die es braucht. Sobald beides vorhanden ist,
+    /// verschwindet sie von selbst.
+    /// </summary>
+    public bool HasConfigs => _catalog.Entries.Count > 0;
+
+    public bool HasOdt => OdtLocalVersion is not null;
+
+    public bool HasOffline => _catalog.Entries.Any(e => e.Offline.Available);
+
+    /// <summary>true, solange das Noetigste fehlt.</summary>
+    public bool SetupVisible => _scanned && (!HasConfigs || !HasOdt);
+
+    /// <summary>true, wenn zu den Konfigurationen eine Veroeffentlichung hinterlegt ist.</summary>
+    public bool ConfigsDownloadPossible => _manifest?.Configs.IsUsable == true;
+
+    public string SetupTitle => Tr("Erste Schritte", "Getting started");
+
+    public string SetupIntro => !HasConfigs && !HasOdt
+        ? Tr("In diesem Ordner liegt noch nichts. Beides holt das Programm selbst - " +
+             "danach ist es einsatzbereit.",
+             "This folder is still empty. The program fetches both itself - after that it is ready.")
+        : Tr("Es fehlt noch eine Kleinigkeit:", "One thing is still missing:");
+
+    // ---- Schritt 1: Konfigurationsdateien ----
+
+    public bool Step1Done => HasConfigs;
+    public string Step1Icon => Step1Done ? "✔" : "1";
+    public IBrush Step1Brush => StepBrush(Step1Done);
+
+    public string Step1Title => Tr("Konfigurationsdateien", "Configuration files");
+
+    public string Step1Hint => Step1Done
+        ? Tr($"{_catalog.Entries.Count} Vorlagen vorhanden.",
+             $"{_catalog.Entries.Count} templates present.")
+        : ConfigsDownloadPossible
+            ? Tr($"Vorlagen für Office und Microsoft 365 - Stand {_manifest!.Configs.Version}, " +
+                 "wenige Kilobyte.",
+                 $"Templates for Office and Microsoft 365 - build {_manifest!.Configs.Version}, a few kilobytes.")
+            : Tr("Noch keine Veröffentlichung hinterlegt - die Vorlagen lassen sich von Hand " +
+                 "neben die EXE legen (Ordner x32 und x64).",
+                 "No release available yet - the templates can be placed next to the EXE by hand " +
+                 "(folders x32 and x64).");
+
+    public string Step1Button => ConfigsDownloadPossible
+        ? Tr("Vorlagen laden", "Get templates")
+        : Tr("Seite öffnen", "Open page");
+
+    // Bewusst auch ohne hinterlegte Veroeffentlichung bedienbar: Dann fuehrt
+    // die Schaltflaeche zur Uebersicht, statt grau und ohne Erklaerung
+    // dazustehen.
+    public bool Step1Enabled => UiEnabled && !Step1Done;
+
+    /// <summary>
+    /// Holt die Vorlagen - oder oeffnet die Uebersicht, wenn dazu noch nichts
+    /// veroeffentlicht wurde.
+    /// </summary>
+    [RelayCommand]
+    private async Task Step1()
+    {
+        if (ConfigsDownloadPossible)
+        {
+            await UpdateConfigs();
+            return;
+        }
+
+        Log(Tr("Zu den Konfigurationsdateien ist noch keine Veröffentlichung hinterlegt - " +
+               "die Übersicht wird im Browser geöffnet.",
+               "No release is available for the configuration files - opening the overview in the browser."));
+        LegacyOfficeReleases.OpenInBrowser(UpdateService.ReleasesPageUrl);
+    }
+
+    // ---- Schritt 2: Deployment Tool ----
+
+    public bool Step2Done => HasOdt;
+    public string Step2Icon => Step2Done ? "✔" : "2";
+    public IBrush Step2Brush => StepBrush(Step2Done);
+
+    public string Step2Title => Tr("Office Deployment Tool", "Office Deployment Tool");
+
+    public string Step2Hint => Step2Done
+        ? Tr($"setup.exe {OdtLocalVersion} vorhanden.", $"setup.exe {OdtLocalVersion} present.")
+        : Tr("Die setup.exe von Microsoft - ohne sie lässt sich nichts installieren. " +
+             "Wird direkt vom Microsoft Download Center geholt.",
+             "Microsoft's setup.exe - nothing can be installed without it. " +
+             "Fetched directly from the Microsoft Download Center.");
+
+    public string Step2Button => Tr("Tool laden", "Get the tool");
+    public bool Step2Enabled => UiEnabled && !Step2Done;
+
+    // ---- Schritt 3: Offline-Bestand (freiwillig) ----
+
+    public bool Step3Done => HasOffline;
+    public string Step3Icon => Step3Done ? "✔" : "3";
+    public IBrush Step3Brush => StepBrush(Step3Done);
+
+    public string Step3Title => Tr("Offline-Bestand (kann warten)", "Offline files (can wait)");
+
+    public string Step3Hint => Step3Done
+        ? Tr("Quelldateien vorhanden - Installation ohne Internet möglich.",
+             "Source files present - installation without internet is possible.")
+        : Tr("Mehrere Gigabyte. Nur nötig, wenn ohne Internetverbindung installiert werden soll. " +
+             "Ohne diesen Schritt läuft die Installation online.",
+             "Several gigabytes. Only needed for installing without an internet connection. " +
+             "Without this step the installation runs online.");
+
+    public string Step3Button => Tr("Später laden", "Get it later");
+    public bool Step3Enabled => UiEnabled && Step1Done && Step2Done;
+
+    private static IBrush StepBrush(bool done)
+        => new SolidColorBrush(Color.Parse(done ? "#40C057" : "#7AA2F7"));
+
+    public string BtnSetupAll => Tr("Alles Nötige einrichten", "Set up everything needed");
+
+    // Nur anbieten, wenn es auch von allein klappen kann.
+    public bool SetupAllEnabled =>
+        UiEnabled && ((!Step1Done && ConfigsDownloadPossible) || !Step2Done);
+
+    /// <summary>
+    /// Warnung, wenn die EXE an einem Ort liegt, der offensichtlich nur
+    /// zwischengelagert ist. Dorthin gehoert kein Paketordner - beim naechsten
+    /// Aufraeumen waere alles weg.
+    /// </summary>
+    public bool SetupFolderNoteVisible => IsTemporaryFolder(RootFolder);
+
+    public string SetupFolderNote => Tr(
+        "Hinweis: Das Programm liegt gerade in einem Ordner, der nur zum Zwischenlagern gedacht ist. " +
+        "Lege die EXE besser dorthin, wo das Paket dauerhaft bleiben soll - die Vorlagen und der " +
+        "Offline-Bestand landen daneben.",
+        "Note: the program is currently in a folder meant only for temporary storage. Better move the " +
+        "EXE to where the package should live permanently - templates and offline files go next to it.");
+
+    /// <summary>Downloads, Desktop, Papierkorb, %TEMP% und Ähnliches.</summary>
+    private static bool IsTemporaryFolder(string folder)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(folder)) return false;
+            var full = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar);
+
+            var verdaechtig = new[]
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Path.GetTempPath(),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
+            };
+
+            return verdaechtig
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar))
+                .Any(p => string.Equals(full, p, StringComparison.OrdinalIgnoreCase));
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Meldet der Oberflaeche, dass sich der Einrichtungsstand geaendert hat.</summary>
+    private void RefreshSetupState()
+    {
+        foreach (var name in new[]
+                 {
+                     nameof(HasConfigs), nameof(HasOdt), nameof(HasOffline),
+                     nameof(SetupVisible), nameof(SetupIntro), nameof(ConfigsDownloadPossible),
+                     nameof(Step1Done), nameof(Step1Icon), nameof(Step1Brush), nameof(Step1Hint),
+                     nameof(Step1Enabled), nameof(Step1Button),
+                     nameof(Step2Done), nameof(Step2Icon), nameof(Step2Brush), nameof(Step2Hint), nameof(Step2Enabled),
+                     nameof(Step3Done), nameof(Step3Icon), nameof(Step3Brush), nameof(Step3Hint), nameof(Step3Enabled),
+                     nameof(SetupAllEnabled), nameof(SetupFolderNoteVisible),
+                     nameof(EmptySearchVisible), nameof(EmptySearchText)
+                 })
+        {
+            OnPropertyChanged(name);
+        }
+    }
+
+    /// <summary>Erledigt der Reihe nach, was noch fehlt.</summary>
+    [RelayCommand]
+    private async Task SetupAll()
+    {
+        if (!UiEnabled || _batchSetup) return;
+
+        try
+        {
+            _batchSetup = true;
+
+            Log("");
+            Log("=========================================");
+            Log(Tr("Einrichtung: die fehlenden Schritte werden nacheinander erledigt.",
+                   "Setup: the missing steps are done one after another."));
+
+            // ---- Schritt 1: Vorlagen ----
+            if (Step1Done)
+            {
+                Log(Tr("  Schritt 1 übersprungen - die Vorlagen sind bereits vorhanden.",
+                       "  Step 1 skipped - the templates are already present."));
+            }
+            else if (!ConfigsDownloadPossible)
+            {
+                Log(Tr("  [!] Schritt 1 nicht möglich - zu den Konfigurationsdateien ist noch " +
+                       "keine Veröffentlichung hinterlegt.",
+                       "  [!] Step 1 not possible - no release is available for the configuration files."));
+            }
+            else
+            {
+                await UpdateConfigs();
+            }
+
+            // ---- Schritt 2: Deployment Tool ----
+            // Der Zustand wird hier neu bewertet: Schritt 1 hat den Paketordner
+            // veraendert und damit unter Umstaenden auch eine setup.exe gebracht.
+            if (Step2Done)
+            {
+                Log(Tr($"  Schritt 2 übersprungen - setup.exe {OdtLocalVersion} ist bereits vorhanden.",
+                       $"  Step 2 skipped - setup.exe {OdtLocalVersion} is already present."));
+            }
+            else
+            {
+                await UpdateDeploymentTool();
+            }
+
+            // ---- Ergebnis ----
+            if (Step1Done && Step2Done)
+            {
+                Log(Tr("Einrichtung abgeschlossen - die Installationen stehen jetzt in der Liste.",
+                       "Setup complete - the installations are now listed."));
+            }
+            else
+            {
+                var fehlt = new List<string>();
+                if (!Step1Done) fehlt.Add(Tr("Vorlagen", "templates"));
+                if (!Step2Done) fehlt.Add(Tr("Deployment Tool", "deployment tool"));
+
+                Log(Tr($"[!] Es fehlt weiterhin: {string.Join(" und ", fehlt)}.",
+                       $"[!] Still missing: {string.Join(" and ", fehlt)}."));
+            }
+        }
+        finally
+        {
+            _batchSetup = false;
+            UiEnabled = true;
+            RefreshSetupState();
+        }
+    }
+
+    /// <summary>Hinweis anstelle einer leeren Liste, wenn die Suche nichts findet.</summary>
+    public bool EmptySearchVisible => _scanned && HasConfigs && Entries.Count == 0;
+
+    public string EmptySearchText => string.IsNullOrWhiteSpace(SearchText)
+        ? Tr($"Für {SelectedEdition} Bit ist nichts vorhanden - bitte oben die andere Architektur wählen.",
+             $"Nothing available for {SelectedEdition}-bit - please switch the architecture above.")
+        : Tr($"Kein Treffer für \"{SearchText}\".", $"No match for \"{SearchText}\".");
 
     /// <summary>Traegt die gemerkten Online-Versionen in die angezeigten Zeilen ein.</summary>
     private void ApplyOnlineVersions()
@@ -1544,7 +1832,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task UpdateDeploymentTool()
     {
-        if (!UiEnabled) return;
+        if (!UiEnabled && !_batchSetup) return;
         var window = ActiveWindow;
 
         try
