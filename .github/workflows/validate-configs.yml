@@ -1,0 +1,28 @@
+name: Konfigurationen prüfen
+
+# Läuft bei jeder Änderung an den Konfigurationsdateien - und bei Pull Requests,
+# damit ein falscher Kanal auffällt, BEVOR er auf einem Rechner landet.
+on:
+  push:
+    paths:
+      - 'package/**'
+      - 'tools/validate-configs.py'
+      - '.github/workflows/validate-configs.yml'
+  pull_request:
+    paths:
+      - 'package/**'
+      - 'tools/validate-configs.py'
+  workflow_dispatch:
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Konfigurationsdateien prüfen
+        run: python tools/validate-configs.py package

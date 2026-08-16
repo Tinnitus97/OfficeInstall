@@ -2,6 +2,54 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.1.0] – 2026-08-16
+
+### Neu
+
+- **Selbstaktualisierung über GitHub.** Beim Start fragt das Programm eine
+  einzige Datei ab:
+
+  ```
+  https://raw.githubusercontent.com/Tinnitus97/OfficeInstall/main/update.json
+  ```
+
+  Darin stehen zwei getrennte Stände — das **Programm** und die
+  **Konfigurationsdateien**. Gibt es etwas Neueres, erscheint über der
+  Produktliste ein Streifen mit den passenden Schaltflächen; gibt es nichts,
+  kostet das keinen Pixel.
+
+  Bewusst **nicht** über `api.github.com`: Die Schnittstelle erlaubt ohne
+  Anmeldung nur 60 Abrufe je Stunde und IP-Adresse — in einer Firma sitzen alle
+  Rechner hinter derselben Adresse. Ein Zugangstoken hätte in einer verteilten
+  EXE ohnehin nichts zu suchen. `raw.githubusercontent.com` wird über ein
+  Auslieferungsnetz bereitgestellt und kennt diese Grenze nicht.
+
+  Eine abweichende Adresse lässt sich in `Versionscheck\Update-Url.txt`
+  hinterlegen — für ein internes Spiegelverzeichnis.
+
+- **Programm aktualisieren.** Lädt die neue EXE, prüft ihre SHA256-Summe gegen
+  die Angabe in `update.json` und tauscht sie aus. Weil eine laufende EXE sich
+  nicht selbst überschreiben kann, erledigt das ein kleines Skript, das auf das
+  Ende des Vorgangs wartet und danach neu startet. Es liegt in einem **eigenen**
+  Ordner (`%TEMP%\OfficeInstall-Update`) — der Arbeitsordner
+  `%TEMP%\OfficeInstall` wird beim Beenden geleert, also genau währenddessen.
+
+  Schlägt das Ersetzen fehl (fehlende Rechte, oder das Programm läuft an einem
+  anderen Arbeitsplatz aus demselben Ordner), bleibt ein Fenster mit dem Grund
+  und dem Pfad zur neuen Fassung stehen.
+
+- **Konfigurationen einspielen.** Lädt `configs.zip`, prüft die Summe und
+  schreibt die XML-Dateien in den Paketordner. Übernommen wird ausschließlich,
+  was unter `x32\` oder `x64\` liegt, genau eine Ebene tief und auf `.xml`
+  endet — dazu `Versionscheck\Version.txt`. Alles andere im Archiv wird
+  übergangen; Einträge, die aus dem Paketordner herausführen würden, ebenso.
+  **Gelöscht wird nichts**, der Offline-Bestand bleibt unangetastet.
+
+  Danach wird der Paketordner neu eingelesen, die Liste ist sofort aktuell.
+
+- Heruntergeladen und ersetzt wird **nichts ohne Rückfrage**. Beide Vorgänge
+  fragen vorher mit Versionsnummer und Zielpfad nach.
+
 ## [1.0.0] – 2026-08-16 · Erste Veröffentlichung
 
 Native Ablösung der `start.bat`: C# / .NET 10 mit Avalonia, als eine EXE ohne

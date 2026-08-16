@@ -1,0 +1,17 @@
+<Configuration>
+  <Add OfficeClientEdition="64" Channel="PerpetualVL2024" AllowCdnFallback="FALSE">
+    <Product ID="Standard2024Volume">
+      <Language ID="de-de" />
+    </Product>
+   </Add>
+    <Updates Enabled="TRUE"/>
+    <Property Name="AUTOACTIVATE" Value="1"/>
+    <Property Name="FORCEAPPSHUTDOWN" Value="TRUE"/>
+    <RemoveMSI/>
+  <AppSettings>
+        <User Key="software\microsoft\office\16.0\excel\options" Name="defaultformat" Value="51" Type="REG_DWORD" App="excel16"/>
+        <User Key="software\microsoft\office\16.0\powerpoint\options" Name="defaultformat" Value="27" Type="REG_DWORD" App="ppt16"/>
+        <User Key="software\microsoft\office\16.0\word\options" Name="defaultformat" Value="16" Type="REG_DWORD" App="word16"/>
+  </AppSettings>
+  <Display Level="Full" AcceptEULA="TRUE" />
+</Configuration>

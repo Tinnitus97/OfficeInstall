@@ -20,7 +20,7 @@ namespace OfficeInstall.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private const string VersionString = "1.0.0";
+    private const string VersionString = "1.1.0";
 
     private readonly object _logLock = new();
     private readonly StringBuilder _logBuffer = new();
@@ -717,7 +717,240 @@ public partial class MainWindowViewModel : ObservableObject
                    $"  [!] Deployment tool: {OdtLocalVersion?.ToString() ?? "none"} · online {release.Version}"));
         }
 
+        // --- 4. Eigener Stand: Programm und Konfigurationen ---
+        await CheckOwnUpdates(ct);
+
         UpdateWarning();
+    }
+
+    // ------------------------------------------------------------ Selbstaktualisierung
+
+    private UpdateManifest? _manifest;
+
+    /// <summary>Zeile ueber der Produktliste - nur sichtbar, wenn es etwas gibt.</summary>
+    [ObservableProperty] private bool _selfUpdateVisible;
+
+    [ObservableProperty] private string _selfUpdateText = "";
+
+    [ObservableProperty] private bool _programUpdateAvailable;
+
+    [ObservableProperty] private bool _configsUpdateAvailable;
+
+    public string BtnUpdateProgram => Tr("Programm aktualisieren", "Update program");
+    public string BtnUpdateConfigs => Tr("Konfigurationen einspielen", "Apply configurations");
+    public string BtnUpdateNotes   => Tr("Was ist neu?", "What's new?");
+
+    /// <summary>Paketstand aus Versionscheck\Version.txt, oder null.</summary>
+    private string? LocalConfigVersion => OfficeCatalog.ReadPackageVersion(RootFolder)?.Version;
+
+    /// <summary>
+    /// Fragt update.json ab und meldet, ob es ein neueres Programm oder neuere
+    /// Konfigurationsdateien gibt. Heruntergeladen wird hier noch nichts - das
+    /// geschieht erst auf ausdrueckliche Zustimmung.
+    /// </summary>
+    private async Task CheckOwnUpdates(CancellationToken ct)
+    {
+        var url = UpdateService.ResolveManifestUrl(RootFolder);
+        var manifest = await UpdateService.FetchAsync(url, ct);
+        _manifest = manifest;
+
+        if (!manifest.Success)
+        {
+            Log(Tr($"  [-] Kein eigener Versionsabgleich möglich: {manifest.Error}",
+                   $"  [-] Own version check not possible: {manifest.Error}"));
+            return;
+        }
+
+        ProgramUpdateAvailable = manifest.Program.IsUsable
+                                 && UpdateService.IsProgramNewer(VersionString, manifest.Program.Version);
+
+        var localConfigs = LocalConfigVersion;
+        ConfigsUpdateAvailable = manifest.Configs.IsUsable
+                                 && UpdateService.IsConfigsNewer(localConfigs, manifest.Configs.Version);
+
+        var teile = new List<string>();
+        if (ProgramUpdateAvailable)
+            teile.Add(Tr($"Programm {manifest.Program.Version} (hier {VersionString})",
+                         $"program {manifest.Program.Version} (here {VersionString})"));
+        if (ConfigsUpdateAvailable)
+            teile.Add(Tr($"Konfigurationen {manifest.Configs.Version} (hier {localConfigs ?? "?"})",
+                         $"configurations {manifest.Configs.Version} (here {localConfigs ?? "?"})"));
+
+        SelfUpdateVisible = teile.Count > 0;
+        SelfUpdateText = teile.Count > 0
+            ? Tr($"Neu verfügbar: {string.Join(" · ", teile)}", $"Available: {string.Join(" · ", teile)}")
+            : "";
+
+        foreach (var teil in teile) Log($"  [!] {teil}");
+    }
+
+    /// <summary>Laedt die neue EXE, prueft ihre Pruefsumme und tauscht sie aus.</summary>
+    [RelayCommand]
+    private async Task UpdateProgram()
+    {
+        if (!UiEnabled || _manifest is null) return;
+        var window = ActiveWindow;
+        var entry = _manifest.Program;
+
+        try
+        {
+            UiEnabled = false;
+
+            var current = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(current))
+            {
+                Log(Tr("[FEHLER] Der eigene Programmpfad ließ sich nicht ermitteln.",
+                       "[ERROR] Could not determine own program path."));
+                return;
+            }
+
+            if (window is not null)
+            {
+                var frage = Tr(
+                    $"Version {entry.Version} herunterladen und die laufende Fassung {VersionString} ersetzen?\n\n" +
+                    $"Datei: {current}\n\n" +
+                    "Das Programm wird dabei beendet und danach neu gestartet.",
+                    $"Download version {entry.Version} and replace the running {VersionString}?\n\n" +
+                    $"File: {current}\n\n" +
+                    "The program will close and restart afterwards.");
+
+                if (!await MessageBox.ShowYesNo(window, Tr("Programm aktualisieren", "Update program"), frage))
+                {
+                    Log(Tr("Abgebrochen.", "Cancelled."));
+                    return;
+                }
+            }
+
+            IsBusy = true;
+            BusyText = Tr($"Version {entry.Version} wird geladen...", $"Downloading version {entry.Version}...");
+
+            var target = Path.Combine(UpdateService.WorkFolder, "OfficeInstall.exe");
+            var result = await UpdateService.DownloadAsync(entry.Url, entry.Sha256, target, CancellationToken.None);
+
+            if (!result.Success)
+            {
+                Log(Tr($"[FEHLER] Download fehlgeschlagen: {result.Error}",
+                       $"[ERROR] Download failed: {result.Error}"));
+                if (window is not null)
+                    await MessageBox.ShowInfo(window, Tr("Download fehlgeschlagen", "Download failed"),
+                                              result.Error ?? "");
+                return;
+            }
+
+            Log(Tr($"Version {entry.Version} geladen ({OfflineSource.FormatBytes(result.Bytes)}), Prüfsumme stimmt.",
+                   $"Version {entry.Version} downloaded ({OfflineSource.FormatBytes(result.Bytes)}), checksum matches."));
+
+            var script = UpdateService.WriteUpdateScript(target, current, Environment.ProcessId);
+            UpdateService.StartUpdateScript(script);
+
+            Log(Tr("Das Programm wird jetzt beendet und ersetzt.",
+                   "The program will now close and be replaced."));
+
+            window?.Close();
+        }
+        catch (Exception ex)
+        {
+            Program.WriteCrashLog("UpdateProgram", ex);
+            Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
+        }
+        finally
+        {
+            IsBusy = false;
+            BusyText = "";
+            UiEnabled = true;
+        }
+    }
+
+    /// <summary>Laedt configs.zip und spielt die XML-Dateien in den Paketordner ein.</summary>
+    [RelayCommand]
+    private async Task UpdateConfigs()
+    {
+        if (!UiEnabled || _manifest is null) return;
+        var window = ActiveWindow;
+        var entry = _manifest.Configs;
+
+        try
+        {
+            UiEnabled = false;
+
+            if (window is not null)
+            {
+                var frage = Tr(
+                    $"Konfigurationsstand {entry.Version} vom {entry.Date} einspielen?\n\n" +
+                    $"Ziel: {RootFolder}\n\n" +
+                    "Ersetzt werden ausschließlich die XML-Dateien unter x32 und x64.\n" +
+                    "Der Offline-Bestand (Office\\Data) wird nicht angefasst.",
+                    $"Apply configuration build {entry.Version} from {entry.Date}?\n\n" +
+                    $"Target: {RootFolder}\n\n" +
+                    "Only the XML files under x32 and x64 are replaced.\n" +
+                    "The offline files (Office\\Data) are left untouched.");
+
+                if (!await MessageBox.ShowYesNo(window, Tr("Konfigurationen einspielen", "Apply configurations"), frage))
+                {
+                    Log(Tr("Abgebrochen.", "Cancelled."));
+                    return;
+                }
+            }
+
+            IsBusy = true;
+            BusyText = Tr("Konfigurationen werden geladen...", "Downloading configurations...");
+
+            var target = Path.Combine(UpdateService.WorkFolder, "configs.zip");
+            var result = await UpdateService.DownloadAsync(entry.Url, entry.Sha256, target, CancellationToken.None);
+
+            if (!result.Success)
+            {
+                Log(Tr($"[FEHLER] Download fehlgeschlagen: {result.Error}",
+                       $"[ERROR] Download failed: {result.Error}"));
+                if (window is not null)
+                    await MessageBox.ShowInfo(window, Tr("Download fehlgeschlagen", "Download failed"),
+                                              result.Error ?? "");
+                return;
+            }
+
+            var applied = await Task.Run(() => UpdateService.ApplyConfigs(target, RootFolder));
+
+            if (!applied.Success)
+            {
+                Log(Tr($"[FEHLER] Einspielen fehlgeschlagen: {applied.Error}",
+                       $"[ERROR] Applying failed: {applied.Error}"));
+                if (window is not null)
+                    await MessageBox.ShowInfo(window, Tr("Einspielen fehlgeschlagen", "Applying failed"),
+                                              applied.Error ?? "");
+                return;
+            }
+
+            Log(Tr($"Konfigurationsstand {entry.Version} eingespielt: {applied.Written} Datei(en)" +
+                   (applied.Skipped > 0 ? $", {applied.Skipped} übergangen" : "") + ".",
+                   $"Configuration build {entry.Version} applied: {applied.Written} file(s)" +
+                   (applied.Skipped > 0 ? $", {applied.Skipped} skipped" : "") + "."));
+
+            UpdateService.CleanUp();
+            ConfigsUpdateAvailable = false;
+            SelfUpdateVisible = ProgramUpdateAvailable;
+
+            UiEnabled = true;
+            await Scan();
+        }
+        catch (Exception ex)
+        {
+            Program.WriteCrashLog("UpdateConfigs", ex);
+            Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
+        }
+        finally
+        {
+            IsBusy = false;
+            BusyText = "";
+            UiEnabled = true;
+        }
+    }
+
+    /// <summary>Oeffnet die Seite zur Veroeffentlichung im Browser.</summary>
+    [RelayCommand]
+    private void OpenUpdateNotes()
+    {
+        var url = ProgramUpdateAvailable ? _manifest?.Program.Notes : _manifest?.Configs.Notes;
+        if (!string.IsNullOrWhiteSpace(url)) LegacyOfficeReleases.OpenInBrowser(url);
     }
 
     /// <summary>Traegt die gemerkten Online-Versionen in die angezeigten Zeilen ein.</summary>

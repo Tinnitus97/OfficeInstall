@@ -4,7 +4,7 @@
 
 **Microsoft Office installieren — online oder aus vorliegenden Offline-Dateien, mit Warnung bei veraltetem Stand.**
 
-![Version](https://img.shields.io/badge/Version-1.0.0-blue)
+![Version](https://img.shields.io/badge/Version-1.1.0-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 
@@ -136,6 +136,61 @@ installieren. Deshalb trägt das Programm in seine Arbeitskopie **immer den Kana
 des Ordners** ein — beim Installieren wie beim Herunterladen. Die Datei im
 Paketordner bleibt unverändert; die Abweichung wird aber im Protokoll gemeldet,
 mit Dateinamen, damit sie sich dort berichtigen lässt.
+
+---
+
+## Selbstaktualisierung
+
+Beim Start holt das Programm **eine** Datei:
+
+```
+https://raw.githubusercontent.com/Tinnitus97/OfficeInstall/main/update.json
+```
+
+Darin stehen zwei getrennte Stände:
+
+| | Nummer | Woher | Was passiert |
+| --- | --- | --- | --- |
+| **Programm** | `1.1.0` aus der EXE | Release `v1.1.0` | Neue EXE laden, Prüfsumme vergleichen, austauschen, neu starten |
+| **Konfigurationen** | `Versionscheck\Version.txt` | Release `configs-70` | `configs.zip` laden, XML-Dateien in den Paketordner schreiben |
+
+Gibt es etwas Neueres, erscheint über der Produktliste ein Streifen mit den
+passenden Schaltflächen — gibt es nichts, kostet das keinen Pixel.
+**Heruntergeladen und ersetzt wird nichts ohne Rückfrage.**
+
+### Warum nicht die GitHub-Schnittstelle
+
+`api.github.com` erlaubt ohne Anmeldung nur **60 Abrufe je Stunde und
+IP-Adresse**. In einer Firma sitzen alle Rechner hinter derselben Adresse — nach
+60 Programmstarts wäre Schluss. Und ein Zugangstoken hat in einer verteilten EXE
+nichts zu suchen. `raw.githubusercontent.com` wird über ein Auslieferungsnetz
+bereitgestellt und kennt diese Grenze nicht.
+
+Eine abweichende Adresse lässt sich in `Versionscheck\Update-Url.txt`
+hinterlegen (eine Zeile, vollständige `https://…`-Adresse) — etwa für ein
+internes Spiegelverzeichnis.
+
+### Was beim Einspielen geschützt ist
+
+- Übernommen wird **nur**, was unter `x32\` oder `x64\` liegt, genau eine Ebene
+  tief und auf `.xml` endet — dazu `Versionscheck\Version.txt`. Eine EXE im
+  Archiv, eine `.cab`, ein Pfad mit `..\`: alles wird übergangen.
+- **Gelöscht wird nichts.** Der Offline-Bestand (`Office\Data`, mehrere
+  Gigabyte) wird nicht angefasst.
+- Vor dem Einspielen wird die **SHA256-Summe** gegen die Angabe in `update.json`
+  geprüft. Stimmt sie nicht, wird die Datei verworfen.
+
+### Warum die EXE sich nicht selbst überschreibt
+
+Eine laufende EXE kann das unter Windows nicht. Deshalb schreibt das Programm
+ein kleines Skript, das auf sein Ende wartet, die Datei ersetzt und neu startet.
+Es liegt in `%TEMP%\OfficeInstall-Update` — bewusst **nicht** im Arbeitsordner
+`%TEMP%\OfficeInstall`, denn der wird beim Beenden geleert, also genau
+währenddessen.
+
+Schlägt das Ersetzen fehl — fehlende Schreibrechte, oder das Programm läuft an
+einem anderen Arbeitsplatz aus demselben Ordner —, bleibt ein Fenster mit dem
+Grund und dem Pfad zur neuen Fassung stehen.
 
 ---
 
@@ -380,6 +435,7 @@ Services/OnlineVersionService.cs  Versionsübersicht von Microsoft auswerten
 Services/ConnectivityService.cs   kurze Netzprüfung vor jedem Onlinezugriff
 Services/InstallRunner.cs         Modus auflösen, Aufruf vorbereiten und starten
 Services/TempWorkspace.cs         Arbeitsordner unter %TEMP% anlegen und leeren
+Services/UpdateService.cs         update.json abfragen, Programm und Konfigurationen einspielen
 Services/DeploymentToolService.cs setup.exe finden, holen, entpacken und verteilen
 ViewModels/                       Zustand und Ablauf
 Views/                            Fenster und Meldungen

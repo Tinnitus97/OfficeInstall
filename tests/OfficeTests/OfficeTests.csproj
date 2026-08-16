@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Prueft die Dienste des Programms ohne Oberflaeche.
+
+    Bewusst KEIN Testframework und KEIN net10.0-windows: Die geprueften Dateien
+    kommen ohne Avalonia und ohne Windows-eigene Aufrufe aus, dadurch laeuft die
+    Pruefung auf einem Linux-Laeufer in wenigen Sekunden.
+
+    Die Quelldateien werden eingebunden statt referenziert - das Hauptprojekt
+    zielt auf Windows und liesse sich sonst nicht daneben uebersetzen.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>OfficeTests</RootNamespace>
+    <AssemblyName>OfficeTests</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="../../Services/Localizer.cs" />
+    <Compile Include="../../Services/OfficeChannels.cs" />
+    <Compile Include="../../Services/OfficeProductNames.cs" />
+    <Compile Include="../../Services/OfficeConfiguration.cs" />
+    <Compile Include="../../Services/OfflineSource.cs" />
+    <Compile Include="../../Services/OfficeCatalog.cs" />
+    <Compile Include="../../Services/OnlineVersionService.cs" />
+    <Compile Include="../../Services/ConnectivityService.cs" />
+    <Compile Include="../../Services/InstallRunner.cs" />
+    <Compile Include="../../Services/DeploymentToolService.cs" />
+    <Compile Include="../../Services/LegacyOfficeDownloads.cs" />
+    <Compile Include="../../Services/TempWorkspace.cs" />
+    <Compile Include="../../Services/UpdateService.cs" />
+  </ItemGroup>
+
+</Project>
