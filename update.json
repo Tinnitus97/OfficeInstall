@@ -8,10 +8,10 @@
     "notes": ""
   },
   "configs": {
-    "version": "",
-    "date": "",
-    "url": "",
-    "sha256": "",
-    "notes": ""
+    "version": "69",
+    "date": "16.08.2026",
+    "url": "https://github.com/Tinnitus97/OfficeInstall/releases/download/configs-69/configs.zip",
+    "sha256": "ebc1a36e7f61694387343166f4baabc5f430489ecc645657380a3537e98d60b6",
+    "notes": "https://github.com/Tinnitus97/OfficeInstall/releases/tag/configs-69"
   }
 }
