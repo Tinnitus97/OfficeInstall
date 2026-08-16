@@ -47,16 +47,31 @@ deshalb ausdrücklich.
 1. `<Version>` in der `.csproj` und `VersionString` in
    `ViewModels/MainWindowViewModel.cs` auf dieselbe Nummer setzen.
 2. `CHANGELOG.md` ergänzen.
-3. Committen, dann:
+3. Committen und pushen (GitHub Desktop: *Commit to main* → *Push origin*).
+4. Veröffentlichen — **einer** der drei Wege:
+
+**a) Im Browser, ganz ohne Etikett** (am wenigsten Handgriffe)
+
+> Reiter **Actions** → links *Veröffentlichen* → rechts **Run workflow** →
+> Art: `Programm`, Nummer: `1.1.1` → **Run workflow**
+
+Das Etikett `v1.1.1` legt der Workflow selbst an.
+
+**b) In GitHub Desktop**
+
+> Reiter **History** → Rechtsklick auf den obersten Commit → **Create Tag…** →
+> `v1.1.1` → dann **Push origin**
+
+**c) Auf der Kommandozeile**
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.1.1
+git push origin v1.1.1
 ```
 
-Der Workflow prüft, ob das Etikett zur `.csproj` passt (sonst bricht er ab),
-baut die EXE, bildet die Prüfsumme, legt die Veröffentlichung an und schreibt
-`update.json` fort.
+Der Workflow prüft in jedem Fall, ob die Nummer zur `.csproj` passt (sonst
+bricht er mit einer klaren Meldung ab), baut die EXE, bildet die Prüfsumme,
+legt die Veröffentlichung an und schreibt `update.json` fort.
 
 ---
 
@@ -69,7 +84,10 @@ baut die EXE, bildet die Prüfsumme, legt die Veröffentlichung an und schreibt
 python tools/validate-configs.py package
 ```
 
-3. Committen, dann mit der **nächsthöheren Zahl** etikettieren:
+3. Committen und pushen. Dann mit der **nächsthöheren Zahl** veröffentlichen —
+   entweder im Browser über **Actions → Veröffentlichen → Run workflow**
+   (Art: `Konfigurationen`, Nummer: `70`), in GitHub Desktop über
+   **History → Rechtsklick → Create Tag… → `configs-70` → Push origin**, oder:
 
 ```bash
 git tag configs-70

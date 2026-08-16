@@ -1,12 +1,18 @@
 name: Veröffentlichen
 
-# Zwei getrennte Stände, zwei Arten von Etiketten (Tags):
+# Zwei getrennte Stände:
 #
-#   v1.0.1        -> das Programm. Baut die EXE und hängt sie an die
-#                    Veröffentlichung. Die Versionsnummer muss mit <Version>
-#                    in der .csproj übereinstimmen.
-#   configs-70    -> die Konfigurationsdateien. Packt package/ zu configs.zip.
-#                    Die Zahl ist der Paketstand, den das Programm anzeigt.
+#   Programm        -> Etikett v1.1.1   (muss zu <Version> in der .csproj passen)
+#   Konfigurationen -> Etikett configs-70
+#
+# ZWEI WEGE, DAS AUSZULÖSEN:
+#
+#   1. Etikett setzen und schieben (GitHub Desktop: Rechtsklick auf einen
+#      Commit im Verlauf -> "Create Tag…", danach "Push origin").
+#
+#   2. Ohne Etikett, ohne Kommandozeile: im Reiter "Actions" links diesen
+#      Workflow wählen, rechts "Run workflow", Art und Nummer eintragen.
+#      Das Etikett wird dabei selbst angelegt.
 #
 # Beide Wege schreiben danach update.json im Zweig main fort - das ist die
 # Datei, die das Programm abfragt.
@@ -16,39 +22,70 @@ on:
     tags:
       - 'v*'
       - 'configs-*'
+
   workflow_dispatch:
+    inputs:
+      art:
+        description: 'Was soll veröffentlicht werden?'
+        type: choice
+        required: true
+        default: Programm
+        options:
+          - Programm
+          - Konfigurationen
+      nummer:
+        description: 'Programm z.B. 1.1.1 — Konfigurationen z.B. 70 (ohne Präfix)'
+        type: string
+        required: true
 
 permissions:
   contents: write
 
 jobs:
+  # ==================================================================== Programm
   programm:
-    if: startsWith(github.ref_name, 'v')
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref_name, 'v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.art == 'Programm')
     runs-on: windows-latest
     steps:
+      # Beim Etikett dessen Stand, beim Knopfdruck der Stand von main.
       - uses: actions/checkout@v5
         with:
-          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
-      - name: Version aus dem Tag ableiten
+      - name: Version und Etikett bestimmen
         id: version
         shell: pwsh
         run: |
-          $version = '${{ github.ref_name }}'.TrimStart('v')
-          "version=$version" >> $env:GITHUB_OUTPUT
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.nummer }}'.Trim().TrimStart('v')
+          } else {
+            $version = '${{ github.ref_name }}'.TrimStart('v')
+          }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Host "::error::'$version' ist keine Versionsnummer der Form 1.2.3."
+            exit 1
+          }
 
           # Gegenprobe: Steht in der Projektdatei dieselbe Nummer?
           $csproj = Get-ChildItem -Recurse -Filter 'OfficeInstall.csproj' | Select-Object -First 1
-          $inFile = ([xml](Get-Content $csproj.FullName)).Project.PropertyGroup.Version | Where-Object { $_ }
+          if (-not $csproj) { throw 'OfficeInstall.csproj nicht gefunden.' }
+
+          $inFile = ([xml](Get-Content $csproj.FullName)).Project.PropertyGroup.Version |
+                    Where-Object { $_ }
           if ($inFile -ne $version) {
-            Write-Host "::error::Tag $version passt nicht zu <Version>$inFile</Version> in $($csproj.Name)."
+            Write-Host "::error::Nummer $version passt nicht zu <Version>$inFile</Version> in $($csproj.Name). Bitte erst die Projektdatei anpassen."
             exit 1
           }
+
+          "version=$version"          >> $env:GITHUB_OUTPUT
+          "tag=v$version"             >> $env:GITHUB_OUTPUT
           "csproj=$($csproj.FullName)" >> $env:GITHUB_OUTPUT
 
       - name: Kompilieren
@@ -71,38 +108,47 @@ jobs:
           "sha256=$hash" >> $env:GITHUB_OUTPUT
           "$hash *OfficeInstall.exe" | Out-File publish/SHA256SUMS.txt -Encoding ascii
 
+      # Legt das Etikett mit an, falls es noch nicht existiert (Knopfdruck-Weg).
       - name: Veröffentlichung anlegen
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
           name: OfficeInstall ${{ steps.version.outputs.version }}
           files: |
             publish/OfficeInstall.exe
             publish/SHA256SUMS.txt
           generate_release_notes: true
 
+      # Gebaut wurde unter Umständen von einem Etikett aus - das ist ein loser
+      # Stand ohne Zweig. Zum Schreiben von update.json deshalb erst auf main.
       - name: update.json fortschreiben
         shell: pwsh
         run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git checkout -B main origin/main
+
           python tools/write-update-json.py `
             --program-version '${{ steps.version.outputs.version }}' `
             --program-sha256  '${{ steps.hash.outputs.sha256 }}' `
             --repo '${{ github.repository }}' `
-            --tag  '${{ github.ref_name }}'
+            --tag  '${{ steps.version.outputs.tag }}'
 
-          git config user.name  'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add update.json
           if (git diff --cached --quiet) { exit 0 }
-          git commit -m "update.json: Programm ${{ steps.version.outputs.version }}"
-          git push origin HEAD:main
+          git commit -m "update.json: Programm ${{ steps.version.outputs.version }} [skip ci]"
+          git push origin main
 
+  # ============================================================= Konfigurationen
   konfigurationen:
-    if: startsWith(github.ref_name, 'configs-')
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref_name, 'configs-')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.art == 'Konfigurationen')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-python@v6
@@ -113,51 +159,70 @@ jobs:
       - name: Konfigurationsdateien prüfen
         run: python tools/validate-configs.py package
 
+      - name: Stand bestimmen
+        id: stand
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            NUMMER="${{ inputs.nummer }}"
+          else
+            NUMMER="${GITHUB_REF_NAME#configs-}"
+          fi
+
+          case "$NUMMER" in
+            ''|*[!0-9]*)
+              echo "::error::'$NUMMER' ist keine fortlaufende Zahl."
+              exit 1 ;;
+          esac
+
+          echo "nummer=$NUMMER"        >> "$GITHUB_OUTPUT"
+          echo "tag=configs-$NUMMER"   >> "$GITHUB_OUTPUT"
+          echo "datum=$(date +%d.%m.%Y)" >> "$GITHUB_OUTPUT"
+
       - name: Paket schnüren
         id: paket
         run: |
-          STAND="${GITHUB_REF_NAME#configs-}"
-          DATUM=$(date +%d.%m.%Y)
-
           mkdir -p build/Versionscheck
           cp -r package/x32 package/x64 build/
-          printf '%s|%s' "$STAND" "$DATUM" > build/Versionscheck/Version.txt
+          printf '%s|%s' '${{ steps.stand.outputs.nummer }}' '${{ steps.stand.outputs.datum }}' \
+            > build/Versionscheck/Version.txt
 
           cd build && zip -r -q ../configs.zip . && cd ..
           HASH=$(sha256sum configs.zip | cut -d' ' -f1)
           echo "$HASH *configs.zip" > SHA256SUMS.txt
-
-          echo "stand=$STAND"   >> "$GITHUB_OUTPUT"
-          echo "datum=$DATUM"   >> "$GITHUB_OUTPUT"
-          echo "sha256=$HASH"   >> "$GITHUB_OUTPUT"
+          echo "sha256=$HASH" >> "$GITHUB_OUTPUT"
 
       - name: Veröffentlichung anlegen
         uses: softprops/action-gh-release@v2
         with:
-          name: Konfigurationen ${{ steps.paket.outputs.stand }}
+          tag_name: ${{ steps.stand.outputs.tag }}
+          name: Konfigurationen ${{ steps.stand.outputs.nummer }}
           files: |
             configs.zip
             SHA256SUMS.txt
           body: |
-            Konfigurationsdateien, Paketstand ${{ steps.paket.outputs.stand }}
-            vom ${{ steps.paket.outputs.datum }}.
+            Konfigurationsdateien, Paketstand ${{ steps.stand.outputs.nummer }}
+            vom ${{ steps.stand.outputs.datum }}.
 
             Enthält `x32\`, `x64\` und `Versionscheck\Version.txt`.
             Der Offline-Bestand (`Office\Data`) ist **nicht** enthalten und wird
             beim Einspielen auch nicht angefasst.
 
+      # Wie oben: erst auf main wechseln, dann schreiben.
       - name: update.json fortschreiben
         run: |
-          python tools/write-update-json.py \
-            --configs-version '${{ steps.paket.outputs.stand }}' \
-            --configs-date    '${{ steps.paket.outputs.datum }}' \
-            --configs-sha256  '${{ steps.paket.outputs.sha256 }}' \
-            --repo '${{ github.repository }}' \
-            --tag  '${{ github.ref_name }}'
-
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git checkout -B main origin/main
+
+          python tools/write-update-json.py \
+            --configs-version '${{ steps.stand.outputs.nummer }}' \
+            --configs-date    '${{ steps.stand.outputs.datum }}' \
+            --configs-sha256  '${{ steps.paket.outputs.sha256 }}' \
+            --repo '${{ github.repository }}' \
+            --tag  '${{ steps.stand.outputs.tag }}'
+
           git add update.json
           git diff --cached --quiet && exit 0
-          git commit -m "update.json: Konfigurationen ${{ steps.paket.outputs.stand }}"
-          git push origin HEAD:main
+          git commit -m "update.json: Konfigurationen ${{ steps.stand.outputs.nummer }} [skip ci]"
+          git push origin main
