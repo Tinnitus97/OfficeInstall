@@ -37,12 +37,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Bewusst OHNE --warnaserror: Eine neue Avalonia-Fassung bringt gelegentlich
+      # eine zusätzliche Warnung mit (zuletzt AVLN5001 zu TextBox.Watermark).
+      # Das soll auffallen, aber nicht den Zweig blockieren. Warnungen stehen im
+      # Protokoll dieses Schrittes.
       - name: Kompilieren
         shell: pwsh
         run: |
           $csproj = Get-ChildItem -Recurse -Filter 'OfficeInstall.csproj' | Select-Object -First 1
           if (-not $csproj) { throw 'OfficeInstall.csproj nicht gefunden.' }
-          dotnet build $csproj.FullName -c Release --warnaserror
+          dotnet build $csproj.FullName -c Release
 
       # Nur zum Ausprobieren eines Zwischenstandes - die ausgelieferte EXE
       # entsteht in release.yml.

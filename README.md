@@ -4,7 +4,7 @@
 
 **Microsoft Office installieren — online oder aus vorliegenden Offline-Dateien, mit Warnung bei veraltetem Stand.**
 
-![Version](https://img.shields.io/badge/Version-1.1.0-blue)
+![Version](https://img.shields.io/badge/Version-1.1.1-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 
@@ -151,7 +151,7 @@ Darin stehen zwei getrennte Stände:
 
 | | Nummer | Woher | Was passiert |
 | --- | --- | --- | --- |
-| **Programm** | `1.1.0` aus der EXE | Release `v1.1.0` | Neue EXE laden, Prüfsumme vergleichen, austauschen, neu starten |
+| **Programm** | `1.1.1` aus der EXE | Release `v1.1.1` | Neue EXE laden, Prüfsumme vergleichen, austauschen, neu starten |
 | **Konfigurationen** | `Versionscheck\Version.txt` | Release `configs-70` | `configs.zip` laden, XML-Dateien in den Paketordner schreiben |
 
 Gibt es etwas Neueres, erscheint über der Produktliste ein Streifen mit den

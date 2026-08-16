@@ -13,7 +13,7 @@
     <RootNamespace>OfficeInstall</RootNamespace>
     <Product>OfficeInstall</Product>
     <AssemblyTitle>OfficeInstall</AssemblyTitle>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <Description>Installiert Microsoft Office ueber das Office Deployment Tool - online oder offline</Description>
 
     <!-- Fenster-Icon der EXE -->
@@ -42,6 +42,22 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+
+  <!--
+    Liegt diese Projektdatei im Wurzelverzeichnis des Repositories, sammelt das
+    SDK von sich aus JEDE .cs-Datei darunter ein - also auch das Testprojekt
+    unter tests\. Das ergibt zwei Einstiegspunkte (Fehler CS0017) und laesst
+    den Build scheitern.
+
+    Die folgenden Zeilen nehmen diese Ordner ausdruecklich heraus. Ohne
+    Repository (Projekt allein in einem Ordner) aendern sie nichts - dann gibt
+    es die Ordner schlicht nicht. bin\ und obj\ schliesst das SDK selbst aus.
+  -->
+  <ItemGroup>
+    <Compile Remove="tests/**" />
+    <Compile Remove="publish/**" />
+    <Compile Remove="tools/**" />
   </ItemGroup>
 
 </Project>

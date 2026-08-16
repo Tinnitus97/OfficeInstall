@@ -2,6 +2,19 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.1.1] – 2026-08-16
+
+### Behoben
+
+- **Der Build im Repository scheiterte mit CS0017** („Program has more than one
+  entry point defined"). Ursache: Die Projektdatei liegt im Wurzelverzeichnis
+  und das .NET SDK sammelt von sich aus *jede* `.cs`-Datei darunter ein — also
+  auch `tests\OfficeTests\Program.cs`. Zwei `Main`-Methoden in einem Projekt,
+  und der Build bricht ab.
+
+  Die Projektdatei nimmt `tests\`, `publish\` und `tools\` jetzt ausdrücklich
+  heraus. Ohne Repository ändert das nichts — dann gibt es diese Ordner nicht.
+
 ## [1.1.0] – 2026-08-16
 
 ### Neu

@@ -138,8 +138,12 @@ internal static class Program
         Console.WriteLine("\n== Versionsvergleich ==");
         var lokal = new Version("16.0.17928.20216");
         var neuer = new Version("16.0.20228.20124");
+        // Bewusst ein zweites Objekt mit demselben Wert statt lokal > lokal -
+        // der Vergleich einer Variablen mit sich selbst ist eine Warnung
+        // (CS1718), und die soll hier niemand wegdiskutieren muessen.
+        var gleich = new Version("16.0.17928.20216");
         Check("online neuer als lokal wird erkannt", neuer > lokal);
-        Check("gleiche Version gilt nicht als neuer", !(lokal > lokal));
+        Check("gleiche Version gilt nicht als neuer", !(lokal > gleich));
 
         Console.WriteLine("\n== Installationsmodus ==");
         Check("Automatik wird zu Offline, wenn Dateien da sind",
