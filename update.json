@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "program": {
-    "version": "",
-    "released": "",
-    "url": "",
-    "sha256": "",
-    "notes": ""
+    "version": "1.3.1",
+    "released": "2026-08-19",
+    "url": "https://github.com/Tinnitus97/OfficeInstall/releases/download/v1.3.1/OfficeInstall.exe",
+    "sha256": "881df942e3173760e1bdd98b9e12258f1dc7600fdd802e439c93e9cd2740e980",
+    "notes": "https://github.com/Tinnitus97/OfficeInstall/releases/tag/v1.3.1"
   },
   "configs": {
     "version": "",
