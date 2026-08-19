@@ -61,4 +61,97 @@ public static class OfficeProductNames
     /// <summary>true, wenn es sich um eine Volumenlizenz handelt.</summary>
     public static bool IsVolumeLicence(string? productId)
         => productId?.EndsWith("Volume", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>Sortierwert fuer Microsoft 365 - steht immer ganz oben.</summary>
+    public const int Microsoft365 = 9999;
+
+    /// <summary>Rang fuer alles, was in keine der bekannten Stufen passt.</summary>
+    public const int UnknownEdition = 6;
+
+    /// <summary>
+    /// Rang der Ausgabe innerhalb einer Office-Generation - bestimmt die
+    /// Reihenfolge der Zeilen einer Generation untereinander:
+    ///
+    ///   1  Home / Home und Student   (Verbraucher, kleinste Ausstattung)
+    ///   2  Home und Business
+    ///   3  Pro Plus                  (auch Microsoft 365 Apps for Enterprise)
+    ///   4  Business                  (Microsoft 365 Business)
+    ///   5  Standard
+    ///   6  alles Uebrige, z.B. Project und Visio
+    ///
+    /// Warum nicht alphabetisch? Dann stuende "Home und Business" vor "Home und
+    /// Student", also die groessere Ausstattung vor der kleineren. Gewuenscht
+    /// ist die Staffelung von klein nach gross.
+    ///
+    /// Die Reihenfolge der Abfragen ist wesentlich: "HomeBusiness2021Retail"
+    /// enthaelt sowohl "Home" als auch "Business". Deshalb werden die
+    /// zusammengesetzten Kennungen zuerst geprueft.
+    /// </summary>
+    public static int EditionRank(string? productId, string? displayName = null)
+    {
+        var kennung = productId ?? "";
+
+        if (Has(kennung, "HomeStudent"))  return 1;
+        if (Has(kennung, "HomeBusiness")) return 2;
+        if (Has(kennung, "Home"))         return 1;   // Home2024Retail
+        if (Has(kennung, "ProPlus"))      return 3;
+        if (Has(kennung, "Business"))     return 4;   // O365BusinessRetail
+        if (Has(kennung, "Standard"))     return 5;
+
+        // Ersatzweise der Klartextname - fuer Kennungen, die hier nicht
+        // hinterlegt sind, aber im Namen erkennbar bleiben.
+        var name = displayName ?? "";
+
+        if (Has(name, "Home und Student"))  return 1;
+        if (Has(name, "Home und Business")) return 2;
+        if (Has(name, "Home"))              return 1;
+        if (Has(name, "Pro Plus"))          return 3;
+        if (Has(name, "Business"))          return 4;
+        if (Has(name, "Standard"))          return 5;
+
+        return UnknownEdition;
+    }
+
+    private static bool Has(string text, string part)
+        => text.Contains(part, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Das Erscheinungsjahr eines Produkts - fuer die Reihenfolge in der Liste:
+    /// neuestes Office zuerst.
+    ///
+    /// Warum nicht einfach nach Namen sortieren? Alphabetisch steht
+    /// "Office 2019 Home und Student" vor "Office 2024 Home", das aelteste
+    /// Office also ganz oben. Genau das soll die Liste nicht tun.
+    ///
+    /// Microsoft 365 hat kein Jahr im Namen und gehoert trotzdem nach oben -
+    /// es ist der fortlaufend gepflegte Stand. Dafuer steht
+    /// <see cref="Microsoft365"/>.
+    ///
+    /// Gesucht wird zuerst in der Produktkennung ("HomeBusiness2024Retail"),
+    /// ersatzweise im Anzeigenamen. Findet sich nichts, kommt 0 zurueck und der
+    /// Eintrag landet unten - besser als ihn nach vorne zu raten.
+    /// </summary>
+    public static int ReleaseYear(string? productId, string? displayName = null)
+    {
+        if (Is365(productId) || Is365(displayName)) return Microsoft365;
+
+        return FindYear(productId) ?? FindYear(displayName) ?? 0;
+    }
+
+    private static bool Is365(string? text)
+        => text is not null
+           && (text.StartsWith("O365", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("Microsoft 365", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Erste vierstellige Jahreszahl 20xx. Die Abgrenzung nach beiden Seiten
+    /// verhindert Treffer mitten in einer laengeren Zahl.
+    /// </summary>
+    private static int? FindYear(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var treffer = System.Text.RegularExpressions.Regex.Match(text, @"(?<!\d)20\d{2}(?!\d)");
+        return treffer.Success && int.TryParse(treffer.Value, out var jahr) ? jahr : null;
+    }
 }

@@ -27,7 +27,12 @@ public sealed class OfficeChannel
     /// </summary>
     public required string CdnGuid { get; init; }
 
-    /// <summary>Reihenfolge in der Anzeige.</summary>
+    /// <summary>
+    /// Reihenfolge in der Anzeige: neuestes Office zuerst.
+    /// 1 Current (Microsoft 365), 2 Office 2024, 3 Office 2021, 4 Office 2019.
+    /// Bewusst nicht die Reihenfolge der Ordnernamen - alphabetisch stuende
+    /// 2019 vor 2024, und damit das aelteste Office ganz oben.
+    /// </summary>
     public required int SortOrder { get; init; }
 }
 
@@ -51,7 +56,7 @@ public static class OfficeChannels
         new()
         {
             FolderName = PerpetualVL2019,
-            SortOrder = 2,
+            SortOrder = 4,
             CdnGuid = "f2e724c1-748f-4b47-8fb8-8e0d210e9208",
             Title = () => Loc.Tr("PerpetualVL2019 (Volumenlizenz 2019)",
                                  "PerpetualVL2019 (volume licence 2019)"),
@@ -67,7 +72,7 @@ public static class OfficeChannels
         new()
         {
             FolderName = PerpetualVL2024,
-            SortOrder = 4,
+            SortOrder = 2,
             CdnGuid = "7983bac0-e531-40cf-be00-fd24fe66619c",
             Title = () => Loc.Tr("PerpetualVL2024 (Volumenlizenz 2024)",
                                  "PerpetualVL2024 (volume licence 2024)"),

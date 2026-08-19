@@ -111,8 +111,20 @@
                                       IsEnabled="{Binding UiEnabled}"/>
                         </Grid>
 
-                        <ProgressBar IsIndeterminate="True" Height="3" CornerRadius="2"
-                                     Margin="2,4,2,0" IsVisible="{Binding IsBusy}"/>
+                        <!-- Beim Herunterladen zeigt der Balken einen echten Anteil,
+                             sobald es eine Vergleichsgroesse gibt (ProgressKnown).
+                             Sonst laeuft er unbestimmt - das Deployment Tool
+                             meldet von sich aus keinen Fortschritt. -->
+                        <ProgressBar Height="3" CornerRadius="2"
+                                     Margin="2,4,2,0" IsVisible="{Binding IsBusy}"
+                                     Minimum="0" Maximum="100"
+                                     Value="{Binding ProgressValue}"
+                                     IsIndeterminate="{Binding !ProgressKnown}"/>
+
+                        <TextBlock Text="{Binding ProgressText}" FontSize="10"
+                                   Margin="2,3,2,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SubtextBrush}"
+                                   IsVisible="{Binding ProgressText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                         <!-- Deployment Tool und Sammel-Aktualisierung -->
                         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,6,0,0">

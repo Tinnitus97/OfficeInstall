@@ -2,6 +2,97 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.3.1] – 2026-08-19
+
+### Behoben
+
+- **Absturz beim Abgleich mit GitHub.** Am Ende von `Scan()` stand der Aufruf
+  `await CheckOnlineVersions(...)` **hinter** dem `try`/`catch` und war damit
+  ungeschützt. Löst eine neue Suche die laufende ab — etwa nach „Alle
+  Offline-Bestände aktualisieren" —, bricht die Abfrage von `update.json` mit
+  einer `TaskCanceledException` ab. Die flog bis in den Befehl hinauf, und
+  `AsyncRelayCommand` warf sie auf dem UI-Faden erneut: Das Programm beendete
+  sich. Ein abgelöster Abgleich ist aber der Normalfall, kein Fehler.
+
+  Abgesichert sind jetzt drei Stellen: der Aufruf am Ende von `Scan()`, der
+  Nachlauf hinter dem `finally` in `UpdateAllOffline()` (derselbe Fehler) und
+  `CheckOwnUpdates()` selbst.
+
+- **„1,7 GB von ca. 1,5 GB · 99 %", bevor irgendetwas geschehen war.** Wird
+  eine Basis nur geprüft — die vorliegende Version ist bereits die angebotene —,
+  dann liegen im Zielordner schon Gigabyte. Das galt fälschlich als
+  Erstdownload, weil nur nach **anderen** Versionsordnern gesucht wurde. Der
+  Nenner kam dann aus dem Nachbarordner der anderen Architektur, der kleiner
+  ist (x32 1,5 GB gegen x64 1,7 GB) — der Balken stand sofort am Anschlag.
+
+  Jetzt zählt der Zielordner selbst mit: Ist dort schon etwas, gibt es keinen
+  Anteil und keine Restzeit.
+
+- **„noch ca. 23 min", obwohl nach Sekunden fertig.** Dieselbe Ursache. Ohne
+  Nenner gibt es jetzt auch keine Restzeitschätzung mehr.
+
+### Geändert
+
+- **Angezeigt wird der Zuwachs, nicht der Ordnerinhalt.** Beim Aktualisieren
+  steht dort jetzt „820 MB nachgeladen" statt der Gesamtmenge im Ordner — die
+  liegt ja schon vorher da. Wird gar nichts nachgeladen, meldet die Zeile
+  schlicht „Bestand wird geprüft · seit 12 s" ohne jede Mengenangabe.
+
+---
+
+## [1.3.0] – 2026-08-19
+
+### Hinzugefügt
+
+- **Fortschrittsanzeige beim Herunterladen.** Unter dem Balken stehen die
+  Menge im Zielordner, die Geschwindigkeit und — wo sinnvoll — ein Anteil in
+  Prozent samt Restzeit.
+
+  Das Deployment Tool liefert diese Angaben **nicht**: `setup.exe /download`
+  läuft ohne Fenster, ohne Ausgabe und ohne Rückkanal. Gemessen wird deshalb
+  der belegte Platz im Zielordner `…\Office\Data\<Version>`.
+
+  Ein Prozentwert erscheint **nur beim erstmaligen Laden**. Dort wächst der
+  Ordner ausschließlich durch das, was aus dem Netz kommt; die
+  Vergleichsgröße liefert der gleiche Kanal unter der anderen Architektur
+  (`x32\Current` als Maß für `x64\Current`).
+
+  Beim **Aktualisieren** eines vorhandenen Bestandes gibt es bewusst keinen
+  Prozentwert. Das Deployment Tool bildet die neue Fassung größtenteils aus
+  dem örtlichen Bestand — der Ordner ist in Minuten nahezu voll, während das
+  Nachladen und Prüfen noch lange läuft. Angezeigt werden dort nur Menge und
+  Tempo, und der Balken läuft durch.
+
+### Geändert
+
+- **Reihenfolge: nach Office-Generation, neueste zuerst.** Microsoft 365,
+  dann alles aus 2024, 2021 und 2019.
+
+  Sortiert wurde bisher nach der Installationsbasis und darin alphabetisch —
+  dadurch stand das älteste Office oben, und schlimmer: Ein Office 2024 tauchte
+  an zwei weit auseinanderliegenden Stellen auf. Die Retail-Fassungen (Home,
+  Home und Business) liegen in der Basis *Current*, die Volumenlizenzen
+  (Standard, Pro Plus) in *PerpetualVL2024* — zwischen beiden lagen sieben
+  Zeilen mit Office 2021 und 2019.
+
+  Jetzt entscheidet zuerst das Erscheinungsjahr, das aus der Produktkennung
+  gelesen wird (`HomeBusiness2024Retail` → 2024). Microsoft 365 hat kein Jahr
+  im Namen und steht bewusst ganz oben.
+
+  **Innerhalb** einer Generation staffelt die Ausstattung von klein nach groß:
+  Home und Student, Home und Business, Pro Plus, Standard. Alphabetisch stünde
+  „Home und Business" vor „Home und Student" — also die größere Ausstattung vor
+  der kleineren.
+
+  Das Protokoll und die Sammel-Aktualisierung bleiben nach Basis gegliedert —
+  dort geht es um Downloads, und die laufen je Basis.
+
+- **Herausgeber-Angaben in der EXE.** `Company`, `Authors` und `Copyright`
+  stehen jetzt in den Dateieigenschaften. Smart App Control löst das nicht —
+  das verlangt eine Signatur —, aber die Datei ist nicht mehr anonym.
+
+---
+
 ## [1.2.1] – 2026-08-16
 
 ### Behoben

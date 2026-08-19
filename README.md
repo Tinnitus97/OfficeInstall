@@ -328,6 +328,47 @@ Der Vorgang läuft ohne eigenes Fenster und kann bei einem frischen Bestand
 dauern; solange zeigt der Launcher einen Fortschrittsbalken und protokolliert
 das Ergebnis.
 
+### Woher der Fortschritt kommt
+
+`setup.exe /download` meldet **nichts** — kein Fenster, keine Ausgabe auf der
+Konsole, kein Rückkanal. Vom Deployment Tool ist also keine Prozentangabe zu
+bekommen, egal wie man es aufruft.
+
+Was sich beobachten lässt, ist das Ergebnis: Das Tool legt die Dateien unter
+`…\Office\Data\<Version>` ab. Der Launcher misst dort im Sekundentakt den
+**belegten Platz** — bewusst nicht die logische Dateigröße, denn eine vorab in
+voller Größe angelegte Datei stünde sofort auf dem Endwert, obwohl real noch
+nichts geschrieben ist.
+
+Ob daraus ein Anteil in Prozent wird, hängt vom Fall ab:
+
+| Fall | Anzeige |
+| --- | --- |
+| **Erstmalig laden** — der Zielordner ist leer | `1,8 GB von ca. 3,4 GB · 53 % · 12 MB/s · noch ca. 2 min` |
+| **Bestand aktualisieren** — es wird etwas nachgeladen | `820 MB nachgeladen · 12 MB/s · seit 3 min` |
+| **Reine Gegenprobe** — der Stand ist bereits aktuell | `Bestand wird geprüft · seit 12 s` |
+
+Beim Aktualisieren zählt der **Zuwachs**, nicht der Inhalt des Ordners. Dort
+liegen ja schon Gigabyte, bevor irgendetwas passiert ist — diese Zahl
+anzuzeigen hieße, Arbeit zu melden, die gar nicht stattfand.
+
+Der Grund für die Unterscheidung: Beim erstmaligen Laden wächst der Zielordner
+ausschließlich durch das, was aus dem Netz kommt — der Anteil ist also
+aussagekräftig. Beim Aktualisieren bildet das Deployment Tool die neue Fassung
+größtenteils aus dem örtlichen Bestand. Der Ordner ist dadurch in Minuten
+nahezu voll, während das Nachladen der Unterschiede und das Prüfen noch lange
+laufen. Ein Balken daraus stünde sofort bei 99 % und bliebe dort hängen.
+
+Die Vergleichsgröße für den ersten Fall liefert der gleiche Kanal unter der
+**anderen Architektur** — `x32\Current` als Maß für `x64\Current`. Beide
+enthalten dieselben Produkte in derselben Sprache und sind nahezu gleich groß.
+Fehlt auch dieser Nachbar, gibt es keinen Anteil. Lieber keine Prozentangabe
+als eine erfundene.
+
+> Bei der **Installation** braucht es das alles nicht: Dort steht `Display
+> Level="Full"` in den Konfigurationsdateien, und Office bringt sein eigenes
+> Fortschrittsfenster mit.
+
 ### Alles auf einmal
 
 **Alle Offline-Bestände aktualisieren oder runterladen** arbeitet sämtliche

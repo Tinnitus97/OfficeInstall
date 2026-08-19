@@ -828,6 +828,291 @@ internal static class Program
         Check("nicht vorhandener Ordner wirft nicht",
             OfficeCatalog.Scan(Path.Combine(root, "gibt-es-nicht")).Entries.Count == 0);
 
+        Console.WriteLine("\n== Reihenfolge der Installationsbasen ==");
+        var reihenfolge = OfficeChannels.All.OrderBy(c => c.SortOrder).Select(c => c.FolderName).ToArray();
+        Check("neuestes Office zuerst: Current, 2024, 2021, 2019",
+            reihenfolge.SequenceEqual(new[]
+            {
+                OfficeChannels.Current,
+                OfficeChannels.PerpetualVL2024,
+                OfficeChannels.PerpetualVL2021,
+                OfficeChannels.PerpetualVL2019,
+            }),
+            string.Join(", ", reihenfolge));
+        Check("jede Basis hat eine eigene Nummer",
+            OfficeChannels.All.Select(c => c.SortOrder).Distinct().Count() == OfficeChannels.All.Count);
+
+        Console.WriteLine("\n== Fortschritt beim Herunterladen ==");
+        var fortschritt = Path.Combine(root, "paket", "x64", "Current");
+        var daten = Path.Combine(fortschritt, "Office", "Data");
+
+        Check("leerer Ordner ergibt 0 Byte", DownloadProgress.MeasureFolder(daten) == 0);
+        Check("nicht vorhandener Ordner wirft nicht",
+            DownloadProgress.MeasureFolder(Path.Combine(root, "gibt-es-nicht")) == 0);
+
+        Touch(Path.Combine(daten, "16.0.17928.20216", "a.dat"), new string('x', 1000));
+        Touch(Path.Combine(daten, "16.0.17928.20216", "b.dat"), new string('x', 500));
+        Touch(Path.Combine(daten, "v64.cab"), "cab");
+
+        Check("Groesse wird ueber Unterordner summiert",
+            DownloadProgress.MeasureFolder(Path.Combine(daten, "16.0.17928.20216")) == 1500,
+            DownloadProgress.MeasureFolder(Path.Combine(daten, "16.0.17928.20216")).ToString());
+
+        var vorhanden = DownloadProgress.ExistingVersions(fortschritt);
+        Check("vorhandene Version wird gefunden", vorhanden.Count == 1);
+        Check("Groesse der Version stimmt", vorhanden.Count == 1 && vorhanden[0].Bytes == 1500);
+
+        var neueVersion = new Version("16.0.18000.20000");
+
+        Console.WriteLine("\n-- Fall 2: Aktualisierung eines Bestandes --");
+        var planUpdate = DownloadProgress.Plan(fortschritt, neueVersion);
+        Check("beobachtet wird der Ordner der Zielversion",
+            planUpdate.Folder == Path.Combine(daten, neueVersion.ToString()), planUpdate.Folder);
+        Check("die Aktualisierung wird als solche erkannt", planUpdate.IsUpdate);
+        Check("bei einer Aktualisierung gibt es KEINEN Nenner",
+            planUpdate.Reference == 0, planUpdate.Reference.ToString());
+
+        var berichtUpdate = new DownloadProgressReport
+        {
+            Bytes = 1400, ReferenceBytes = planUpdate.Reference, IsUpdate = true, BytesPerSecond = 100
+        };
+        Check("also auch keine Prozentangabe", berichtUpdate.Percent is null);
+        Check("und keine Restzeit", berichtUpdate.Remaining is null);
+        Check("ohne Zuwachs meldet der Text die Gegenprobe",
+            DownloadProgress.Describe(berichtUpdate).Contains("geprüft", StringComparison.Ordinal),
+            DownloadProgress.Describe(berichtUpdate));
+        Check("und nennt dabei keine Menge",
+            !DownloadProgress.Describe(berichtUpdate).Contains("MB", StringComparison.Ordinal)
+            && !DownloadProgress.Describe(berichtUpdate).Contains("GB", StringComparison.Ordinal),
+            DownloadProgress.Describe(berichtUpdate));
+
+        Console.WriteLine("\n-- Fall 3: reine Gegenprobe, Zielversion liegt schon vor --");
+        // Genau die Lage aus dem Fehlerbericht: x64\PerpetualVL2019 enthaelt
+        // bereits 1,7 GB in der angebotenen Version, der Nachbar x32 nur
+        // 1,5 GB. Frueher galt das als Erstdownload - Anzeige "1,7 GB von ca.
+        // 1,5 GB - 99 %", bevor irgendetwas geschehen war.
+        var gleicheVersion = new Version("16.0.17928.20216");
+        var planGegenprobe = DownloadProgress.Plan(fortschritt, gleicheVersion,
+                                                   DownloadProgress.SiblingSourcePath(fortschritt));
+        Check("ein gefuellter Zielordner gilt nicht als Erstdownload",
+            planGegenprobe.IsUpdate);
+        Check("und liefert deshalb keinen Nenner",
+            planGegenprobe.Reference == 0, planGegenprobe.Reference.ToString());
+
+        var gegenprobe = new DownloadProgressReport
+        {
+            Bytes = 1_700_000_000, AddedBytes = 0, ReferenceBytes = planGegenprobe.Reference,
+            IsUpdate = true, Elapsed = TimeSpan.FromSeconds(12)
+        };
+        Check("kein Anteil ueber 100 Prozent mehr moeglich", gegenprobe.Percent is null);
+        Check("keine erfundene Restzeit", gegenprobe.Remaining is null);
+        Check("der Text meldet die Gegenprobe statt einer Menge",
+            DownloadProgress.Describe(gegenprobe).Contains("geprüft", StringComparison.Ordinal)
+            && !DownloadProgress.Describe(gegenprobe).Contains("GB", StringComparison.Ordinal),
+            DownloadProgress.Describe(gegenprobe));
+
+        var nachgeladen = new DownloadProgressReport
+        {
+            Bytes = 2_000_000_000, AddedBytes = 300_000_000, IsUpdate = true,
+            BytesPerSecond = 10_000_000, Elapsed = TimeSpan.FromMinutes(1)
+        };
+        Check("beim Nachladen zaehlt der Zuwachs, nicht der Ordnerinhalt",
+            DownloadProgress.Describe(nachgeladen).Contains("nachgeladen", StringComparison.Ordinal)
+            && DownloadProgress.Describe(nachgeladen).Contains("286", StringComparison.Ordinal)
+            && !DownloadProgress.Describe(nachgeladen).Contains("2.0 GB", StringComparison.Ordinal),
+            DownloadProgress.Describe(nachgeladen));
+
+        Console.WriteLine("\n-- Fall 1: erstmaliges Laden --");
+        var frisch = Path.Combine(root, "paket", "x32", "Current");
+        Directory.CreateDirectory(frisch);
+
+        var planFrisch = DownloadProgress.Plan(frisch, neueVersion,
+                                               DownloadProgress.SiblingSourcePath(frisch));
+        Check("erstmaliges Laden ist keine Aktualisierung", !planFrisch.IsUpdate);
+        Check("der Nachbarordner der anderen Architektur wird gefunden",
+            DownloadProgress.SiblingSourcePath(frisch) == fortschritt,
+            DownloadProgress.SiblingSourcePath(frisch) ?? "null");
+        Check("er liefert die Vergleichsgroesse",
+            planFrisch.Reference == 1500, planFrisch.Reference.ToString());
+
+        Check("ohne Nachbarordner gibt es keinen Nenner",
+            DownloadProgress.Plan(Path.Combine(root, "ganz-allein"), neueVersion).Reference == 0);
+        Check("ein Ordner ausserhalb des x32/x64-Aufbaus hat keinen Nachbarn",
+            DownloadProgress.SiblingSourcePath(Path.Combine(root, "irgendwo", "Current")) is null);
+        Check("ohne Pfad kein Nachbar", DownloadProgress.SiblingSourcePath(null) is null);
+
+        var ohneNenner = new DownloadProgressReport { Bytes = 4711, ReferenceBytes = 0 };
+        Check("ohne Vergleichsgroesse keine Prozentangabe", ohneNenner.Percent is null);
+        Check("ohne Vergleichsgroesse keine Restzeit", ohneNenner.Remaining is null);
+        Check("Text nennt trotzdem die Menge",
+            DownloadProgress.Describe(ohneNenner).Contains("4", StringComparison.Ordinal));
+
+        var halb = new DownloadProgressReport
+        {
+            Bytes = 500, ReferenceBytes = 1000, BytesPerSecond = 100, Elapsed = TimeSpan.FromSeconds(5)
+        };
+        Check("Anteil wird berechnet", Math.Abs((halb.Percent ?? 0) - 50) < 0.001);
+        Check("Restzeit wird geschaetzt",
+            halb.Remaining is { } r && Math.Abs(r.TotalSeconds - 5) < 0.001);
+        Check("Text enthaelt die Prozentangabe",
+            DownloadProgress.Describe(halb).Contains("%", StringComparison.Ordinal),
+            DownloadProgress.Describe(halb));
+
+        var drueber = new DownloadProgressReport { Bytes = 5000, ReferenceBytes = 1000 };
+        Check("mehr als erwartet bleibt bei 99 Prozent stehen",
+            Math.Abs((drueber.Percent ?? 0) - 99) < 0.001, drueber.Percent?.ToString());
+        Check("ueber der Schaetzung gibt es keine Restzeit", drueber.Remaining is null);
+
+        var schnecke = new DownloadProgressReport { Bytes = 1, ReferenceBytes = 10_000_000_000, BytesPerSecond = 1 };
+        Check("unrealistische Restzeit wird verschwiegen", schnecke.Remaining is null);
+
+        Check("Dauer unter einer Minute in Sekunden",
+            DownloadProgress.FormatDuration(TimeSpan.FromSeconds(42)).Contains("42", StringComparison.Ordinal));
+        Check("Dauer unter einer Stunde in Minuten",
+            DownloadProgress.FormatDuration(TimeSpan.FromMinutes(7)).Contains("7 min", StringComparison.Ordinal));
+        Check("Dauer darueber mit Stunden",
+            DownloadProgress.FormatDuration(TimeSpan.FromMinutes(125)).Contains("2 h", StringComparison.Ordinal),
+            DownloadProgress.FormatDuration(TimeSpan.FromMinutes(125)));
+
+        Console.WriteLine("\n== Beobachtung eines wachsenden Ordners ==");
+        DownloadProgress.Interval = TimeSpan.FromMilliseconds(50);
+        DownloadProgress.RateWindow = TimeSpan.FromSeconds(5);
+
+        var wachsend = Path.Combine(root, "wachsend");
+        var wachsendData = Path.Combine(wachsend, "Office", "Data");
+        var zielVersion = new Version("16.0.19000.10000");
+        Touch(Path.Combine(wachsendData, "16.0.18000.10000", "alt.dat"), new string('x', 2000));
+
+        var berichte = new List<DownloadProgressReport>();
+        using (var stop = new System.Threading.CancellationTokenSource())
+        {
+            var lauf = DownloadProgress.WatchAsync(
+                wachsend, zielVersion,
+                new Progress<DownloadProgressReport>(b => { lock (berichte) berichte.Add(b); }),
+                stop.Token);
+
+            for (var i = 0; i < 4; i++)
+            {
+                Touch(Path.Combine(wachsendData, zielVersion.ToString(), $"teil{i}.dat"), new string('x', 500));
+                System.Threading.Thread.Sleep(120);
+            }
+
+            stop.Cancel();
+            try { lauf.Wait(2000); } catch { }
+        }
+
+        List<DownloadProgressReport> kopie;
+        lock (berichte) kopie = berichte.ToList();
+
+        Check("es kamen Messwerte an", kopie.Count > 0, kopie.Count.ToString());
+        Check("die geladene Menge waechst",
+            kopie.Count > 0 && kopie[^1].Bytes >= kopie[0].Bytes, 
+            kopie.Count > 0 ? $"{kopie[0].Bytes} -> {kopie[^1].Bytes}" : "keine");
+        Check("am Ende liegen alle vier Teile im Zielordner",
+            kopie.Count > 0 && kopie[^1].Bytes == 2000,
+            kopie.Count > 0 ? kopie[^1].Bytes.ToString() : "keine");
+        Check("eine Aktualisierung meldet keinen Nenner",
+            kopie.Count > 0 && kopie[^1].ReferenceBytes == 0 && kopie[^1].IsUpdate,
+            kopie.Count > 0 ? kopie[^1].ReferenceBytes.ToString() : "keine");
+        Check("die Beobachtung endet mit dem Abbruch",
+            kopie.Count < 100, kopie.Count.ToString());
+
+        Console.WriteLine("\n== Reihenfolge nach Office-Generation ==");
+
+        Check("Microsoft 365 Apps steht ganz oben",
+            OfficeProductNames.ReleaseYear("O365ProPlusRetail") == OfficeProductNames.Microsoft365);
+        Check("Microsoft 365 Business steht ganz oben",
+            OfficeProductNames.ReleaseYear("O365BusinessRetail") == OfficeProductNames.Microsoft365);
+        Check("Jahr aus der Retail-Kennung",
+            OfficeProductNames.ReleaseYear("HomeBusiness2024Retail") == 2024);
+        Check("Jahr aus der Volumen-Kennung",
+            OfficeProductNames.ReleaseYear("ProPlus2019Volume") == 2019);
+        Check("Jahr ersatzweise aus dem Anzeigenamen",
+            OfficeProductNames.ReleaseYear("EigeneKennung", "Office 2021 Sonderfall") == 2021);
+        Check("365 im Anzeigenamen zaehlt auch",
+            OfficeProductNames.ReleaseYear("Unbekannt", "Microsoft 365 Single/Family")
+                == OfficeProductNames.Microsoft365);
+        Check("ohne Jahr kommt 0 - der Eintrag landet unten",
+            OfficeProductNames.ReleaseYear("IrgendwasRetail") == 0);
+        Check("die 365 in O365 wird nicht als Jahr gelesen",
+            OfficeProductNames.ReleaseYear("O365HomePremRetail") == OfficeProductNames.Microsoft365);
+        Check("eine laengere Zahl liefert kein Jahr",
+            OfficeProductNames.ReleaseYear("Build20240815Retail") == 0,
+            OfficeProductNames.ReleaseYear("Build20240815Retail").ToString());
+
+        // Genau der Bestand aus dem Paketordner - alle vier Basen zusammen.
+        // Geprueft wird die Reihenfolge, wie sie RebuildEntries erzeugt.
+        var paket = new (string Id, int Basis)[]
+        {
+            ("HomeStudent2019Retail",  1), ("HomeBusiness2019Retail", 1),
+            ("HomeStudent2021Retail",  1), ("HomeBusiness2021Retail", 1),
+            ("Home2024Retail",         1), ("HomeBusiness2024Retail", 1),
+            ("O365BusinessRetail",     1), ("O365ProPlusRetail",      1),
+            ("ProPlus2024Volume",      2), ("Standard2024Volume",     2),
+            ("ProPlus2021Volume",      3), ("Standard2021Volume",     3),
+            ("ProPlus2019Volume",      4), ("Standard2019Volume",     4),
+        };
+
+        var sortiert = paket
+            .OrderByDescending(e => OfficeProductNames.ReleaseYear(e.Id, OfficeProductNames.Display(e.Id)))
+            .ThenBy(e => OfficeProductNames.EditionRank(e.Id, OfficeProductNames.Display(e.Id)))
+            .ThenBy(e => e.Basis)
+            .ThenBy(e => OfficeProductNames.Display(e.Id), StringComparer.OrdinalIgnoreCase)
+            .Select(e => OfficeProductNames.Display(e.Id))
+            .ToArray();
+
+        var erwartet = new[]
+        {
+            "Microsoft 365 Apps for Enterprise",
+            "Microsoft 365 Business",
+
+            "Office 2024 Home",
+            "Office 2024 Home und Business",
+            "Office 2024 Pro Plus",
+            "Office 2024 Standard",
+
+            "Office 2021 Home und Student",
+            "Office 2021 Home und Business",
+            "Office 2021 Pro Plus",
+            "Office 2021 Standard",
+
+            "Office 2019 Home und Student",
+            "Office 2019 Home und Business",
+            "Office 2019 Pro Plus",
+            "Office 2019 Standard",
+        };
+
+        for (var i = 0; i < erwartet.Length; i++)
+        {
+            Check($"Platz {i + 1}: {erwartet[i]}",
+                i < sortiert.Length && sortiert[i] == erwartet[i],
+                i < sortiert.Length ? sortiert[i] : "fehlt");
+        }
+
+        Check("die Liste hat genau so viele Zeilen wie das Paket",
+            sortiert.Length == erwartet.Length, sortiert.Length.ToString());
+
+        Console.WriteLine("\n== Rang der Ausstattung ==");
+        Check("Home und Student ist die erste Stufe",
+            OfficeProductNames.EditionRank("HomeStudent2021Retail") == 1);
+        Check("Home ohne Zusatz zaehlt genauso",
+            OfficeProductNames.EditionRank("Home2024Retail") == 1);
+        Check("Home und Business steht dahinter",
+            OfficeProductNames.EditionRank("HomeBusiness2021Retail") == 2);
+        Check("Home und Business wird nicht als reines Business gelesen",
+            OfficeProductNames.EditionRank("HomeBusiness2021Retail")
+                < OfficeProductNames.EditionRank("O365BusinessRetail"));
+        Check("Pro Plus vor Business",
+            OfficeProductNames.EditionRank("O365ProPlusRetail")
+                < OfficeProductNames.EditionRank("O365BusinessRetail"));
+        Check("Standard kommt zuletzt",
+            OfficeProductNames.EditionRank("Standard2019Volume") == 5);
+        Check("Unbekanntes landet dahinter",
+            OfficeProductNames.EditionRank("ProjectPro2021Volume") == OfficeProductNames.UnknownEdition,
+            OfficeProductNames.EditionRank("ProjectPro2021Volume").ToString());
+        Check("ersatzweise wird der Klartextname gelesen",
+            OfficeProductNames.EditionRank("EigeneKennung", "Office 2021 Home und Student") == 1);
+
         Console.WriteLine($"\nErgebnis: {_passed} bestanden, {_failed} fehlgeschlagen.");
 
         try { Directory.Delete(root, true); } catch { }

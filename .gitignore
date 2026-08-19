@@ -1,17 +1,29 @@
-# Build-Ausgaben
+# ---- Build ----------------------------------------------------------------
 bin/
 obj/
 publish/
 *.user
 
-# Visual Studio / Rider
-.vs/
-.idea/
-*.suo
+# ---- Was auf keinen Fall ins Repository gehört -----------------------------
+# Der Offline-Bestand: mehrere Gigabyte je Installationsbasis. Git legt jede
+# Fassung dauerhaft ab - ein einziges Update würde das Repository um Gigabyte
+# aufblähen, und rückgängig macht man das nur mit einem Neuschreiben der
+# Historie. Diese Dateien gehören auf das Netzlaufwerk, nicht hierher.
+**/Office/Data/
+**/Office/
+*.cab
+*.img
+*.iso
 
-# Signaturzertifikate niemals einchecken
-*.pfx
-*.snk
+# Das Office Deployment Tool holt sich das Programm selbst.
+setup.exe
+officedeploymenttool*.exe
 
-# Sonstiges
+# Erzeugte Pakete
+configs.zip
+SHA256SUMS.txt
+
+# ---- Sonstiges -------------------------------------------------------------
+Thumbs.db
+desktop.ini
 *.log

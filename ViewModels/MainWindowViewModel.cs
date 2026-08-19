@@ -21,7 +21,7 @@ namespace OfficeInstall.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private const string VersionString = "1.2.1";
+    private const string VersionString = "1.3.1";
 
     private readonly object _logLock = new();
     private readonly StringBuilder _logBuffer = new();
@@ -110,6 +110,19 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _uiEnabled = true;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _busyText = "";
+
+    /// <summary>Zeile unter dem Balken: geladene Menge, Tempo, Restzeit.</summary>
+    [ObservableProperty] private string _progressText = "";
+
+    /// <summary>Anteil in Prozent. Nur wirksam, wenn <see cref="ProgressKnown"/> gilt.</summary>
+    [ObservableProperty] private double _progressValue;
+
+    /// <summary>
+    /// true, wenn es eine Vergleichsgroesse gibt und der Balken deshalb einen
+    /// echten Anteil zeigen kann. Sonst laeuft er unbestimmt weiter - beim
+    /// allerersten Download ist schlicht nicht bekannt, wie viel kommt.
+    /// </summary>
+    [ObservableProperty] private bool _progressKnown;
     [ObservableProperty] private string _scanStatus = "";
     [ObservableProperty] private bool _isLightTheme;
     [ObservableProperty] private string _warningText = "";
@@ -444,9 +457,12 @@ public partial class MainWindowViewModel : ObservableObject
             }
             else
             {
+                // Sortiert wie die Liste darunter: neuestes Office zuerst.
+                // Alphabetisch nach dem Ordnernamen stuende 2019 vor 2024.
                 var groups = _catalog.Entries
                     .GroupBy(e => $"{e.Configuration.ArchitectureFolderName}\\{e.ChannelFolderName}")
-                    .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(g => g.First().Configuration.ArchitectureFolderName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(g => g.First().Channel?.SortOrder ?? 99)
                     .ToList();
 
                 // Alle Namen auf dieselbe Breite bringen. Das Protokoll ist in
@@ -513,7 +529,25 @@ public partial class MainWindowViewModel : ObservableObject
             }
         }
 
-        await CheckOnlineVersions(cts.Token);
+        // Bewusst mit eigener Absicherung: Dieser Aufruf stand frueher hinter
+        // dem try und war damit ungeschuetzt. Loest eine neue Suche die
+        // laufende ab, bricht der Abgleich mit einer OperationCanceledException
+        // ab - die flog dann bis in den Befehl hinauf und beendete das
+        // Programm. Ein abgeloester Abgleich ist aber voellig normal.
+        try
+        {
+            await CheckOnlineVersions(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Eine neue Suche hat diese hier abgeloest.
+        }
+        catch (Exception ex)
+        {
+            Program.WriteCrashLog("Scan/CheckOnlineVersions", ex);
+            Log(Tr($"[FEHLER] Abgleich fehlgeschlagen: {ex.Message}",
+                   $"[ERROR] Version check failed: {ex.Message}"));
+        }
     }
 
     /// <summary>
@@ -526,8 +560,26 @@ public partial class MainWindowViewModel : ObservableObject
         var visible = all.Where(e => OfficeCatalog.Matches(e, SearchText)).ToList();
 
         Entries.Clear();
+        // Sortiert wird nach der OFFICE-GENERATION, nicht nach der
+        // Installationsbasis: Microsoft 365, dann 2024, 2021, 2019.
+        //
+        // Das ist bewusst so herum. Ein Office 2024 steckt sowohl in der Basis
+        // "Current" (Retail: Home, Home und Business) als auch in
+        // "PerpetualVL2024" (Volumenlizenz: Standard, Pro Plus). Wer nach
+        // "Office 2024" sucht, will alle vier Zeilen beieinander sehen - und
+        // nicht die Retail-Fassungen oben und die Volumenlizenzen sieben
+        // Zeilen weiter unten.
+        //
+        // Innerhalb einer Generation staffelt die Ausstattung von klein nach
+        // gross: Home und Student, Home und Business, Pro Plus, Standard.
+        // Alphabetisch stuende "Home und Business" vor "Home und Student" -
+        // also die groessere Ausstattung vor der kleineren.
         foreach (var entry in visible
-                     .OrderBy(e => e.Channel?.SortOrder ?? 99)
+                     .OrderByDescending(e => OfficeProductNames.ReleaseYear(
+                         e.Configuration.ProductId, e.DisplayName))
+                     .ThenBy(e => OfficeProductNames.EditionRank(
+                         e.Configuration.ProductId, e.DisplayName))
+                     .ThenBy(e => e.Channel?.SortOrder ?? 99)
                      .ThenBy(e => e.DisplayName, StringComparer.OrdinalIgnoreCase))
         {
             var viewModel = new OfficeEntryViewModel(entry, InstallEntryAsync, DownloadOfflineAsync)
@@ -775,7 +827,18 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task CheckOwnUpdates(CancellationToken ct)
     {
         var url = UpdateService.ResolveManifestUrl(RootFolder);
-        var manifest = await UpdateService.FetchAsync(url, ct);
+
+        UpdateManifest manifest;
+        try
+        {
+            manifest = await UpdateService.FetchAsync(url, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Abgeloest oder abgebrochen - kein Grund, irgendetwas zu melden.
+            return;
+        }
+
         _manifest = manifest;
 
         if (!manifest.Success)
@@ -1537,7 +1600,7 @@ public partial class MainWindowViewModel : ObservableObject
 
             using var process = InstallRunner.Start(plan);
             Log(Tr($"Gestartet (PID {process.Id}).", $"Started (PID {process.Id})."));
-            await process.WaitForExitAsync();
+            await WaitWithProgress(process, plan.SourcePath, entry.OnlineVersion);
 
             if (process.ExitCode == 0)
             {
@@ -1615,7 +1678,8 @@ public partial class MainWindowViewModel : ObservableObject
         var groups = _catalog.Entries
             .Where(e => e.CanInstall)
             .GroupBy(e => $"{e.Configuration.ArchitectureFolderName}\\{e.ChannelFolderName}")
-            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.First().Configuration.ArchitectureFolderName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(g => g.First().Channel?.SortOrder ?? 99)
             .Select(g => new
             {
                 Name = g.Key,
@@ -1723,7 +1787,7 @@ public partial class MainWindowViewModel : ObservableObject
                     var plan = await Task.Run(() => InstallRunner.PrepareBaseDownload(group.Entries), cts.Token);
 
                     using var process = InstallRunner.Start(plan);
-                    await process.WaitForExitAsync(CancellationToken.None);
+                    await WaitWithProgress(process, plan.SourcePath, group.Online);
 
                     if (process.ExitCode != 0)
                     {
@@ -1769,8 +1833,18 @@ public partial class MainWindowViewModel : ObservableObject
             UiEnabled = true;
         }
 
-        OnlineVersionService.ClearCache();
-        await Scan();
+        // Auch dieser Nachlauf lag frueher ungeschuetzt hinter dem finally.
+        try
+        {
+            OnlineVersionService.ClearCache();
+            await Scan();
+        }
+        catch (OperationCanceledException) { /* abgeloest - kein Fehler */ }
+        catch (Exception ex)
+        {
+            Program.WriteCrashLog("UpdateAllOffline/Scan", ex);
+            Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
+        }
 
         if (ActiveWindow is { } fenster)
         {
@@ -2060,6 +2134,60 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (IsBusy || IsBatchRunning) return;
         TempWorkspace.Clear();
+    }
+
+    /// <summary>
+    /// Wartet auf das Deployment Tool und zeigt waehrenddessen den Fortschritt.
+    ///
+    /// Das Tool meldet beim Herunterladen von sich aus nichts - weder Fenster
+    /// noch Ausgabe. Beobachtet wird deshalb der Zielordner; die Begruendung
+    /// steht bei <see cref="DownloadProgress"/>.
+    /// </summary>
+    private async Task WaitWithProgress(Process process, string? sourcePath, Version? targetVersion)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            await process.WaitForExitAsync();
+            return;
+        }
+
+        using var stop = new CancellationTokenSource();
+
+        // Progress<T> meldet auf dem Erzeugerkontext - also im UI-Faden.
+        var melder = new Progress<DownloadProgressReport>(bericht =>
+        {
+            ProgressText = DownloadProgress.Describe(bericht);
+
+            if (bericht.Percent is { } anteil)
+            {
+                ProgressValue = anteil;
+                ProgressKnown = true;
+            }
+            else
+            {
+                ProgressKnown = false;
+            }
+        });
+
+        // Der gleiche Kanal unter der anderen Architektur dient als
+        // Vergleichsgroesse - siehe DownloadProgress.SiblingSourcePath.
+        var beobachter = DownloadProgress.WatchAsync(
+            sourcePath, targetVersion, melder, stop.Token,
+            DownloadProgress.SiblingSourcePath(sourcePath));
+
+        try
+        {
+            await process.WaitForExitAsync();
+        }
+        finally
+        {
+            stop.Cancel();
+            try { await beobachter; } catch { /* Ende der Beobachtung ist kein Fehler */ }
+
+            ProgressText = "";
+            ProgressKnown = false;
+            ProgressValue = 0;
+        }
     }
 
     // ------------------------------------------------------------ Helfer

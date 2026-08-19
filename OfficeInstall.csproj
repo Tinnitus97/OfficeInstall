@@ -13,8 +13,22 @@
     <RootNamespace>OfficeInstall</RootNamespace>
     <Product>OfficeInstall</Product>
     <AssemblyTitle>OfficeInstall</AssemblyTitle>
-    <Version>1.2.1</Version>
+    <Version>1.3.1</Version>
     <Description>Installiert Microsoft Office ueber das Office Deployment Tool - online oder offline</Description>
+
+    <!-- Herausgeber-Angaben. Landen in den Dateieigenschaften der EXE
+         (Rechtsklick -> Eigenschaften -> Details) und in den Dialogen von
+         SmartScreen und Virenscannern. Ohne sie steht dort schlicht nichts -
+         eine EXE ohne Herausgeber wirkt anonym und wird strenger bewertet.
+
+         HINWEIS: Smart App Control loest das NICHT. Das verlangt eine gueltige
+         Signatur oder bekannte Reputation; Metadaten allein reichen dafuer
+         nicht. Sie helfen bei SmartScreen und Heuristiken - mehr nicht.
+
+         "Tino Quitsch" ggf. durch den Firmennamen ersetzen. -->
+    <Company>Tino Quitsch</Company>
+    <Authors>Tino Quitsch</Authors>
+    <Copyright>Copyright (c) 2026 Tino Quitsch</Copyright>
 
     <!-- Fenster-Icon der EXE -->
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>

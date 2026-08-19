@@ -28,6 +28,7 @@
     <Compile Include="../../Services/OfficeProductNames.cs" />
     <Compile Include="../../Services/OfficeConfiguration.cs" />
     <Compile Include="../../Services/OfflineSource.cs" />
+    <Compile Include="../../Services/DownloadProgress.cs" />
     <Compile Include="../../Services/OfficeCatalog.cs" />
     <Compile Include="../../Services/OnlineVersionService.cs" />
     <Compile Include="../../Services/ConnectivityService.cs" />
