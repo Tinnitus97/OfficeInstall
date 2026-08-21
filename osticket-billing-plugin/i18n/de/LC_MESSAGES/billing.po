@@ -1,0 +1,1575 @@
+# German translation for the osTicket Billing plugin.
+# Text domain: billing
+# After editing, regenerate billing.mo.php (osTicket format) from this file.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: osticket-billing 1.0.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "\"Time only\" removes every rate, amount and tax column from reports, exports and the ticket view."
+msgstr "„Nur Zeit“ entfernt jede Satz-, Betrags- und Steuerspalte aus Berichten, Exporten und der Ticket-Ansicht."
+
+msgid "%d billable entries marked as settled."
+msgstr "%d abrechenbare Einträge als abgerechnet markiert."
+
+msgid "%d deleted."
+msgstr "%d gelöscht."
+
+msgid "%d entries marked as open."
+msgstr "%d Einträge als offen markiert."
+
+msgid "%d entries marked as settled."
+msgstr "%d Einträge als abgerechnet markiert."
+
+msgid "%d time type deleted."
+msgstr "%d Zeitart gelöscht."
+
+msgid "%d time types deleted."
+msgstr "%d Zeitarten gelöscht."
+
+msgid "1 234,56 € — French"
+msgstr "1 234,56 € — Französisch"
+
+msgid "1.234,56 € — German"
+msgstr "1.234,56 € — Deutsch"
+
+msgid "15 minutes"
+msgstr "15 Minuten"
+
+msgid "30 minutes"
+msgstr "30 Minuten"
+
+msgid "45 minutes"
+msgstr "45 Minuten"
+
+msgid "60 minutes"
+msgstr "60 Minuten"
+
+msgid "A separate logo"
+msgstr "Eigenes Logo"
+
+msgid "Access"
+msgstr "Zugriff"
+
+msgid "Access & integration"
+msgstr "Zugriff & Integration"
+
+msgid "Access denied"
+msgstr "Zugriff verweigert"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Active time types: %d"
+msgstr "Aktive Zeitarten: %d"
+
+msgid "Add"
+msgstr "Hinzufügen"
+
+msgid "Add a \"Diagnostics\" button to the billing overview."
+msgstr "Fügt der Abrechnungs-Übersicht eine Schaltfläche „Diagnose“ hinzu."
+
+msgid "Add a column"
+msgstr "Spalte hinzufügen"
+
+msgid "Add a note to the ticket whenever the time type or the number of trips changes."
+msgstr "Schreibt eine Notiz ins Ticket, sobald die Zeitart oder die Anzahl der Anfahrten geändert wird."
+
+msgid "Add column"
+msgstr "Spalte hinzufügen"
+
+msgid "Add time type"
+msgstr "Zeitart hinzufügen"
+
+msgid "Added to the subtotal of every invoice. 0 leaves the tax line out."
+msgstr "Wird auf die Zwischensumme jeder Rechnung aufgeschlagen. 0 lässt die Steuerzeile weg."
+
+msgid "Additional block"
+msgstr "Zusatzblock"
+
+msgid "after amount (1.234,56 €)"
+msgstr "nach dem Betrag (1.234,56 €)"
+
+msgid "After the amount"
+msgstr "Hinter dem Betrag"
+
+msgid "Agent"
+msgstr "Agent"
+
+msgid "Agent access"
+msgstr "Agenten-Zugriff"
+
+msgid "Alignment of the whole header text in the PDF."
+msgstr "Ausrichtung des gesamten Kopftextes im PDF."
+
+msgid "Aligns title, subtitle, header text and footer text together."
+msgstr "Richtet Überschrift, Unterüberschrift, Kopftext und Fußtext gemeinsam aus."
+
+msgid "All"
+msgstr "Alle"
+
+msgid "All organizations"
+msgstr "Alle Organisationen"
+
+msgid "All statuses"
+msgstr "Alle Status"
+
+msgid "All tickets and tasks that still have unsettled time entries."
+msgstr "Alle Tickets und Aufgaben mit noch nicht abgerechneten Zeiteinträgen."
+
+msgid "Allow non-admin agents to open the Billing application and organization billing. If disabled, only administrators can."
+msgstr "Erlaubt nicht-administrativen Agenten den Zugriff auf die Abrechnungs-Anwendung und die Organisations-Abrechnung. Wenn deaktiviert, können nur Administratoren darauf zugreifen."
+
+msgid "Amount"
+msgstr "Betrag"
+
+msgid "Amounts — hourly rates, tax, totals"
+msgstr "Beträge — Stundensätze, Steuer, Summen"
+
+msgid "An optional block underneath the table that each organization fills in for itself - either a free-text note or a checklist table. The settings here are the starting point for organizations that have not edited theirs yet."
+msgstr "Ein optionaler Block unter der Tabelle, den jede Organisation selbst ausfüllt — entweder eine freie Notiz oder eine Prüftabelle. Die Angaben hier sind der Startpunkt für Organisationen, die ihren Block noch nicht bearbeitet haben."
+
+msgid "Antivirus protection"
+msgstr "Antivirenschutz"
+
+msgid "Applied per time type, after all entries of that type have been added up."
+msgstr "Wird je Zeitart angewendet, nachdem alle Einträge dieser Art summiert wurden."
+
+msgid "Applied to the invoice subtotal. Use 0 to disable."
+msgstr "Wird auf die Zwischensumme der Rechnung angewendet. 0 zum Deaktivieren."
+
+msgid "Applies to the PDF export only. The CSV export is unaffected."
+msgstr "Gilt nur für den PDF-Export. Der CSV-Export bleibt davon unberührt."
+
+msgid "Applies to title, subtitle and header text."
+msgstr "Gilt für Überschrift, Unterüberschrift und Kopftext."
+
+msgid "Applies to title, subtitle, header text and footer text together."
+msgstr "Gilt gemeinsam für Titel, Untertitel, Kopf- und Fußtext."
+
+msgid "Apply"
+msgstr "Übernehmen"
+
+msgid "Arrangement"
+msgstr "Anordnung"
+
+msgid "Arrangement of logo and text block in the letterhead."
+msgstr "Anordnung von Logo und Textblock im Briefkopf."
+
+msgid "Assigned to"
+msgstr "Zugewiesen an"
+
+msgid "Back to Billing"
+msgstr "Zurück zur Abrechnung"
+
+msgid "Backup PBX / phone system"
+msgstr "Sicherung TK-Anlage"
+
+msgid "Base amount"
+msgstr "Grundbetrag"
+
+msgid "before amount (€ 1.234,56)"
+msgstr "vor dem Betrag (€ 1.234,56)"
+
+msgid "Before the amount"
+msgstr "Vor dem Betrag"
+
+msgid "Below the table"
+msgstr "Unter der Tabelle"
+
+msgid "Billable"
+msgstr "Abrechenbar"
+
+msgid "Billable time"
+msgstr "Zeit abrechenbar"
+
+msgid "Billable time: %{report.billable}"
+msgstr "Zeit abrechenbar: %{report.billable}"
+
+msgid "Billable time: %{report.billable}, total time: %{report.time}"
+msgstr "Zeit abrechenbar: %{report.billable} und Zeit gesamt: %{report.time}"
+
+msgid "Billed"
+msgstr "Abgerechnet"
+
+msgid "Billing"
+msgstr "Abrechnung"
+
+msgid "Billing / invoice"
+msgstr "Abrechnung / Rechnung"
+
+msgid "Billing configuration updated successfully"
+msgstr "Abrechnungs-Konfiguration erfolgreich gespeichert"
+
+msgid "Billing details confirmed"
+msgstr "Abrechnungsangaben bestätigt"
+
+msgid "Billing mode"
+msgstr "Abrechnungsmodus"
+
+msgid "Billing model"
+msgstr "Abrechnungsmodell"
+
+msgid "billing queries use the index."
+msgstr "Abrechnungsabfragen nutzen den Index."
+
+msgid "Billing settings saved"
+msgstr "Abrechnungs-Einstellungen gespeichert"
+
+msgid "Billing time type"
+msgstr "Abrechnungs-Zeitart"
+
+msgid "Billing time type (whole ticket)"
+msgstr "Abrechnungs-Zeitart (ganzes Ticket)"
+
+msgid "Billing time type updated"
+msgstr "Abrechnungs-Zeitart aktualisiert"
+
+msgid "Billing updated"
+msgstr "Abrechnung aktualisiert"
+
+msgid "Billing updated by <b>{somebody}</b> {timestamp}"
+msgstr "Abrechnung aktualisiert von <b>{somebody}</b> {timestamp}"
+
+msgid "Billing updated by <b>{somebody}</b> {timestamp} - %s"
+msgstr "Abrechnung aktualisiert von <b>{somebody}</b> {timestamp} - %s"
+
+msgid "Bold line above the table. %{date} is the time of the last change and %{by} the employee who made it; the report placeholders work here too. Leave empty to drop the line."
+msgstr "Fett gedruckte Zeile über der Tabelle. %{date} ist der Zeitpunkt der letzten Änderung, %{by} die ändernde Person; die Berichts-Platzhalter funktionieren hier ebenfalls. Leer lassen, um die Zeile wegzulassen."
+
+msgid "Bold line shown above the table (editor and export). Uses the plugin placeholder system: %{date} = date/time of the last change, %{by} = the employee, plus the report placeholders such as %{report.org}, %{report.from}, %{report.to}. Leave empty to omit the line. Only used when the mode above is \"Free text (table)\"."
+msgstr "Fette Zeile über der Tabelle (Editor und Export). Nutzt das Platzhaltersystem des Plugins: %{date} = Datum/Uhrzeit der letzten Änderung, %{by} = der Mitarbeiter, zusätzlich die Report-Platzhalter wie %{report.org}, %{report.from}, %{report.to}. Leer lassen, um die Zeile wegzulassen. Wird nur im Modus „Freitext (Tabelle)“ verwendet."
+
+msgid "Both"
+msgstr "Beide"
+
+msgid "Bulk export"
+msgstr "Massen-Export"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgid "Centre"
+msgstr "Zentriert"
+
+msgid "Checked by technician / administrator"
+msgstr "geprüft durch Techniker / Administrator"
+
+msgid "Checklist table"
+msgstr "Prüftabelle"
+
+msgid "Choose image"
+msgstr "Bild auswählen"
+
+msgid "Clear measurements"
+msgstr "Messwerte löschen"
+
+msgid "Click a placeholder to insert it at the cursor of the field you edited last."
+msgstr "Ein Klick auf einen Platzhalter fügt ihn an der Cursorposition des zuletzt bearbeiteten Feldes ein."
+
+msgid "Closing date"
+msgstr "Schließdatum"
+
+msgid "Column"
+msgstr "Spalte"
+
+msgid "Column Details"
+msgstr "Spalten Details"
+
+msgid "Columns"
+msgstr "Spalten"
+
+msgid "Columns saved."
+msgstr "Spalten gespeichert."
+
+msgid "Content"
+msgstr "Inhalt"
+
+msgid "Content below the report table"
+msgstr "Inhalt unter der Berichtstabelle"
+
+msgid "Create billing reports and invoices from the times recorded on tickets and tasks."
+msgstr "Erstellt Abrechnungsberichte und Rechnungen aus den auf Tickets und Aufgaben erfassten Zeiten."
+
+msgid "Created"
+msgstr "Erstellungsdatum"
+
+msgid "Creates billing reports and invoices from recorded ticket / task times."
+msgstr "Erstellt Abrechnungsberichte und Rechnungen aus erfassten Ticket-/Aufgabenzeiten."
+
+msgid "Currency & tax"
+msgstr "Währung & Steuer"
+
+msgid "Currency symbol"
+msgstr "Währungssymbol"
+
+msgid "Current model"
+msgstr "Aktuelles Modell"
+
+msgid "Current month"
+msgstr "Aktueller Monat"
+
+msgid "Custom"
+msgstr "Benutzerdefiniert"
+
+msgid "Customer"
+msgstr "Kunde"
+
+msgid "Customer note"
+msgstr "Kundennotiz"
+
+msgid "Customer note (free text)"
+msgstr "Kundennotiz (Freitext)"
+
+msgid "Customize columns"
+msgstr "Spalten anpassen"
+
+msgid "Custom…"
+msgstr "Benutzerdefiniert…"
+
+msgid "Data backup external"
+msgstr "Datensicherung extern"
+
+msgid "Data backup local"
+msgstr "Datensicherung lokal"
+
+msgid "Date"
+msgstr "Datum"
+
+msgid "Date of last inspection"
+msgstr "Datum letzte Prüfung"
+
+msgid "Day"
+msgstr "Tag"
+
+msgid "Decides whether this plugin works with amounts or with hours only. Everything else on this tab follows from it."
+msgstr "Legt fest, ob dieses Plugin mit Beträgen oder nur mit Stunden arbeitet. Alles Weitere auf diesem Reiter richtet sich danach."
+
+msgid "Decimal separator"
+msgstr "Dezimaltrennzeichen"
+
+msgid "default"
+msgstr "Standard"
+
+msgid "Default"
+msgstr "Standard"
+
+msgid "Default customer note text"
+msgstr "Standardtext für Kundennotiz"
+
+msgid "Default hourly rate"
+msgstr "Standard-Stundensatz"
+
+msgid "Default table columns"
+msgstr "Standard-Tabellenspalten"
+
+msgid "Default table rows"
+msgstr "Standard-Tabellenzeilen"
+
+msgid "Default time type"
+msgstr "Standard-Zeitart"
+
+msgid "Delete"
+msgstr "Löschen"
+
+msgid "Delete selected"
+msgstr "Ausgewählte löschen"
+
+msgid "Delete the selected time types? This cannot be undone."
+msgstr "Die ausgewählten Zeitarten löschen? Das kann nicht rückgängig gemacht werden."
+
+msgid "Department"
+msgstr "Abteilung"
+
+msgid "Design settings"
+msgstr "Designeinstellungen"
+
+msgid "Diagnostics"
+msgstr "Diagnose"
+
+msgid "Diagnostics page"
+msgstr "Diagnoseseite"
+
+msgid "Do not bill under (minutes)"
+msgstr "Nicht berechnen unter (Minuten)"
+
+msgid "Due date"
+msgstr "Fälligkeitsdatum"
+
+msgid "e.g. 0/50/100/150/200 — billable time = time x factor (0 % = goodwill/Kulanz)"
+msgstr "z. B. 0/50/100/150/200 — Zeit abrechenbar = Zeit × Faktor (0 % = Kulanz)"
+
+msgid "e.g. 123456"
+msgstr "z. B. 123456"
+
+msgid "e.g. 50/75/100/150/200 — billable time = time x factor"
+msgstr "z. B. 50/75/100/150/200 — Zeit abrechenbar = Zeit × Faktor"
+
+msgid "Each organization edits its own block on its billing page; what you set here is what a new organization starts with."
+msgstr "Jede Organisation bearbeitet ihren Block auf ihrer Abrechnungsseite; was Sie hier festlegen, ist der Ausgangszustand für neue Organisationen."
+
+msgid "Each time type maps a <code>time_type_id</code> from the recorded time entries to a name and an hourly rate. The default type (id 1) matches the entries created by the Time Recording plugin."
+msgstr "Jede Zeitart ordnet einer <code>time_type_id</code> aus den erfassten Zeiteinträgen einen Namen und einen Stundensatz zu. Die Standard-Zeitart (id 1) entspricht den vom Zeiterfassungs-Plugin erstellten Einträgen."
+
+msgid "Each time-type total is rounded up to this block before billing."
+msgstr "Die Summe je Zeitart wird vor der Abrechnung auf diesen Block aufgerundet."
+
+msgid "Each time-type total is rounded up to this many minutes before billing. 0 = exact."
+msgstr "Die Summe je Zeitart wird vor der Abrechnung auf so viele Minuten aufgerundet. 0 = exakt."
+
+msgid "Enter a note for this organization. It is saved per organization and can be overwritten at any time."
+msgstr "Notiz für diese Organisation eingeben. Sie wird je Organisation gespeichert und kann jederzeit überschrieben und geändert werden."
+
+msgid "Entries shorter than this are not billed at all (0 minutes). 0 = disabled."
+msgstr "Einträge, die kürzer sind, werden gar nicht berechnet (0 Minuten). 0 = deaktiviert."
+
+msgid "Entry date"
+msgstr "Datum (Zeiteintrag)"
+
+msgid "Every billed entry counts at least this many minutes. 0 = disabled."
+msgstr "Jeder berechnete Eintrag zählt mindestens so viele Minuten. 0 = deaktiviert."
+
+msgid "every billing query scans the whole table. This slows down saving."
+msgstr "jede Abrechnungsabfrage durchsucht die gesamte Tabelle. Das bremst das Speichern."
+
+msgid "Every ticket then counts as billable. Use this if you never mark tickets as billed and only need the reports and the export."
+msgstr "Jedes Ticket gilt dann als abrechenbar. Sinnvoll, wenn Sie Tickets nie als abgerechnet markieren und nur Berichte und Export brauchen."
+
+msgid "Exact (no rounding)"
+msgstr "Exakt (keine Rundung)"
+
+msgid "Exact — do not round"
+msgstr "Exakt — nicht runden"
+
+msgid "Export"
+msgstr "Exportieren"
+
+msgid "Export as ZIP"
+msgstr "Als ZIP exportieren"
+
+msgid "Export CSV"
+msgstr "CSV exportieren"
+
+msgid "Export file"
+msgstr "Export-Datei"
+
+msgid "Export file name"
+msgstr "Dateiname für den Export"
+
+msgid "Export PDF"
+msgstr "PDF exportieren"
+
+msgid "Factor"
+msgstr "Faktor"
+
+msgid "File name"
+msgstr "Dateiname"
+
+msgid "File name for the CSV/PDF export, without extension. Placeholders: {org} = organization, {YYYY} = year, {MM} = month, {DD} = day, {from} / {to} = start and end of the period. Invalid characters are replaced automatically."
+msgstr "Dateiname für den CSV-/PDF-Export, ohne Endung. Platzhalter: {org} = Organisation, {YYYY} = Jahr, {MM} = Monat, {DD} = Tag, {from} / {to} = Beginn und Ende des Zeitraums. Unzulässige Zeichen werden automatisch ersetzt."
+
+msgid "File name for the CSV/PDF export, without extension. Uses the same placeholders as every other text field (see the list below); %{report.year} / %{report.month} / %{report.day} refer to the end of the period. Invalid characters are replaced automatically."
+msgstr "Dateiname für den CSV-/PDF-Export, ohne Endung. Nutzt dieselben Platzhalter wie alle anderen Textfelder (siehe Liste unten); %{report.year} / %{report.month} / %{report.day} beziehen sich auf das Ende des Zeitraums. Unzulässige Zeichen werden automatisch ersetzt."
+
+msgid "Filter summary"
+msgstr "Filter-Übersicht"
+
+msgid "Fine tuning: logo X,Y (mm)"
+msgstr "Feinjustierung: Logo X,Y (mm)"
+
+msgid "Fine tuning: text X,Y (mm)"
+msgstr "Feinjustierung: Text X,Y (mm)"
+
+msgid "Flat fee charged per trip"
+msgstr "Pauschale je Anfahrt"
+
+msgid "Flat fee charged per trip (used with the per-ticket trip count)."
+msgstr "Pauschale je Anfahrt (wird mit der Anzahl der Anfahrten am Ticket multipliziert)."
+
+msgid "Font size"
+msgstr "Schriftgröße"
+
+msgid "Font size: title / subtitle / text"
+msgstr "Schriftgröße: Überschrift / Unterüberschrift / Text"
+
+msgid "Footer alignment"
+msgstr "Ausrichtung Fußtext"
+
+msgid "Footer text"
+msgstr "Fußtext"
+
+msgid "Footer text alignment"
+msgstr "Ausrichtung Fußtext"
+
+msgid "Footer text position"
+msgstr "Position des Fußtextes"
+
+msgid "For the CSV and PDF download, without the extension. Placeholders are allowed; %{report.year}, %{report.month} and %{report.day} refer to the end of the period. Characters a file name cannot contain are replaced automatically."
+msgstr "Für den CSV- und PDF-Download, ohne Dateiendung. Platzhalter sind erlaubt; %{report.year}, %{report.month} und %{report.day} beziehen sich auf das Ende des Zeitraums. Zeichen, die in Dateinamen nicht vorkommen dürfen, werden automatisch ersetzt."
+
+msgid "Format"
+msgstr "Format"
+
+msgid "Formatting can be applied in the editor. Placeholders may be used in every text field."
+msgstr "Die Formatierung erfolgt im Editor. Platzhalter können in allen Textfeldern verwendet werden."
+
+msgid "Free line, left"
+msgstr "Freie Zeile, links"
+
+msgid "Free line, right"
+msgstr "Freie Zeile, rechts"
+
+msgid "Free text (table)"
+msgstr "Freitext (Tabelle)"
+
+msgid "Free text under the title. Placeholders: {org} {from} {to} {date} {count} {time} {billable}"
+msgstr "Freier Text unter der Überschrift. Platzhalter: {org} {from} {to} {date} {count} {time} {billable}"
+
+msgid "Free-text note"
+msgstr "Freitext-Notiz"
+
+msgid "From"
+msgstr "Von"
+
+msgid "Generated"
+msgstr "Erstellt"
+
+msgid "Goodwill (Kulanz)"
+msgstr "Kulanz"
+
+msgid "Handler"
+msgstr "Handler"
+
+msgid "Header text"
+msgstr "Kopftext"
+
+msgid "Header text alignment"
+msgstr "Ausrichtung Kopftext"
+
+msgid "Header text position"
+msgstr "Position des Kopftextes"
+
+msgid "Heading and Width"
+msgstr "Kopfbereich und Breite"
+
+msgid "Heading printed above the table in the export and shown above the editor. Only used when the mode above is \"Free text (table)\"."
+msgstr "Überschrift, die im Export über der Tabelle gedruckt und über dem Editor angezeigt wird. Wird nur im Modus „Freitext (Tabelle)“ verwendet."
+
+msgid "Heading printed at the top. Leave empty for the default."
+msgstr "Überschrift oben im PDF. Leer lassen für die Standardüberschrift."
+
+msgid "Heading printed at the top. Placeholders may be used. Leave empty for the default."
+msgstr "Überschrift oben im PDF. Platzhalter können verwendet werden. Leer lassen für die Standardüberschrift."
+
+msgid "Here you can define the time types &amp; rates."
+msgstr "Hier kannst du die Zeitarten & Sätze festlegen."
+
+msgid "Hide open items"
+msgstr "Offene Posten ausblenden"
+
+msgid "Hide open items and disable ticket billing status"
+msgstr "Offene Posten ausblenden und Tickets Abrechnung deaktivieren"
+
+msgid "Hide the \"Open items\" list and the billed / goodwill markers on tickets."
+msgstr "Blendet die Liste „Offene Posten“ und die Markierungen abgerechnet / Kulanz auf Tickets aus."
+
+msgid "Hide the \"Open items\" list on the billing overview."
+msgstr "Blendet die Liste „Offene Posten\" in der Abrechnungsübersicht aus."
+
+msgid "Hide the \"Open items\" module and the billing status on tickets."
+msgstr "Blendet das Modul \"Offene Posten\" und den Abrechnungsstatus in Tickets aus."
+
+msgid "Hides the whole \"Open items\" module and removes every billed/goodwill trace from tickets and reports. Tickets are then treated as billable automatically in the background - use this if you never mark tickets as billed and only need the reports/PDF export."
+msgstr "Blendet das gesamte Modul \"Offene Posten\" aus und entfernt jede Spur von Abgerechnet/Kulanz aus Tickets und Berichten. Tickets werden dann im Hintergrund automatisch als abrechenbar behandelt - nutzen Sie dies, wenn Sie Tickets nie als abgerechnet markieren und nur die Berichte/den PDF-Export benötigen."
+
+msgid "Hourly rate"
+msgstr "Stundensatz"
+
+msgid "Hourly rates (amounts)"
+msgstr "Stundensätze (Beträge)"
+
+msgid "Hours"
+msgstr "Stunden"
+
+msgid "How amounts are written in reports, in the PDF and in the CSV export."
+msgstr "Wie Beträge in Berichten, im PDF und im CSV-Export geschrieben werden."
+
+msgid "How recorded time is turned into an invoice."
+msgstr "Wie aus erfasster Zeit eine Rechnung wird."
+
+msgid "ID"
+msgstr "ID"
+
+msgid "If the plugin share is small while the whole request is slow, the delay is caused elsewhere (another plugin, the web server or the database)."
+msgstr "Ist der Anteil des Plugins klein, während der gesamte Request langsam ist, liegt die Verzögerung woanders (anderes Plugin, Webserver oder Datenbank)."
+
+msgid "Ignore entries shorter than"
+msgstr "Einträge nicht abrechnen unter"
+
+msgid "In minutes. Shorter entries are billed as zero. Leave at 0 to bill everything."
+msgstr "In Minuten. Kürzere Einträge werden mit 0 abgerechnet. Bei 0 wird alles abgerechnet."
+
+msgid "In time-only mode, rate and amount columns disappear everywhere; reports and exports show durations only."
+msgstr "Im Nur-Zeit-Modus verschwinden Satz- und Betragsspalten überall; Berichte und Exporte zeigen ausschließlich Zeiten."
+
+msgid "Inspection of customer systems"
+msgstr "Kontrolle der Kundensysteme"
+
+msgid "Inspection rows"
+msgstr "Prüfzeilen"
+
+msgid "Inspections"
+msgstr "Prüfungen"
+
+msgid "Invoice summary"
+msgstr "Rechnungsübersicht"
+
+msgid "It measures how much time this plugin spends while a ticket is saved. Useful when tickets feel slow, pointless otherwise — leave it off."
+msgstr "Misst, wie viel Zeit dieses Plugin beim Speichern eines Tickets verbraucht. Hilfreich, wenn Tickets langsam wirken — sonst ausgeschaltet lassen."
+
+msgid "Label"
+msgstr "Beschriftung"
+
+msgid "Landscape"
+msgstr "Querformat"
+
+msgid "Landscape fits more columns; portrait looks more like a letter."
+msgstr "Querformat fasst mehr Spalten, Hochformat wirkt eher wie ein Brief."
+
+msgid "Large"
+msgstr "Groß"
+
+msgid "Last 30 days"
+msgstr "Letzte 30 Tage"
+
+msgid "Last 7 days"
+msgstr "Letzte 7 Tage"
+
+msgid "Last modified"
+msgstr "Zuletzt geändert"
+
+msgid "Last modified on: %{date} by %{by}"
+msgstr "Zuletzt geändert am: %{date} von %{by}"
+
+msgid "Last month"
+msgstr "Letzter Monat"
+
+msgid "Last updated"
+msgstr "Zuletzt geändert"
+
+msgid "Last week"
+msgstr "Letzte Woche"
+
+msgid "Last year"
+msgstr "Letztes Jahr"
+
+msgid "Last-modified line"
+msgstr "Zeile „zuletzt geändert“"
+
+msgid "Layout"
+msgstr "Anordnung"
+
+msgid "Leave empty for the default. Placeholders may be used."
+msgstr "Leer lassen für die Standardvorgabe. Platzhalter können verwendet werden."
+
+msgid "Left"
+msgstr "Links"
+
+msgid "Left text"
+msgstr "Text links"
+
+msgid "Left text below table"
+msgstr "Text links unten Tabelle"
+
+msgid "Let agents without admin rights open the Billing application and the organization billing."
+msgstr "Erlaubt Agenten ohne Administratorrechte den Zugriff auf die Abrechnungs-Anwendung und die Organisations-Abrechnung."
+
+msgid "Letterhead"
+msgstr "Briefkopf"
+
+msgid "Limits every report and export to a part of your tickets."
+msgstr "Schränkt jeden Bericht und Export auf einen Teil Ihrer Tickets ein."
+
+msgid "Log billing changes on the ticket"
+msgstr "Abrechnungsänderungen im Ticket protokollieren"
+
+msgid "Log changes in the ticket"
+msgstr "Änderungen im Ticket protokollieren"
+
+msgid "Logo"
+msgstr "Logo"
+
+msgid "Logo centred, text below"
+msgstr "Logo zentriert, Text darunter"
+
+msgid "Logo file"
+msgstr "Logo-Datei"
+
+msgid "Logo left, text below"
+msgstr "Logo links, Text darunter"
+
+msgid "Logo left, text beside it"
+msgstr "Logo links, Text daneben"
+
+msgid "Logo offset X / Y (mm)"
+msgstr "Logo-Versatz X / Y (mm)"
+
+msgid "Logo path / URL"
+msgstr "Logo-Pfad / URL"
+
+msgid "Logo position"
+msgstr "Logo-Position"
+
+msgid "Logo right, text left"
+msgstr "Logo rechts, Text links"
+
+msgid "Logo width (mm)"
+msgstr "Logobreite (mm)"
+
+msgid "Manage time types"
+msgstr "Zeitarten verwalten"
+
+msgid "Manage time types &amp; rates"
+msgstr "Zeitarten &amp; Sätze verwalten"
+
+msgid "Mark all billable entries of this object as settled?"
+msgstr "Alle abrechenbaren Einträge dieses Objekts als abgerechnet markieren?"
+
+msgid "Mark as billed"
+msgstr "Als abgerechnet markieren"
+
+msgid "Mark as goodwill (Kulanz)"
+msgstr "Als Kulanz markieren"
+
+msgid "Mark as open"
+msgstr "Als offen markieren"
+
+msgid "Mark selected as billed"
+msgstr "Ausgewählte als abgerechnet markieren"
+
+msgid "Mark selected as open"
+msgstr "Ausgewählte als offen markieren"
+
+msgid "Mark selected as settled"
+msgstr "Ausgewählte als abgerechnet markieren"
+
+msgid "Minimum time per entry (minutes)"
+msgstr "Mindestzeit je Eintrag (Minuten)"
+
+msgid "MISSING"
+msgstr "FEHLT"
+
+msgid "Month"
+msgstr "Monat"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Name, hourly rate, travel charge, factor and the billable flag per time type. Kept on its own page because these are records, not settings."
+msgstr "Name, Stundensatz, Anfahrtspauschale, Faktor und Kennzeichen „abrechenbar“ je Zeitart. Liegt auf einer eigenen Seite, weil es sich um Datensätze und nicht um Einstellungen handelt."
+
+msgid "NAS check (updates and disks)"
+msgstr "Überprüfung NAS (Updates und Festplatten)"
+
+msgid "No"
+msgstr "Nein"
+
+msgid "No active time type. Nothing can be billed until at least one exists."
+msgstr "Keine aktive Zeitart. Ohne mindestens eine Zeitart kann nichts abgerechnet werden."
+
+msgid "No additional block"
+msgstr "Kein Zusatzblock"
+
+msgid "No billable time found for this organization and period."
+msgstr "Keine abrechenbare Zeit für diese Organisation und diesen Zeitraum gefunden."
+
+msgid "No file selected"
+msgstr "Keine Datei ausgewählt"
+
+msgid "No logo"
+msgstr "Kein Logo"
+
+msgid "No measurements recorded yet in this session. Create or update a ticket and come back."
+msgstr "In dieser Sitzung noch keine Messwerte. Erstellen oder aktualisieren Sie ein Ticket und kommen Sie zurück."
+
+msgid "No ticket found for number \"%s\"."
+msgstr "Kein Ticket zur Nummer „%s“ gefunden."
+
+msgid "No time entries."
+msgstr "Keine Zeiteinträge."
+
+msgid "no time recorded"
+msgstr "keine Zeit erfasst"
+
+msgid "No time recorded."
+msgstr "Keine Zeit erfasst."
+
+msgid "No time types were deleted. The default type cannot be removed."
+msgstr "Es wurden keine Zeitarten gelöscht. Die Standard-Zeitart kann nicht entfernt werden."
+
+msgid "No unsettled time entries found."
+msgstr "Keine nicht abgerechneten Zeiteinträge gefunden."
+
+msgid "non-billable"
+msgstr "nicht abrechenbar"
+
+msgid "None"
+msgstr "Keine(s)"
+
+msgid "None (off)"
+msgstr "Keiner (aus)"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Note"
+msgstr "Notiz"
+
+msgid "Number format"
+msgstr "Zahlenformat"
+
+msgid "Number of rows"
+msgstr "Anzahl Zeilen"
+
+msgid "Number of trips to bill (uses the travel flat fee of the time type)."
+msgstr "Anzahl der abzurechnenden Anfahrten (nutzt die Anfahrtspauschale der Zeitart)."
+
+msgid "Off by default. When enabled, the billing overview gets a \"Diagnostics\" button showing how much time this plugin spends while tickets are saved."
+msgstr "Standardmäßig aus. Aktiviert erscheint in der Abrechnungsübersicht ein Knopf \"Diagnose\", der zeigt, wie viel Zeit dieses Plugin beim Speichern von Tickets benötigt."
+
+msgid "Off means administrators only. Time types and rates stay admin-only either way."
+msgstr "Ausgeschaltet heißt: nur Administratoren. Zeitarten und Sätze bleiben in jedem Fall Administratoren vorbehalten."
+
+msgid "Office"
+msgstr "Büro"
+
+msgid "On the ticket page"
+msgstr "Auf der Ticket-Seite"
+
+msgid "On-site"
+msgstr "Vor Ort"
+
+msgid "On-site appointment (with travel)"
+msgstr "Vor-Ort-Termin (mit Anfahrt)"
+
+msgid "One column heading per line. The first line is the heading of the left (row-name) column; every further line is an editable column. Reorder or rename freely. Only used when the mode above is \"Free text (table)\"."
+msgstr "Eine Spaltenüberschrift je Zeile. Die erste Zeile ist die Überschrift der linken (Bezeichnungs-)Spalte; jede weitere Zeile ist eine bearbeitbare Spalte. Beliebig umsortieren oder umbenennen. Wird nur im Modus „Freitext (Tabelle)“ verwendet."
+
+msgid "One heading per line. The first line heads the left-hand column that names each row; every further line becomes an editable column."
+msgstr "Eine Überschrift pro Zeile. Die erste Zeile überschreibt die linke Spalte mit den Zeilenbezeichnungen, jede weitere Zeile wird zu einer ausfüllbaren Spalte."
+
+msgid "One inspection per line. Each line becomes a row with the columns \"Date of last inspection\", \"Checked by\" and \"Remarks\". Reorder or rename freely; leave empty for no rows. Only used when the mode above is \"System checks\"."
+msgstr "Eine Prüfung je Zeile. Jede Zeile wird zu einer Tabellenzeile mit den Spalten „Datum letzte Prüfung“, „geprüft durch“ und „Bemerkungen“. Beliebig umsortieren oder umbenennen; leer lassen für keine Zeilen. Wird nur im Modus „Prüfungen“ verwendet."
+
+msgid "One row per line, each the label in the left-hand column. Organizations fill in the cells and can switch single rows off. Leave empty to start without rows."
+msgstr "Eine Zeile pro Tabellenzeile, jeweils die Bezeichnung in der linken Spalte. Organisationen füllen die Felder aus und können einzelne Zeilen abschalten. Leer lassen, um ohne Zeilen zu starten."
+
+msgid "One row per line; each line is the label of the left column for that row. These rows appear for every organization, where the cells are filled in and rows can be switched off. Reorder or rename freely; leave empty for no rows. Only used when the mode above is \"Free text (table)\"."
+msgstr "Eine Zeile je Zeile; jede Zeile ist die Beschriftung der linken Spalte dieser Zeile. Diese Zeilen erscheinen für jede Organisation, wo die Zellen ausgefüllt und Zeilen abgeschaltet werden können. Beliebig umsortieren oder umbenennen; leer lassen für keine Zeilen. Wird nur im Modus „Freitext (Tabelle)“ verwendet."
+
+msgid "Only administrators can manage time types."
+msgstr "Nur Administratoren können Zeitarten verwalten."
+
+msgid "Only tickets with status"
+msgstr "Nur Tickets mit Status"
+
+msgid "Open"
+msgstr "Offen"
+
+msgid "Open billing"
+msgstr "Abrechnung öffnen"
+
+msgid "Open billing to agents"
+msgstr "Abrechnung für Agenten freigeben"
+
+msgid "open invoice"
+msgstr "offene Rechnung"
+
+msgid "Open items"
+msgstr "Offene Posten"
+
+msgid "Open the time report and invoice for a single ticket."
+msgstr "Öffnet den Zeitbericht und die Rechnung für ein einzelnes Ticket."
+
+msgid "Optional nudge, e.g. \"0,4\" moves the logo 4 mm down."
+msgstr "Optionaler Versatz, z. B. „0,4\" verschiebt das Logo 4 mm nach unten."
+
+msgid "Optional reason for the update"
+msgstr "Optionaler Grund für die Aktualisierung"
+
+msgid "Optional second line, e.g. your company name."
+msgstr "Optionale zweite Zeile, z. B. euer Firmenname."
+
+msgid "Optional second line, e.g. your company name. Placeholders may be used."
+msgstr "Optionale zweite Zeile, z. B. euer Firmenname. Platzhalter können verwendet werden."
+
+msgid "Optional second line, for example your company name."
+msgstr "Optionale zweite Zeile, zum Beispiel Ihr Firmenname."
+
+msgid "Organization"
+msgstr "Organisation"
+
+msgid "Organization billing"
+msgstr "Organisations-Abrechnung"
+
+msgid "Organizations"
+msgstr "Organisationen"
+
+msgid "Organizations without billable entries in the period are skipped."
+msgstr "Organisationen ohne abrechenbare Einträge im Zeitraum werden übersprungen."
+
+msgid "Orientation"
+msgstr "Ausrichtung"
+
+msgid "Other"
+msgstr "Sonstiges"
+
+msgid "Otherwise the text block starts below the logo."
+msgstr "Andernfalls beginnt der Textblock unterhalb des Logos."
+
+msgid "Page"
+msgstr "Seite"
+
+msgid "Page numbers"
+msgstr "Seitenzahlen"
+
+msgid "Page setup"
+msgstr "Seiteneinrichtung"
+
+msgid "Page size"
+msgstr "Seitengröße"
+
+msgid "Path or URL"
+msgstr "Pfad oder URL"
+
+msgid "PDF export"
+msgstr "PDF-Export"
+
+msgid "PDF layout"
+msgstr "PDF-Layout"
+
+msgid "Per organization, choose what can be edited under the table and printed beneath it in the CSV/PDF export: nothing, a free-text customer note, or an editable table with configurable columns and rows."
+msgstr "Legt je Organisation fest, was unter der Tabelle bearbeitet und im CSV-/PDF-Export darunter gedruckt wird: nichts, eine Freitext-Kundennotiz oder eine bearbeitbare Tabelle mit konfigurierbaren Spalten und Zeilen."
+
+msgid "Per organization, choose what can be edited under the table and printed beneath it in the CSV/PDF export: nothing, a free-text customer note, or the fixed system-check list (Server hardware, backups, NAS, antivirus, …)."
+msgstr "Legt je Organisation fest, was unter der Tabelle bearbeitet und im CSV-/PDF-Export darunter gedruckt wird: nichts, eine Freitext-Kundennotiz oder die feste Prüfliste (Server-Hardware, Datensicherungen, NAS, Antivirus …)."
+
+msgid "Period"
+msgstr "Zeitraum"
+
+msgid "Picking a format sets the separators and the position of the symbol for you."
+msgstr "Die Auswahl eines Formats setzt Trennzeichen und Symbolposition automatisch."
+
+msgid "Placeholders"
+msgstr "Platzhalter"
+
+msgid "Please provide a name for the time type."
+msgstr "Bitte geben Sie einen Namen für die Zeitart an."
+
+msgid "Please select at least one organization."
+msgstr "Bitte mindestens eine Organisation auswählen."
+
+msgid "Plugin"
+msgstr "Plugin"
+
+msgid "Plugin share"
+msgstr "Anteil des Plugins"
+
+msgid "PNG, JPG or GIF. Uploaded straight away; the setting is kept when you save."
+msgstr "PNG, JPG oder GIF. Wird sofort hochgeladen; die Zuordnung wird beim Speichern übernommen."
+
+msgid "PNG/JPG/GIF. Path relative to the osTicket folder (e.g. images/logo.png) or a full URL."
+msgstr "PNG/JPG/GIF. Pfad relativ zum osTicket-Ordner (z. B. images/logo.png) oder vollständige URL."
+
+msgid "Portrait"
+msgstr "Hochformat"
+
+msgid "Post"
+msgstr "Beitrag"
+
+msgid "Pre-selected when a ticket is created and used until another type is chosen."
+msgstr "Wird bei der Ticketerstellung vorausgewählt und gilt, bis eine andere Zeitart gewählt wird."
+
+msgid "Prefilled with the default text — save to keep it for this organization."
+msgstr "Mit dem Standardtext vorbelegt – speichern, um ihn für diese Organisation zu übernehmen."
+
+msgid "present"
+msgstr "vorhanden"
+
+msgid "Print \"Page x / y\" in the footer."
+msgstr "Druckt „Seite x / y“ in die Fußzeile."
+
+msgid "Print generation date and the active filters."
+msgstr "Druckt Erstellungsdatum und die aktiven Filter."
+
+msgid "Print subtotal, tax and total under every table — in time-only mode, total and billable time."
+msgstr "Druckt Zwischensumme, Steuer und Gesamt unter jede Tabelle — im Modus „Nur Zeit“ Gesamt- und abrechenbare Zeit."
+
+msgid "Print the generation date and the filters the report was built with."
+msgstr "Druckt das Erstellungsdatum und die Filter, mit denen der Bericht erzeugt wurde."
+
+msgid "Printed above the table, and shown above the editor."
+msgstr "Wird über der Tabelle gedruckt und über dem Editor angezeigt."
+
+msgid "Printed at the bottom of every page."
+msgstr "Wird auf jeder Seite unten gedruckt."
+
+msgid "Printed at the bottom of every page. Same placeholders apply."
+msgstr "Erscheint unten auf jeder Seite. Dieselben Platzhalter gelten."
+
+msgid "Printed below the table on the left. Leave empty to print nothing. Placeholders may be used."
+msgstr "Wird unten links unter der Tabelle gedruckt. Leer lassen, um nichts zu drucken. Platzhalter können verwendet werden."
+
+msgid "Printed below the table on the right. Leave empty to print nothing. Placeholders may be used."
+msgstr "Wird unten rechts unter der Tabelle gedruckt. Leer lassen, um nichts zu drucken. Platzhalter können verwendet werden."
+
+msgid "Printed under the letterhead on the first page. Can be formatted in the editor."
+msgstr "Wird auf der ersten Seite unter dem Briefkopf gedruckt. Kann im Editor formatiert werden."
+
+msgid "Printed under the table on the left. Placeholders are allowed. Leave empty for nothing."
+msgstr "Wird links unter der Tabelle gedruckt. Platzhalter sind erlaubt. Leer lassen, um nichts zu drucken."
+
+msgid "Printed under the table on the right. Placeholders are allowed. Leave empty for nothing."
+msgstr "Wird rechts unter der Tabelle gedruckt. Platzhalter sind erlaubt. Leer lassen, um nichts zu drucken."
+
+msgid "Rate"
+msgstr "Satz"
+
+msgid "Rates & rounding"
+msgstr "Sätze & Rundung"
+
+msgid "Reason"
+msgstr "Grund"
+
+msgid "Records a note in the ticket whenever the time type or the number of trips is changed."
+msgstr "Hinterlegt einen Vermerk im Ticket, sobald die Zeitart oder die Anzahl der Anfahrten geändert wird."
+
+msgid "Remarks"
+msgstr "Bemerkungen"
+
+msgid "Remove"
+msgstr "Entfernen"
+
+msgid "Remove goodwill flag"
+msgstr "Kulanz entfernen"
+
+msgid "Removes every billed/goodwill trace from tickets and reports. Tickets are then treated as billable automatically - use this if you never mark tickets as billed and only need the reports/PDF export."
+msgstr "Entfernt jede Spur von Abgerechnet/Kulanz aus Tickets und Berichten. Tickets werden dann automatisch als abrechenbar behandelt – nutzen Sie dies, wenn Sie Tickets nie als abgerechnet markieren und nur die Berichte/den PDF-Export benötigen."
+
+msgid "Report"
+msgstr "Bericht"
+
+msgid "Report & export"
+msgstr "Bericht & Export"
+
+msgid "Reports and exports then contain tickets in this status only — typically \"closed\", so that nothing still being worked on ends up on an invoice."
+msgstr "Berichte und Exporte enthalten dann nur Tickets in diesem Status — üblicherweise „geschlossen“, damit nichts in Bearbeitung auf einer Rechnung landet."
+
+msgid "Request"
+msgstr "Request"
+
+msgid "Response"
+msgstr "Antwort"
+
+msgid "Restrict reports and exports to tickets in this status (e.g. closed)."
+msgstr "Beschränkt Berichte und Exporte auf Tickets mit diesem Status (z. B. Geschlossen)."
+
+msgid "Restrict to ticket status"
+msgstr "Auf Ticket-Status einschränken"
+
+msgid "Right"
+msgstr "Rechts"
+
+msgid "Right text"
+msgstr "Text rechts"
+
+msgid "Right text below table"
+msgstr "Text rechts unten Tabelle"
+
+msgid "Round only from (minutes)"
+msgstr "Runden erst ab (Minuten)"
+
+msgid "Round up to"
+msgstr "Aufrunden auf"
+
+msgid "Rounded time"
+msgstr "Zeit gerundet"
+
+msgid "Rounding"
+msgstr "Rundung"
+
+msgid "Rounding increment"
+msgstr "Rundungsschritt"
+
+msgid "Rounding increment (minutes)"
+msgstr "Rundungsschritt (Minuten)"
+
+msgid "Rounding starts only once an entry reaches this many minutes; shorter entries stay exact. 0 = always round."
+msgstr "Die Rundung greift erst, wenn ein Eintrag diese Minutenzahl erreicht; kürzere Einträge bleiben exakt. 0 = immer runden."
+
+msgid "Rows"
+msgstr "Zeilen"
+
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Save changes"
+msgstr "Änderungen speichern"
+
+msgid "Save changes and delete the ticked time types? Deletion cannot be undone."
+msgstr "Änderungen speichern und die angehakten Zeitarten löschen? Das Löschen kann nicht rückgängig gemacht werden."
+
+msgid "Save inspections"
+msgstr "Prüfungen speichern"
+
+msgid "Save note"
+msgstr "Notiz speichern"
+
+msgid "Save selection"
+msgstr "Auswahl speichern"
+
+msgid "Save table"
+msgstr "Tabelle speichern"
+
+msgid "Save trips"
+msgstr "Anfahrten speichern"
+
+msgid "Saves all changes; rows ticked under \"Delete\" are removed."
+msgstr "Speichert alle Änderungen; unter „Löschen\" angehakte Zeilen werden entfernt."
+
+msgid "Scope"
+msgstr "Umfang"
+
+msgid "Search and select organizations"
+msgstr "Organisationen suchen und auswählen"
+
+msgid "Section below the table"
+msgstr "Bereich unter der Tabelle"
+
+msgid "select"
+msgstr "auswählen"
+
+msgid "Select"
+msgstr "Auswählen"
+
+msgid "Select any number of organizations and download one ZIP archive containing a document per organization. The file names inside follow the configured export file name pattern."
+msgstr "Beliebig viele Organisationen auswählen und ein ZIP-Archiv mit je einem Dokument pro Organisation herunterladen. Die Dateinamen darin folgen dem in den Einstellungen konfigurierten Schema."
+
+msgid "Server hardware"
+msgstr "Server-Hardware"
+
+msgid "Server updates"
+msgstr "Server-Updates"
+
+msgid "Settings that are not part of a group yet."
+msgstr "Einstellungen, die noch keiner Gruppe zugeordnet sind."
+
+msgid "Settle all billable"
+msgstr "Alle abrechenbaren abrechnen"
+
+msgid "Settled"
+msgstr "Abgerechnet"
+
+msgid "Show"
+msgstr "Anzeigen"
+
+msgid "Show a billing summary and link on the ticket detail page."
+msgstr "Zeigt eine Abrechnungsübersicht und einen Link auf der Ticket-Detailseite an."
+
+msgid "Show a diagnostics page with timing measurements (for troubleshooting only)."
+msgstr "Zeigt eine Diagnose-Seite mit Zeitmessungen (nur zur Fehlersuche)."
+
+msgid "Show filter summary"
+msgstr "Filterübersicht anzeigen"
+
+msgid "Show recorded time, amount and a link to the invoice in the gear menu of a ticket."
+msgstr "Zeigt erfasste Zeit, Betrag und einen Link zur Rechnung im Zahnrad-Menü eines Tickets."
+
+msgid "Show subtotal/tax/total (or total and billable time in time billing mode) under every table."
+msgstr "Zeigt Zwischensumme/Steuer/Gesamt (bzw. Zeit gesamt und Zeit abrechenbar im Modus Zeitabrechnung) unter jeder Tabelle."
+
+msgid "Simple mode — no billing status"
+msgstr "Einfacher Modus — ohne Abrechnungsstatus"
+
+msgid "Small"
+msgstr "Klein"
+
+msgid "Sort"
+msgstr "Sortierung"
+
+msgid "Sortable"
+msgstr "Sortierbar"
+
+msgid "Starting text"
+msgstr "Starttext"
+
+msgid "Starting text for organizations that have no note yet. It is also printed in the export for organizations without a note of their own. Only used when the mode above is \"Customer note\"."
+msgstr "Starttext für Organisationen, die noch keine eigene Notiz haben. Er wird zudem im Export für Organisationen ohne eigene Notiz gedruckt. Wird nur im Modus „Kundennotiz“ verwendet."
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Status of the installation and tools for troubleshooting."
+msgstr "Zustand der Installation und Werkzeuge zur Fehlersuche."
+
+msgid "Subject"
+msgstr "Betreff"
+
+msgid "Subtitle"
+msgstr "Untertitel"
+
+msgid "Subtotal"
+msgstr "Zwischensumme"
+
+msgid "Summarise all ticket time for an organization within a period."
+msgstr "Fasst die gesamte Ticketzeit einer Organisation innerhalb eines Zeitraums zusammen."
+
+msgid "Summary in the ticket menu"
+msgstr "Zusammenfassung im Ticket-Menü"
+
+msgid "Summary row under the tables"
+msgstr "Zusammenfassung unter den Tabellen"
+
+msgid "Supported placeholders"
+msgstr "Unterstützte Platzhalter"
+
+msgid "Surcharges for special hours"
+msgstr "Zuschläge wegen Sonderzeiten"
+
+msgid "Symbol position"
+msgstr "Symbolposition"
+
+msgid "System"
+msgstr "System"
+
+msgid "System checks (inspections)"
+msgstr "Prüfungen (Kontrolle der Kundensysteme)"
+
+msgid "Table"
+msgstr "Tabelle"
+
+msgid "Table heading"
+msgstr "Tabellenüberschrift"
+
+msgid "Table ost_timesheet found — time entries can be billed."
+msgstr "Tabelle ost_timesheet gefunden — Zeiteinträge können abgerechnet werden."
+
+msgid "Table ost_timesheet is missing. Install and enable the Time Recording plugin."
+msgstr "Tabelle ost_timesheet fehlt. Bitte das Plugin Zeiterfassung installieren und aktivieren."
+
+msgid "Table summary"
+msgstr "Tabellen-Zusammenfassung"
+
+msgid "Table title"
+msgstr "Tabellentitel"
+
+msgid "Task"
+msgstr "Aufgabe"
+
+msgid "Tax"
+msgstr "Steuer"
+
+msgid "Tax (%s%%)"
+msgstr "Steuer (%s%%)"
+
+msgid "Tax rate (%)"
+msgstr "Steuersatz (%)"
+
+msgid "Team"
+msgstr "Team"
+
+msgid "Text alignment"
+msgstr "Textausrichtung"
+
+msgid "Text beside logo"
+msgstr "Text neben dem Logo"
+
+msgid "Text offset X / Y (mm)"
+msgstr "Text-Versatz X / Y (mm)"
+
+msgid "Texts"
+msgstr "Texte"
+
+msgid "The default type cannot be deleted."
+msgstr "Der Standard-Typ kann nicht gelöscht werden."
+
+msgid "The document your customer gets - on screen, as CSV and as PDF."
+msgstr "Das Dokument, das Ihre Kundschaft erhält — am Bildschirm, als CSV und als PDF."
+
+msgid "The heading at the very top. Leave empty for the built-in one."
+msgstr "Die Überschrift ganz oben. Leer lassen für die eingebaute Überschrift."
+
+msgid "The helpdesk logo"
+msgstr "Logo des Helpdesks"
+
+msgid "The logo and text block at the top of the first page."
+msgstr "Logo und Textblock am Kopf der ersten Seite."
+
+msgid "The selection is remembered for your next visit."
+msgstr "Die Auswahl wird für den nächsten Aufruf gespeichert."
+
+msgid "The ticket is billed as a whole. The entries below are shown for information only."
+msgstr "Das Ticket wird als Ganzes abgerechnet. Die folgenden Buchungen dienen nur zur Information."
+
+msgid "The Time Recording plugin (table ost_timesheet) was not found. Please install and enable it first."
+msgstr "Das Zeiterfassungs-Plugin (Tabelle ost_timesheet) wurde nicht gefunden. Bitte installieren und aktivieren Sie es zuerst."
+
+msgid "The time type could not be saved. Please try again."
+msgstr "Die Zeitart konnte nicht gespeichert werden. Bitte erneut versuchen."
+
+msgid "The time-type selector below the ticket details is always shown; it is what agents use to record billing information."
+msgstr "Die Zeitart-Auswahl unter den Ticket-Details wird immer angezeigt — darüber erfassen Agenten die Abrechnungsdaten."
+
+msgid "The total of each time type is rounded up to this block before it is billed."
+msgstr "Die Summe jeder Zeitart wird vor der Abrechnung auf diesen Block aufgerundet."
+
+msgid "These inspections appear under the table in the CSV and PDF export for this organization. Empty rows are omitted."
+msgstr "Diese Prüfungen erscheinen im CSV- und PDF-Export dieser Organisation unter der Tabelle. Leere Zeilen werden weggelassen."
+
+msgid "This note appears under the table in the CSV and PDF export for this organization. Clear the field and save to remove it."
+msgstr "Diese Notiz erscheint im CSV- und PDF-Export dieser Organisation unter der Tabelle. Zum Entfernen das Feld leeren und speichern."
+
+msgid "This plugin does not record time itself - it bills the entries the Time Recording plugin writes to the table ost_timesheet. That table is missing, so every report will stay empty until Time Recording is installed and enabled."
+msgstr "Dieses Plugin erfasst selbst keine Zeiten — es rechnet die Einträge ab, die das Plugin Zeiterfassung in die Tabelle ost_timesheet schreibt. Diese Tabelle fehlt, daher bleibt jeder Bericht leer, bis die Zeiterfassung installiert und aktiviert ist."
+
+msgid "This tab contains an invalid value."
+msgstr "Dieser Reiter enthält einen ungültigen Wert."
+
+msgid "This table appears under the report table in the CSV and PDF export for this organization. Rows whose \"Active\" box is unticked are not exported."
+msgstr "Diese Tabelle erscheint im CSV- und PDF-Export dieser Organisation unter der Berichtstabelle. Zeilen, deren Häkchen „Aktiv“ nicht gesetzt ist, werden nicht exportiert."
+
+msgid "this ticket is not being invoiced."
+msgstr "dieses Ticket wird nicht abgerechnet."
+
+msgid "This week"
+msgstr "Diese Woche"
+
+msgid "This year"
+msgstr "Dieses Jahr"
+
+msgid "Thousands separator"
+msgstr "Tausendertrennzeichen"
+
+msgid "Ticket"
+msgstr "Ticket"
+
+msgid "Ticket #%s: Billing time type"
+msgstr "Ticket #%s: Abrechnungs-Zeitart"
+
+msgid "Ticket invoice"
+msgstr "Ticket-Rechnung"
+
+msgid "Ticket number"
+msgstr "Ticketnummer"
+
+msgid "Ticket view panel"
+msgstr "Ticket-Ansichts-Panel"
+
+msgid "Tickets"
+msgstr "Tickets"
+
+msgid "Tickets on-site"
+msgstr "Tickets vor Ort"
+
+msgid "Tickets remote"
+msgstr "Tickets Fernwartung"
+
+msgid "Time"
+msgstr "Zeit"
+
+msgid "Time & Billing"
+msgstr "Zeit & Abrechnung"
+
+msgid "Time &amp; Billing"
+msgstr "Zeit &amp; Abrechnung"
+
+msgid "Time Billing"
+msgstr "Zeitabrechnung"
+
+msgid "Time billing"
+msgstr "Zeitabrechnung"
+
+msgid "Time entries"
+msgstr "Zeiteinträge"
+
+msgid "Time only (monthly time billing)"
+msgstr "Nur Zeit (monatliche Zeitabrechnung)"
+
+msgid "Time only — hours, no amounts"
+msgstr "Nur Zeit — Stunden, keine Beträge"
+
+msgid "Time Recording"
+msgstr "Zeiterfassung"
+
+msgid "Time Recording is not installed"
+msgstr "Zeiterfassung ist nicht installiert"
+
+msgid "Time spent inside the handlers of this plugin, compared with the total request duration. Create a ticket, then reload this page."
+msgstr "Zeit innerhalb der Handler dieses Plugins im Vergleich zur Gesamtdauer des Requests. Erstellen Sie ein Ticket und laden Sie diese Seite neu."
+
+msgid "Time spent inside this plugin's own handlers, compared with the total request duration. Create a ticket, then reload this page."
+msgstr "Zeit innerhalb der Handler dieses Plugins im Vergleich zur Gesamtdauer des Requests. Erstellen Sie ein Ticket und laden Sie diese Seite neu."
+
+msgid "Time summary"
+msgstr "Zeitübersicht"
+
+msgid "Time type"
+msgstr "Zeitart"
+
+msgid "Time type added."
+msgstr "Zeitart hinzugefügt."
+
+msgid "Time types"
+msgstr "Zeitarten"
+
+msgid "Time types & rates"
+msgstr "Zeitarten & Sätze"
+
+msgid "Time types &amp; rates"
+msgstr "Zeitarten &amp; Sätze"
+
+msgid "Time types and their hourly rates are managed inside the Billing application."
+msgstr "Zeitarten und ihre Stundensätze werden innerhalb der Abrechnungs-Anwendung verwaltet."
+
+msgid "Time types saved."
+msgstr "Zeitarten gespeichert."
+
+msgid "Time types, factors and rates are configured exclusively here in the plugin."
+msgstr "Zeitarten, Faktoren und Sätze werden ausschließlich hier im Plugin konfiguriert."
+
+msgid "Timesheet index"
+msgstr "Index der Zeiterfassung"
+
+msgid "Title"
+msgstr "Titel"
+
+msgid "Title position"
+msgstr "Position der Überschrift"
+
+msgid "To"
+msgstr "Bis"
+
+msgid "Toggle"
+msgstr "Auswahl umkehren"
+
+msgid "Total"
+msgstr "Gesamt"
+
+msgid "Total tickets: %{report.count}, on-site: %{report.onsite}, office: %{report.office}"
+msgstr "Gesamt Tickets: %{report.count} davon Einsätze vor Ort: %{report.onsite} und Einsätze in Büro: %{report.office}"
+
+msgid "Total tickets: %{report.count}, trips: %{report.trips}"
+msgstr "Tickets gesamt: %{report.count}, Anfahrten: %{report.trips}"
+
+msgid "Total time"
+msgstr "Gesamtzeit"
+
+msgid "Totals"
+msgstr "Summen"
+
+msgid "Totals and the two free lines printed directly under every report table."
+msgstr "Summen und die beiden freien Zeilen direkt unter jeder Berichtstabelle."
+
+msgid "Totals under the table"
+msgstr "Summen unter der Tabelle"
+
+msgid "Travel charge"
+msgstr "Anfahrtsbetrag"
+
+msgid "Travel charges (%d)"
+msgstr "Anfahrten (%d)"
+
+msgid "Travel flat fee"
+msgstr "Anfahrtspauschale"
+
+msgid "Trips"
+msgstr "Anfahrten"
+
+msgid "Trips (call-outs)"
+msgstr "Anfahrten"
+
+msgid "Trips: %d"
+msgstr "Anfahrten: %d"
+
+msgid "Troubleshooting"
+msgstr "Fehlersuche"
+
+msgid "Type"
+msgstr "Art"
+
+msgid "Type %d"
+msgstr "Art %d"
+
+msgid "Units"
+msgstr "Stück"
+
+msgid "Unknown task"
+msgstr "Unbekannte Aufgabe"
+
+msgid "Unknown ticket"
+msgstr "Unbekanntes Ticket"
+
+msgid "Update"
+msgstr "Aktualisieren"
+
+msgid "Upload failed"
+msgstr "Upload fehlgeschlagen"
+
+msgid "Upload own logo"
+msgstr "Eigenes Logo hochladen"
+
+msgid "Uploading..."
+msgstr "Wird hochgeladen …"
+
+msgid "usable in every text field on this page"
+msgstr "in jedem Textfeld dieser Seite verwendbar"
+
+msgid "Use helpdesk logo"
+msgstr "Helpdesk-Logo verwenden"
+
+msgid "Use these in the PDF title, subtitle, header and footer text. They are replaced with the values of the exported report."
+msgstr "Verwendbar in Überschrift, Unterüberschrift, Kopf- und Fußtext des PDFs. Sie werden durch die Werte des exportierten Berichts ersetzt."
+
+msgid "Used for organizations that have no note yet, and printed for organizations that never write one."
+msgstr "Wird für Organisationen ohne eigene Notiz verwendet und für Organisationen gedruckt, die nie eine schreiben."
+
+msgid "Used for time types that carry no rate of their own."
+msgstr "Gilt für Zeitarten ohne eigenen Stundensatz."
+
+msgid "Used for time types that have no rate of their own."
+msgstr "Wird für Zeitarten verwendet, die keinen eigenen Satz haben."
+
+msgid "Used when \"Path or URL\" is selected. Relative to the osTicket folder (e.g. images/logo.png) or a full URL."
+msgstr "Wird bei „Pfad oder URL\" verwendet. Relativ zum osTicket-Ordner (z. B. images/logo.png) oder vollständige URL."
+
+msgid "Used when \"Upload own logo\" is selected. PNG, JPG or GIF."
+msgstr "Wird bei „Eigenes Logo hochladen\" verwendet. PNG, JPG oder GIF."
+
+msgid "Which tickets are picked up, and what billing shows inside a ticket."
+msgstr "Welche Tickets erfasst werden und was die Abrechnung im Ticket anzeigt."
+
+msgid "Whole request"
+msgstr "Gesamter Request"
+
+msgid "Width"
+msgstr "Breite"
+
+msgid "Year"
+msgstr "Jahr"
+
+msgid "Yes"
+msgstr "Ja"
+
+msgid "— none —"
+msgstr "— keine —"
+
+msgid "€ 1'234.56 — Swiss"
+msgstr "€ 1'234.56 — Schweiz"
+
+msgid "€ 1,234.56 — English"
+msgstr "€ 1,234.56 — Englisch"
