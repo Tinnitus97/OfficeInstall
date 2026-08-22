@@ -59,10 +59,14 @@ class BillingConfig extends PluginConfig {
      * a preset must never silently rewrite separators somebody set by hand.
      */
     function detectNumberFormat() {
+        // osTicket calls getOptions() from the PluginConfig constructor, before
+        // the decoded cache exists, so this can still see the raw stored value.
+        // BillingChoiceField::key() normalises it either way.
         $cur = array(
             'thousand_sep'      => (string) $this->get('thousand_sep', '.'),
             'decimal_sep'       => (string) $this->get('decimal_sep', ','),
-            'currency_position' => (string) $this->get('currency_position', 'after'),
+            'currency_position' => BillingChoiceField::key(
+                                       $this->get('currency_position', 'after')),
         );
         foreach (self::$numberFormats as $key => $fmt)
             if ($fmt == $cur)
@@ -99,7 +103,7 @@ class BillingConfig extends PluginConfig {
 
         /* ---- Billing / model ---------------------------------------- */
 
-        'billing_mode' => new ChoiceField(array(
+        'billing_mode' => new BillingChoiceField(array(
             'label'   => $__('Billing model'),
             'default' => 'money',
             'choices' => array(
@@ -135,7 +139,7 @@ class BillingConfig extends PluginConfig {
 
         /* ---- Billing / rounding ------------------------------------- */
 
-        'round_increment' => new ChoiceField(array(
+        'round_increment' => new BillingChoiceField(array(
             'label'   => $__('Round up to'),
             'default' => '0',
             'choices' => array(
@@ -162,7 +166,7 @@ class BillingConfig extends PluginConfig {
             'default' => '€',
             'configuration' => array('size' => 6, 'length' => 8),
         )),
-        'number_format' => new ChoiceField(array(
+        'number_format' => new BillingChoiceField(array(
             'label'   => $__('Number format'),
             'default' => $this->detectNumberFormat(),
             'choices' => array(
@@ -174,7 +178,7 @@ class BillingConfig extends PluginConfig {
             ),
             'hint' => $__('Picking a format sets the separators and the position of the symbol for you.'),
         )),
-        'currency_position' => new ChoiceField(array(
+        'currency_position' => new BillingChoiceField(array(
             'label'   => $__('Symbol position'),
             'default' => 'after',
             'choices' => array(
@@ -276,7 +280,7 @@ class BillingConfig extends PluginConfig {
 
         /* ---- Report / additional block ------------------------------ */
 
-        'export_footer_mode' => new ChoiceField(array(
+        'export_footer_mode' => new BillingChoiceField(array(
             'label'   => $__('Additional block'),
             'default' => 'note',
             'choices' => array(
@@ -319,13 +323,13 @@ class BillingConfig extends PluginConfig {
 
         /* ---- PDF / page --------------------------------------------- */
 
-        'pdf_orientation' => new ChoiceField(array(
+        'pdf_orientation' => new BillingChoiceField(array(
             'label'   => $__('Orientation'),
             'default' => 'L',
             'choices' => array('L' => $__('Landscape'), 'P' => $__('Portrait')),
             'hint'    => $__('Landscape fits more columns; portrait looks more like a letter.'),
         )),
-        'pdf_page_size' => new ChoiceField(array(
+        'pdf_page_size' => new BillingChoiceField(array(
             'label'   => $__('Page size'),
             'default' => 'A4',
             'choices' => array('A4' => 'A4', 'Letter' => 'Letter', 'A3' => 'A3'),
@@ -343,7 +347,7 @@ class BillingConfig extends PluginConfig {
 
         /* ---- PDF / letterhead --------------------------------------- */
 
-        'pdf_logo_mode' => new ChoiceField(array(
+        'pdf_logo_mode' => new BillingChoiceField(array(
             'label'   => $__('Logo'),
             'default' => 'none',
             'choices' => array(
@@ -356,7 +360,7 @@ class BillingConfig extends PluginConfig {
             'label' => $__('Logo file'),
             'hint'  => $__('PNG, JPG or GIF. Uploaded straight away; the setting is kept when you save.'),
         )),
-        'pdf_layout' => new ChoiceField(array(
+        'pdf_layout' => new BillingChoiceField(array(
             'label'   => $__('Arrangement'),
             'default' => 'logo_left',
             'choices' => array(
@@ -366,7 +370,7 @@ class BillingConfig extends PluginConfig {
                 'logo_right'  => $__('Logo right, text left'),
             ),
         )),
-        'pdf_text_align' => new ChoiceField(array(
+        'pdf_text_align' => new BillingChoiceField(array(
             'label'   => $__('Text alignment'),
             'default' => 'left',
             'choices' => array(
@@ -439,7 +443,7 @@ class BillingConfig extends PluginConfig {
                 ? sprintf($__('Active time types: %d'), $types)
                 : $__('No active time type. Nothing can be billed until at least one exists.'));
 
-        $mode = $this->get('billing_mode', 'money') === 'time'
+        $mode = BillingChoiceField::key($this->get('billing_mode', 'money')) === 'time'
             ? $__('Time only — hours, no amounts')
             : $__('Amounts — hourly rates, tax, totals');
 

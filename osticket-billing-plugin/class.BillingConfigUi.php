@@ -72,6 +72,42 @@ if (!class_exists('BillingInlineField')) {
 }
 
 /**
+ * Drop-down setting that stays a plain scalar.
+ *
+ * osTicket's ChoiceField is built for form answers, not for settings: it
+ * stores the selection as {"key":"Label"} and hands it back as an array.
+ * Every reader in this plugin compares a scalar - $config->get('billing_mode')
+ * === 'time', (int) $config->get('round_increment') - so an array silently
+ * fails every comparison and the setting falls back to its default. That is
+ * why "Time only", the rounding increment and the symbol position had no
+ * effect once the configuration had been saved a first time.
+ *
+ * Storing and returning the bare key fixes that, and to_php() still accepts
+ * the {"key":"Label"} rows written by earlier versions, so existing
+ * installations heal on the next read - no migration needed.
+ */
+if (!class_exists('BillingChoiceField')) {
+    class BillingChoiceField extends ChoiceField {
+        /** Reduce anything - array, JSON, scalar - to the bare choice key. */
+        static function key($value) {
+            if (is_string($value) && class_exists('JsonDataParser')
+                    && ($j = JsonDataParser::parse($value)) && is_array($j))
+                $value = $j;
+            if (is_array($value)) {
+                if (!$value)
+                    return '';
+                reset($value);
+                return (string) key($value);
+            }
+            return (string) $value;
+        }
+        function to_database($value) { return self::key($value); }
+        function to_php($value)      { return self::key($value); }
+        function parse($value)       { return self::key($value); }
+    }
+}
+
+/**
  * Choice field whose list is only built when the form is really rendered.
  *
  * osTicket instantiates a plugin's configuration on every single request
@@ -79,7 +115,7 @@ if (!class_exists('BillingInlineField')) {
  * statuses, time types) must not be built in the field definition itself.
  */
 if (!class_exists('BillingLazyChoiceField')) {
-    class BillingLazyChoiceField extends ChoiceField {
+    class BillingLazyChoiceField extends BillingChoiceField {
         function getChoices($verbose=false, $options=array()) {
             if (!$this->get('choices') && ($cb = $this->get('choices_callback'))
                     && is_callable($cb))
@@ -431,9 +467,12 @@ class BillingConfigUi {
             'configuration' => array('content' => self::placeholderPanel($__)),
         ));
 
-        // Filled in last: the script needs to know which settings render
+        // Filled in last: the script needs the render order (that is how it
+        // finds the fields at all, see assets()) and which of them render
         // without a label column.
-        $boot->set('configuration', array('content' => self::assets($__, $block)));
+        $boot->set('configuration', array(
+            'content' => self::assets($__, $block, array_keys($out)),
+        ));
 
         return $out;
     }
@@ -463,12 +502,17 @@ class BillingConfigUi {
        Stylesheet and behaviour
        ------------------------------------------------------------------ */
 
-    private static function assets($__, array $block = array()) {
+    private static function assets($__, array $block = array(), array $order = array()) {
         $cfg = array(
             'layout'     => array(),
             'conditions' => self::conditions(),
             'phTabs'     => self::placeholderTabs(),
             'block'      => $block,
+            // Render order of every field, which is how the script maps the
+            // markup back to setting names - see the note in js().
+            'order'      => $order,
+            // Lets the number-format presets fill in the detail fields live.
+            'formats'    => class_exists('BillingConfig') ? BillingConfig::$numberFormats : array(),
             'i18n'       => array(
                 'errors' => $__('This tab contains an invalid value.'),
             ),
@@ -485,7 +529,7 @@ class BillingConfigUi {
             );
         }
 
-        return '<style type="text/css">'.self::css().'</style>'
+        return '<style type="text/css" id="bx-css">'.self::css().'</style>'
              .'<script type="text/javascript">window.BX_CONFIG='
              .json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
              .';</script>'
@@ -643,22 +687,67 @@ CSS;
         return <<<'JS'
 (function(){
   var CFG = window.BX_CONFIG;
-  if (!CFG) return;
+  if (!CFG || !CFG.order || !CFG.order.length) return;
+
+  // Must be read while this script is running - currentScript is null later.
+  var SELF = document.currentScript || null;
 
   function ready(fn){
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn);
   }
 
+  /**
+   * osTicket names every form field with a session-dependent md5 hash
+   * (Form::getFormId() is 0, which is numeric, so FormField::getFormName()
+   * hashes), and simple-form.tmpl.php builds the wrapper id from that name.
+   * So the wrappers cannot be looked up by setting name.
+   *
+   * What is stable is the order: the template renders exactly one
+   * .form-field per field, in the order getFields() returned them. We find
+   * our own wrapper - the one holding this script - and count from there.
+   */
+  function locate(){
+    if (SELF && SELF.closest) {
+      var own = SELF.closest('.form-field');
+      if (own) return own;
+    }
+    var css = document.getElementById('bx-css');
+    if (css && css.closest) {
+      var viaCss = css.closest('.form-field');
+      if (viaCss) return viaCss;
+    }
+    return null;
+  }
+
   function build(){
-    var boot = document.getElementById('field_bx_boot');
+    var boot = locate();
     if (!boot || !boot.parentNode) return;
     var root = boot.parentNode;
     if (root.getAttribute('data-bx-ready') === '1') return;
+
+    var wrappers = [];
+    for (var n = root.firstElementChild; n; n = n.nextElementSibling)
+      if ((' ' + (n.className || '') + ' ').indexOf(' form-field ') !== -1)
+        wrappers.push(n);
+
+    var offset = wrappers.indexOf(boot);
+    if (offset < 0 || wrappers.length - offset !== CFG.order.length)
+      return;   // not the markup we expect - leave the plain list alone
+
+    var by = {};
+    for (var i = 0; i < CFG.order.length; i++)
+      by[CFG.order[i]] = wrappers[offset + i];
+
+    function control(key){
+      var w = by[key];
+      return w ? w.querySelector('select, input[type=checkbox], input[type=text], textarea') : null;
+    }
+
     root.setAttribute('data-bx-ready', '1');
     root.className += ' bx-root';
 
-    var anchor = document.getElementById('field_bx_notice') || boot;
+    var anchor = by['bx_notice'] || boot;
     var nav = document.createElement('div'); nav.className = 'bx-nav';
     var body = document.createElement('div'); body.className = 'bx-body';
     root.insertBefore(nav, anchor.nextSibling);
@@ -672,7 +761,7 @@ CSS;
       panel.setAttribute('data-bx-panel', tab.id);
 
       // the tab marker carries the lead paragraph; reuse it, drop the h2
-      var marker = document.getElementById('field_t_' + tab.id);
+      var marker = by['t_' + tab.id];
       if (marker) {
         var lead = marker.querySelector('.bx-th p');
         if (lead) { lead.className = 'bx-lead'; panel.appendChild(lead); }
@@ -684,7 +773,7 @@ CSS;
         card.className = 'bx-card';
         card.setAttribute('data-bx-card', g.id);
 
-        var gm = document.getElementById('field_g_' + g.id);
+        var gm = by['g_' + g.id];
         if (gm) {
           var head = gm.querySelector('.bx-gh');
           if (head) card.appendChild(head);
@@ -697,7 +786,7 @@ CSS;
 
         var moved = 0;
         g.fields.forEach(function(key){
-          var el = document.getElementById('field_' + key);
+          var el = by[key];
           if (!el) return;
           if (CFG.block.indexOf(key) !== -1) {
             el.className += ' bx-block';
@@ -736,8 +825,8 @@ CSS;
     boot.className += ' bx-hide';
 
     /* ---- placeholder reference, pinned below the panels ---------- */
-    var ph = document.getElementById('field_bx_ph');
-    if (ph) { root.appendChild(ph); ph.className = 'bx-ph-wrap'; }
+    var ph = by['bx_ph'];
+    if (ph) root.appendChild(ph);
 
     var current = null;
     function show(id){
@@ -747,17 +836,14 @@ CSS;
         panels[k].className = 'bx-panel' + (k === id ? ' on' : '');
         buttons[k].className = (k === id ? 'on' : '');
       }
-      if (ph) {
-        var on = CFG.phTabs.indexOf(id) !== -1;
-        ph.style.display = on ? '' : 'none';
-      }
+      if (ph) ph.style.display = (CFG.phTabs.indexOf(id) !== -1) ? '' : 'none';
       try { sessionStorage.setItem('bx-tab', id); } catch(e) {}
     }
 
     /* ---- conditional visibility ---------------------------------- */
     var conds = CFG.conditions || {};
     function valueOf(name){
-      var el = document.getElementById('_' + name);
+      var el = control(name);
       if (!el) return null;
       if (el.type === 'checkbox') return el.checked ? '1' : '0';
       return el.value;
@@ -769,7 +855,7 @@ CSS;
             on = (v === null) || rule.in.indexOf(String(v)) !== -1,
             el = target.charAt(0) === '@'
                ? cards[target.substring(1)]
-               : document.getElementById('field_' + target);
+               : by[target];
         if (!el) continue;
         el.className = el.className.replace(/\s*bx-off\b/g, '') + (on ? '' : ' bx-off');
       }
@@ -777,12 +863,25 @@ CSS;
     var watched = {};
     for (var t in conds) watched[conds[t].field] = true;
     for (var w in watched) {
-      var ctl = document.getElementById('_' + w);
+      var ctl = control(w);
       if (!ctl) continue;
       ctl.addEventListener('change', apply);
       ctl.addEventListener('input', apply);
     }
     apply();
+
+    /* ---- number-format presets fill in the detail fields --------- */
+    var fmtCtl = control('number_format');
+    if (fmtCtl && CFG.formats) {
+      fmtCtl.addEventListener('change', function(){
+        var preset = CFG.formats[fmtCtl.value];
+        if (!preset) return;          // "custom" - leave what is there
+        for (var key in preset) {
+          var el = control(key);
+          if (el) el.value = preset[key];
+        }
+      });
+    }
 
     /* ---- placeholder insertion ----------------------------------- */
     var lastField = null;
@@ -818,9 +917,9 @@ CSS;
       var p = bad.closest ? bad.closest('.bx-panel') : null;
       if (p) {
         start = p.getAttribute('data-bx-panel');
-        var dot = document.createElement('span');
-        dot.className = 'bx-badge';
         if (buttons[start]) {
+          var dot = document.createElement('span');
+          dot.className = 'bx-badge';
           buttons[start].appendChild(dot);
           buttons[start].title = CFG.i18n.errors;
         }
