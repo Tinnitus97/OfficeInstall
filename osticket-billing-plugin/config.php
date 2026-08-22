@@ -91,10 +91,11 @@ class BillingConfig extends PluginConfig {
     /** Warnings shown above the tab bar, or '' when everything is fine. */
     private function notices($__) {
         if (class_exists('Billing') && !Billing::timesheetAvailable())
-            return '<div class="bx-notice"><i class="icon-warning-sign"></i><div>'
-                .'<b>'.Format::htmlchars($__('Time Recording is not installed')).'</b>'
+            // #msg_warning is osTicket's own warning banner.
+            return '<p id="msg_warning"><b>'
+                .Format::htmlchars($__('Time Recording is not installed')).'</b> '
                 .Format::htmlchars($__('This plugin does not record time itself - it bills the entries the Time Recording plugin writes to the table ost_timesheet. That table is missing, so every report will stay empty until Time Recording is installed and enabled.'))
-                .'</div></div>';
+                .'</p>';
         return '';
     }
 
@@ -131,7 +132,7 @@ class BillingConfig extends PluginConfig {
             'hint'  => $__('Name, hourly rate, travel charge, factor and the billable flag per time type. Kept on its own page because these are records, not settings.'),
             'configuration' => array(
                 'content' => sprintf(
-                    '<a class="button" href="%sscp/dispatcher.php/billing/timetypes">'
+                    '<a class="action-button" href="%sscp/dispatcher.php/billing/timetypes">'
                     .'<i class="icon-list"></i> %s</a>',
                     ROOT_PATH, Format::htmlchars($__('Manage time types'))),
             ),
@@ -450,21 +451,21 @@ class BillingConfig extends PluginConfig {
         $html = '<div class="bx-status">';
         foreach ($rows as $r) {
             list($ok, $title, $text) = $r;
-            $html .= '<div class="bx-status-row"><i class="'
+            $html .= '<p><i class="'
                   .($ok ? 'icon-ok-sign bx-ok' : 'icon-warning-sign bx-bad').'"></i>'
-                  .'<div><b>'.Format::htmlchars($title).'</b><br>'
-                  .Format::htmlchars($text).'</div></div>';
+                  .'<b>'.Format::htmlchars($title).'</b> &mdash; '
+                  .Format::htmlchars($text).'</p>';
         }
-        $html .= '<div class="bx-status-row"><i class="icon-info-sign bx-info"></i>'
-              .'<div><b>'.Format::htmlchars($__('Current model')).'</b><br>'
-              .Format::htmlchars($mode).'</div></div>';
-        $html .= '</div><div class="bx-actions">'
-              .'<a class="button" href="'.ROOT_PATH.'scp/dispatcher.php/billing">'
+        $html .= '<p><i class="icon-info-sign"></i><b>'
+              .Format::htmlchars($__('Current model')).'</b> &mdash; '
+              .Format::htmlchars($mode).'</p></div>'
+              .'<div class="bx-actions">'
+              .'<a class="action-button" href="'.ROOT_PATH.'scp/dispatcher.php/billing">'
               .'<i class="icon-dashboard"></i> '.Format::htmlchars($__('Open billing')).'</a>'
-              .'<a class="button" href="'.ROOT_PATH.'scp/dispatcher.php/billing/timetypes">'
+              .'<a class="action-button" href="'.ROOT_PATH.'scp/dispatcher.php/billing/timetypes">'
               .'<i class="icon-list"></i> '.Format::htmlchars($__('Manage time types')).'</a>';
         if ($this->get('enable_diag'))
-            $html .= '<a class="button" href="'.ROOT_PATH.'scp/dispatcher.php/billing/diag">'
+            $html .= '<a class="action-button" href="'.ROOT_PATH.'scp/dispatcher.php/billing/diag">'
                   .'<i class="icon-beaker"></i> '.Format::htmlchars($__('Diagnostics')).'</a>';
         $html .= '</div>';
 

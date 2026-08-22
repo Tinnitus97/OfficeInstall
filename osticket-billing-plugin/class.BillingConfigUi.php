@@ -155,20 +155,14 @@ if (!class_exists('BillingLogoField')) {
             $u  = $this->id.'_up';
             $ph = $__('No file selected');
             ?>
-            <div class="bx-upload" id="<?php echo $u; ?>_box">
-              <input type="hidden" name="<?php echo $this->name; ?>"
-                     id="<?php echo $this->id; ?>" value="<?php echo $id ?: ''; ?>">
-              <label class="bx-upload-btn" for="<?php echo $u; ?>">
-                <i class="icon-picture"></i> <?php echo $__('Choose image'); ?>
-              </label>
-              <input type="file" id="<?php echo $u; ?>" class="bx-upload-input"
-                     accept="image/png,image/jpeg,image/gif">
-              <span class="bx-upload-name<?php echo $name ? '' : ' bx-muted'; ?>"
-                    id="<?php echo $u; ?>_s"><?php
+            <input type="hidden" name="<?php echo $this->name; ?>"
+                   id="<?php echo $this->id; ?>" value="<?php echo $id ?: ''; ?>">
+            <input type="file" id="<?php echo $u; ?>"
+                   accept="image/png,image/jpeg,image/gif">
+            <span id="<?php echo $u; ?>_s" class="faded"><?php
                 echo $name ? Format::htmlchars($name) : Format::htmlchars($ph); ?></span>
-              <a href="#" class="bx-upload-clear<?php echo $id ? '' : ' bx-hide'; ?>"
-                 id="<?php echo $u; ?>_x"><?php echo $__('Remove'); ?></a>
-            </div>
+            <a href="#" id="<?php echo $u; ?>_x"<?php
+                echo $id ? '' : ' class="hidden"'; ?>><?php echo $__('Remove'); ?></a>
             <script type="text/javascript">
             (function(){
                 var inp = document.getElementById('<?php echo $u; ?>'),
@@ -176,15 +170,15 @@ if (!class_exists('BillingLogoField')) {
                     st  = document.getElementById('<?php echo $u; ?>_s'),
                     rm  = document.getElementById('<?php echo $u; ?>_x');
                 if (!inp || !hid || !st) return;
-                function idle(text, muted) {
+                function idle(text, faded) {
                     st.textContent = text;
-                    st.className = 'bx-upload-name' + (muted ? ' bx-muted' : '');
+                    st.className = faded ? 'faded' : '';
                 }
                 if (rm) rm.addEventListener('click', function(e){
                     e.preventDefault();
                     hid.value = ''; inp.value = '';
                     idle(<?php echo json_encode($ph); ?>, true);
-                    rm.className = 'bx-upload-clear bx-hide';
+                    rm.className = 'hidden';
                 });
                 inp.addEventListener('change', function(){
                     if (!inp.files || !inp.files.length) return;
@@ -202,7 +196,7 @@ if (!class_exists('BillingLogoField')) {
                         if (!j || !j.id) throw new Error('no id');
                         hid.value = j.id;
                         idle(inp.files[0].name, false);
-                        if (rm) rm.className = 'bx-upload-clear';
+                        if (rm) rm.className = '';
                     })
                     .catch(function(e){
                         idle(<?php echo json_encode($__('Upload failed')); ?>+': '+e.message, false);
@@ -420,19 +414,18 @@ class BillingConfigUi {
 
         foreach (self::layout($__) as $tab) {
             $out['t_'.$tab['id']] = self::marker(
-                '<div class="bx-th" data-bx-tab="'.$tab['id'].'"'
-                .' data-bx-icon="'.Format::htmlchars($tab['icon']).'"'
-                .' data-bx-title="'.Format::htmlchars($tab['title']).'">'
-                .'<h2>'.Format::htmlchars($tab['title']).'</h2>'
-                .'<p>'.Format::htmlchars($tab['lead']).'</p></div>');
+                '<div class="bx-th"><h2>'.Format::htmlchars($tab['title']).'</h2>'
+                .'<p class="faded">'.Format::htmlchars($tab['lead']).'</p></div>');
 
             foreach ($tab['groups'] as $g) {
                 $desc = isset($g['desc']) ? $g['desc'] : '';
+                // Same markup osTicket's own SectionBreakField produces, so
+                // the grey header bar is the native one, not a lookalike.
                 $out['g_'.$g['id']] = self::marker(
-                    '<div class="bx-gh" data-bx-group="'.$g['id'].'">'
+                    '<div class="form-header section-break">'
                     .'<h3><i class="'.Format::htmlchars($g['icon']).'"></i> '
                     .Format::htmlchars($g['title']).'</h3>'
-                    .($desc ? '<p>'.Format::htmlchars($desc).'</p>' : '')
+                    .($desc ? '<em>'.Format::htmlchars($desc).'</em>' : '')
                     .'</div>');
 
                 foreach ($g['fields'] as $key) {
@@ -449,12 +442,12 @@ class BillingConfigUi {
         $rest = array_diff_key($defs, $used);
         if ($rest) {
             $out['t_more'] = self::marker(
-                '<div class="bx-th" data-bx-tab="more" data-bx-icon="icon-question-sign"'
-                .' data-bx-title="'.Format::htmlchars($__('Other')).'">'
-                .'<h2>'.Format::htmlchars($__('Other')).'</h2>'
-                .'<p>'.Format::htmlchars($__('Settings that are not part of a group yet.')).'</p></div>');
+                '<div class="bx-th"><h2>'.Format::htmlchars($__('Other')).'</h2>'
+                .'<p class="faded">'
+                .Format::htmlchars($__('Settings that are not part of a group yet.'))
+                .'</p></div>');
             $out['g_more'] = self::marker(
-                '<div class="bx-gh" data-bx-group="more"><h3><i class="icon-question-sign"></i> '
+                '<div class="form-header section-break"><h3><i class="icon-question-sign"></i> '
                 .Format::htmlchars($__('Other')).'</h3></div>');
             foreach ($rest as $k => $f) {
                 $out[$k] = $f;
@@ -485,17 +478,18 @@ class BillingConfigUi {
     private static function placeholderPanel($__) {
         $rows = '';
         foreach (self::placeholders($__) as $label => $token)
-            $rows .= '<button type="button" class="bx-token" data-bx-token="'
+            $rows .= '<li><a href="#" class="bx-token" data-bx-token="'
                   .Format::htmlchars($token).'"><code>'.Format::htmlchars($token)
-                  .'</code><span>'.Format::htmlchars($label).'</span></button>';
+                  .'</code></a> <span class="faded">'.Format::htmlchars($label)
+                  .'</span></li>';
 
-        return '<details class="bx-ph" id="bx-ph">'
-            .'<summary><i class="icon-tags"></i> '.Format::htmlchars($__('Placeholders'))
-            .' <em>'.Format::htmlchars($__('usable in every text field on this page')).'</em></summary>'
-            .'<div class="bx-ph-body"><div class="bx-tokens">'.$rows.'</div>'
-            .'<p class="bx-ph-hint">'.Format::htmlchars(
+        return '<div class="form-header section-break"><h3><i class="icon-tags"></i> '
+            .Format::htmlchars($__('Placeholders')).'</h3><em>'
+            .Format::htmlchars($__('usable in every text field on this page')).'</em></div>'
+            .'<ul class="bx-tokens">'.$rows.'</ul>'
+            .'<p class="faded">'.Format::htmlchars(
                 $__('Click a placeholder to insert it at the cursor of the field you edited last.'))
-            .'</p></div></details>';
+            .'</p>';
     }
 
     /* ------------------------------------------------------------------
@@ -537,149 +531,23 @@ class BillingConfigUi {
     }
 
     private static function css() {
+        // Deliberately tiny. The tab bar (ul.clean.tabs), the grey group
+        // headers (div.section-break), the warning banner (#msg_warning),
+        // .hidden and .faded all come from osTicket's own stylesheet, so the
+        // page looks like every other admin page. What is left here is only
+        // what osTicket has no class for.
         return <<<'CSS'
-.bx-root{max-width:1100px;font-size:13px;color:#26313c;}
-.bx-root *,.bx-root *:before,.bx-root *:after{box-sizing:border-box;}
-.bx-root .bx-hide{display:none!important;}
-.bx-root .bx-muted{color:#8a949e;}
-
-/* ---- tab bar ---------------------------------------------------- */
-.bx-nav{display:flex;flex-wrap:wrap;gap:2px;margin:14px 0 20px;
-  border-bottom:2px solid #e3e8ed;}
-.bx-nav button{appearance:none;-webkit-appearance:none;background:none;border:0;
-  border-bottom:3px solid transparent;margin:0 0 -2px;padding:10px 16px;
-  font:inherit;font-size:13px;font-weight:600;color:#5d6a76;cursor:pointer;
-  border-radius:7px 7px 0 0;display:inline-flex;align-items:center;gap:8px;
-  transition:background .12s,color .12s;}
-.bx-nav button:hover{background:#f1f5f8;color:#1d2731;}
-.bx-nav button.on{color:#12202c;background:#fff;border-bottom-color:#e86800;}
-.bx-nav button i{opacity:.75;}
-.bx-nav button.on i{opacity:1;color:#e86800;}
-.bx-nav .bx-badge{width:7px;height:7px;border-radius:50%;background:#cc3300;
-  display:inline-block;}
-
-/* ---- panels ----------------------------------------------------- */
-.bx-panel{display:none;}
-.bx-panel.on{display:block;}
-.bx-lead{margin:0 0 18px;color:#6d7883;font-size:12.5px;line-height:1.5;}
-
-/* ---- cards ------------------------------------------------------ */
-.bx-card{border:1px solid #e0e5ea;border-radius:10px;background:#fff;
-  margin:0 0 16px;box-shadow:0 1px 2px rgba(16,24,32,.05);overflow:hidden;}
-.bx-card > .bx-fields{padding:2px 16px 8px;}
-
-/* group and tab headings - these also carry the page when the script
-   never runs, so they are styled on their own, not only inside a card */
-.bx-gh{margin:22px 0 8px;padding:9px 13px;background:#f2f5f8;
-  border-left:4px solid #e86800;border-radius:0 5px 5px 0;}
-.bx-gh h3{margin:0;font-size:13px;font-weight:700;color:#22303d;
-  display:flex;align-items:center;gap:8px;}
-.bx-gh h3 i{color:#7d8b98;font-size:13px;}
-.bx-gh p{margin:5px 0 0;color:#6d7883;font-size:12px;line-height:1.5;}
-.bx-th h2{margin:28px 0 2px;font-size:17px;color:#12202c;}
-.bx-th p{margin:0 0 6px;color:#6d7883;font-size:12.5px;}
-.bx-card > .bx-gh{margin:0;padding:11px 16px;background:#f7f9fb;border-left:0;
-  border-radius:0;border-bottom:1px solid #e8edf1;}
-
-/* ---- one setting ------------------------------------------------ */
-.bx-root .bx-fields > .form-field{display:flex;flex-wrap:wrap;
-  align-items:flex-start;gap:2px 20px;margin:0;padding:13px 0;
-  border-top:1px solid #f0f3f6;}
-.bx-root .bx-fields > .form-field:first-child{border-top:0;}
-.bx-root .bx-fields > .form-field.bx-block{display:block;padding:14px 0;}
-.bx-root .bx-fields > .form-field:not(.bx-block) > div:first-child{display:block!important;
-  width:280px!important;max-width:280px!important;flex:0 0 280px;
-  padding:2px 0 0!important;font-weight:600;font-size:12.5px;color:#2a3742;}
-.bx-root .bx-fields > .form-field:not(.bx-block) > div + div{display:block!important;
-  flex:1 1 340px;min-width:0;max-width:none!important;padding:0!important;}
-.bx-root .bx-fields > .form-field .hint{margin-top:4px;font-weight:400;
-  font-size:11.5px;line-height:1.5;color:#7b8792;}
-.bx-root .bx-fields > .form-field .error{margin-top:5px;font-size:12px;}
-.bx-root .bx-fields > .form-field .hint.bx-hint-below{margin-top:7px;max-width:640px;}
-.bx-root .form-field.bx-off{display:none!important;}
-.bx-root .bx-card.bx-off{display:none!important;}
-
-/* full-width rows for the wide editors */
-.bx-root .bx-fields > .form-field.bx-wide{display:block;}
-.bx-root .bx-fields > .form-field.bx-wide > div:first-child{width:auto!important;
-  max-width:none!important;margin-bottom:7px;}
-
-/* ---- controls --------------------------------------------------- */
-.bx-root .bx-fields input[type=text],
-.bx-root .bx-fields input[type=number],
-.bx-root .bx-fields select,
-.bx-root .bx-fields textarea{font-size:13px;padding:5px 8px;
-  border:1px solid #ccd4dc;border-radius:6px;background:#fff;color:#1f2a35;
-  max-width:100%;}
-.bx-root .bx-fields input[type=text]:focus,
-.bx-root .bx-fields select:focus,
-.bx-root .bx-fields textarea:focus{border-color:#e86800;outline:0;
-  box-shadow:0 0 0 3px rgba(232,104,0,.12);}
-.bx-root .bx-fields textarea{width:100%;max-width:640px;line-height:1.5;
-  font-family:inherit;}
-.bx-root .bx-fields label.checkbox{display:flex;gap:9px;align-items:flex-start;
-  font-size:12.5px;line-height:1.5;color:#3a4753;cursor:pointer;margin:1px 0 0;}
-.bx-root .bx-fields label.checkbox input{margin:2px 0 0;flex:0 0 auto;}
-.bx-root .bx-fields .redactor-box{width:100%;max-width:640px;margin:0;}
-.bx-root .bx-fields .redactor-box .redactor-in{min-height:120px!important;}
-.bx-root .bx-fields a.button,.bx-root .bx-fields .bx-upload-btn{
-  display:inline-flex;align-items:center;gap:7px;padding:6px 13px;
-  border:1px solid #ccd4dc;border-radius:6px;background:#f7f9fb;
-  color:#26313c;font-size:12.5px;font-weight:600;text-decoration:none;
-  cursor:pointer;}
-.bx-root .bx-fields a.button:hover,.bx-root .bx-fields .bx-upload-btn:hover{
-  background:#eef2f6;border-color:#b9c4ce;}
-
-/* ---- logo upload ------------------------------------------------ */
-.bx-upload{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.bx-upload-input{position:absolute;width:1px;height:1px;opacity:0;
-  overflow:hidden;clip:rect(0 0 0 0);}
-.bx-upload-name{font-size:12.5px;}
-.bx-upload-clear{font-size:12px;}
-
-/* ---- status card ------------------------------------------------ */
-.bx-status{display:flex;flex-direction:column;gap:9px;padding:4px 0 10px;}
-.bx-status-row{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;
-  line-height:1.5;}
-.bx-status-row i{margin-top:1px;}
-.bx-ok{color:#1f8a4c;} .bx-bad{color:#c0392b;} .bx-info{color:#7d8b98;}
-.bx-status-row b{font-weight:600;}
-.bx-actions{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 10px;}
-
-/* ---- notice ----------------------------------------------------- */
-.bx-notice{display:flex;gap:12px;align-items:flex-start;margin:14px 0 0;
-  padding:12px 14px;border:1px solid #f0c9a8;border-left:4px solid #e86800;
-  border-radius:8px;background:#fff8f2;font-size:12.5px;line-height:1.55;
-  color:#5d4632;}
-.bx-notice i{font-size:15px;color:#e86800;margin-top:1px;}
-.bx-notice b{display:block;margin-bottom:2px;color:#3d2d1f;}
-
-/* ---- placeholder reference -------------------------------------- */
-.bx-ph{margin:6px 0 4px;border:1px solid #e0e5ea;border-radius:10px;
-  background:#fbfcfd;}
-.bx-ph[hidden]{display:none;}
-.bx-ph > summary{cursor:pointer;padding:10px 14px;font-size:12.5px;
-  font-weight:600;color:#3a4753;list-style:none;display:flex;
-  align-items:center;gap:8px;}
-.bx-ph > summary::-webkit-details-marker{display:none;}
-.bx-ph > summary i{color:#7d8b98;}
-.bx-ph > summary em{font-weight:400;font-style:normal;color:#8a949e;font-size:12px;}
-.bx-ph-body{padding:0 14px 12px;}
-.bx-tokens{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
-  gap:6px;}
-.bx-token{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;
-  padding:5px 8px;border:1px solid #e4e9ee;border-radius:6px;background:#fff;
-  font:inherit;cursor:pointer;}
-.bx-token:hover{border-color:#e86800;background:#fff8f2;}
-.bx-token code{font-size:11.5px;color:#0a64a4;white-space:nowrap;}
-.bx-token span{font-size:11.5px;color:#7b8792;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap;}
-.bx-ph-hint{margin:9px 0 0;font-size:11.5px;color:#8a949e;}
-
-@media (max-width:760px){
-  .bx-root .bx-fields > .form-field > div:first-child{width:auto!important;
-    max-width:none!important;flex:1 1 100%;}
-}
+.bx-th h2{margin:0 0 2px;}
+.bx-th p{margin:0 0 12px;}
+.bx-tokens{list-style:none;margin:8px 0;padding:0;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 16px;}
+.bx-tokens li{margin:0;padding:0;font-size:95%;}
+.bx-tokens code{font-size:95%;}
+.bx-status p{margin:0 0 8px;}
+.bx-status i{margin-right:5px;}
+.bx-ok{color:#0a0;} .bx-bad{color:#a00;}
+.bx-actions{margin:12px 0 4px;}
+.bx-actions a{margin-right:6px;}
 CSS;
     }
 
@@ -743,101 +611,90 @@ CSS;
       var w = by[key];
       return w ? w.querySelector('select, input[type=checkbox], input[type=text], textarea') : null;
     }
+    function setHidden(el, hide){
+      if (!el) return;
+      var c = (' ' + el.className + ' ').replace(/ hidden /g, ' ').replace(/\s+/g, ' ').trim();
+      el.className = hide ? (c + ' hidden') : c;
+    }
 
     root.setAttribute('data-bx-ready', '1');
-    root.className += ' bx-root';
 
+    /* ---- osTicket's own tab component ---------------------------- */
     var anchor = by['bx_notice'] || boot;
-    var nav = document.createElement('div'); nav.className = 'bx-nav';
-    var body = document.createElement('div'); body.className = 'bx-body';
-    root.insertBefore(nav, anchor.nextSibling);
-    root.insertBefore(body, nav.nextSibling);
+    var ul = document.createElement('ul');
+    ul.className = 'clean tabs';
+    ul.id = 'bx-tabs';
+    var container = document.createElement('div');
+    container.id = 'bx-tabs_container';   // scp.js finds panels by this name
+    root.insertBefore(ul, anchor.nextSibling);
+    root.insertBefore(container, ul.nextSibling);
 
-    var panels = {}, buttons = {}, cards = {};
+    var panels = {}, items = {}, order = [], groups = {};
 
     CFG.layout.forEach(function(tab){
       var panel = document.createElement('div');
-      panel.className = 'bx-panel';
-      panel.setAttribute('data-bx-panel', tab.id);
+      panel.className = 'tab_content';
+      panel.id = 'bx-tab-' + tab.id;
 
-      // the tab marker carries the lead paragraph; reuse it, drop the h2
       var marker = by['t_' + tab.id];
       if (marker) {
         var lead = marker.querySelector('.bx-th p');
-        if (lead) { lead.className = 'bx-lead'; panel.appendChild(lead); }
+        if (lead) panel.appendChild(lead);      // keep the lead, drop the h2
         marker.parentNode.removeChild(marker);
       }
 
+      var moved = 0;
       tab.groups.forEach(function(g){
-        var card = document.createElement('div');
-        card.className = 'bx-card';
-        card.setAttribute('data-bx-card', g.id);
-
-        var gm = by['g_' + g.id];
-        if (gm) {
-          var head = gm.querySelector('.bx-gh');
-          if (head) card.appendChild(head);
-          gm.parentNode.removeChild(gm);
-        }
-
-        var fields = document.createElement('div');
-        fields.className = 'bx-fields';
-        card.appendChild(fields);
-
-        var moved = 0;
+        var gm = by['g_' + g.id], head = gm ? gm.querySelector('.section-break') : null;
+        var placed = [];
         g.fields.forEach(function(key){
-          var el = by[key];
-          if (!el) return;
-          if (CFG.block.indexOf(key) !== -1) {
-            el.className += ' bx-block';
-          } else {
-            if (el.querySelector('textarea, .redactor-box'))
-              el.className += ' bx-wide';
-            // A hint longer than the label column reads far better under the
-            // control than as a tall paragraph squeezed next to it.
-            var hint = el.querySelector('.hint'), val = el.children[1];
-            if (hint && val && (hint.textContent || '').trim().length > 110) {
-              hint.className += ' bx-hint-below';
-              val.appendChild(hint);
-            }
-          }
-          fields.appendChild(el);
-          moved++;
+          if (by[key]) placed.push(by[key]);
         });
-
-        if (moved) { panel.appendChild(card); cards[g.id] = card; }
+        if (!placed.length) return;
+        if (head) panel.appendChild(head);
+        if (gm) gm.parentNode.removeChild(gm);
+        placed.forEach(function(el){ panel.appendChild(el); moved++; });
+        groups[g.id] = { head: head, fields: placed };
       });
+      if (!moved) return;
 
-      if (!panel.querySelector('.bx-card')) return;
-      body.appendChild(panel);
+      container.appendChild(panel);
       panels[tab.id] = panel;
+      order.push(tab.id);
 
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.setAttribute('data-bx-go', tab.id);
-      b.innerHTML = '<i class="' + tab.icon + '"></i><span></span>';
-      b.querySelector('span').textContent = tab.title;
-      b.addEventListener('click', function(){ show(tab.id); });
-      nav.appendChild(b);
-      buttons[tab.id] = b;
+      var li = document.createElement('li');
+      var a  = document.createElement('a');
+      a.href = '#' + panel.id;                  // scp.js switches on this
+      a.innerHTML = '<i class="' + tab.icon + '"></i> ';
+      a.appendChild(document.createTextNode(tab.title));
+      // scp.js does the switching; this only records the choice and keeps
+      // the placeholder box in step, which scp.js knows nothing about.
+      a.addEventListener('click', function(){
+        try { sessionStorage.setItem('bx-tab', tab.id); } catch(e) {}
+        showPlaceholders(tab.id);
+      });
+      li.appendChild(a);
+      ul.appendChild(li);
+      items[tab.id] = li;
     });
 
-    boot.className += ' bx-hide';
+    if (!order.length) return;
+    setHidden(boot, true);
 
     /* ---- placeholder reference, pinned below the panels ---------- */
     var ph = by['bx_ph'];
     if (ph) root.appendChild(ph);
 
-    var current = null;
-    function show(id){
-      if (!panels[id]) return;
-      current = id;
-      for (var k in panels) {
-        panels[k].className = 'bx-panel' + (k === id ? ' on' : '');
-        buttons[k].className = (k === id ? 'on' : '');
-      }
-      if (ph) ph.style.display = (CFG.phTabs.indexOf(id) !== -1) ? '' : 'none';
-      try { sessionStorage.setItem('bx-tab', id); } catch(e) {}
+    function showPlaceholders(id){
+      if (ph) setHidden(ph, CFG.phTabs.indexOf(id) === -1);
+    }
+    function selectTab(id){
+      if (!panels[id]) id = order[0];
+      order.forEach(function(k){
+        panels[k].style.display = (k === id) ? '' : 'none';
+        items[k].className = (k === id ? 'active' : '');
+      });
+      showPlaceholders(id);
     }
 
     /* ---- conditional visibility ---------------------------------- */
@@ -852,12 +709,16 @@ CSS;
       for (var target in conds) {
         var rule = conds[target],
             v = valueOf(rule.field),
-            on = (v === null) || rule.in.indexOf(String(v)) !== -1,
-            el = target.charAt(0) === '@'
-               ? cards[target.substring(1)]
-               : by[target];
-        if (!el) continue;
-        el.className = el.className.replace(/\s*bx-off\b/g, '') + (on ? '' : ' bx-off');
+            on = (v === null) || rule.in.indexOf(String(v)) !== -1;
+        if (target.charAt(0) === '@') {
+          // a whole group: its header bar and every setting under it
+          var g = groups[target.substring(1)];
+          if (!g) continue;
+          setHidden(g.head, !on);
+          g.fields.forEach(function(el){ setHidden(el, !on); });
+        } else {
+          setHidden(by[target], !on);
+        }
       }
     }
     var watched = {};
@@ -912,24 +773,19 @@ CSS;
 
     /* ---- first tab: the one with an error, else the last used ---- */
     var start = null;
-    var bad = root.querySelector('.bx-panel .form-field .error');
-    if (bad) {
-      var p = bad.closest ? bad.closest('.bx-panel') : null;
+    var bad = root.querySelector('.tab_content .form-field .error');
+    if (bad && bad.closest) {
+      var p = bad.closest('.tab_content');
       if (p) {
-        start = p.getAttribute('data-bx-panel');
-        if (buttons[start]) {
-          var dot = document.createElement('span');
-          dot.className = 'bx-badge';
-          buttons[start].appendChild(dot);
-          buttons[start].title = CFG.i18n.errors;
-        }
+        for (var k in panels) if (panels[k] === p) start = k;
+        // osTicket styles li.error with a red tab border of its own
+        if (start && items[start]) items[start].className += ' error';
       }
     }
     if (!start) {
       try { start = sessionStorage.getItem('bx-tab'); } catch(e) {}
     }
-    if (!start || !panels[start]) start = CFG.layout[0].id;
-    show(start);
+    selectTab(start);
   }
 
   ready(function(){ try { build(); } catch (e) { if (window.console) console.warn('billing settings ui:', e); } });

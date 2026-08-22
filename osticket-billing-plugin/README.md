@@ -108,9 +108,18 @@ Besonderheiten:
 
 Technisch: `config.php` beschreibt nur noch, *was* einstellbar ist,
 `class.BillingConfigUi.php` beschreibt, *wie* es dargestellt wird (Reiter,
-Karten, Reihenfolge, Ausblende-Regeln) und liefert CSS und Skript dafür.
+Gruppen, Reihenfolge, Ausblende-Regeln).
+
+Die Darstellung benutzt durchgehend osTickets eigene Bausteine – die
+Reiterleiste ist `ul.clean.tabs` samt `_container`, also dieselbe
+Komponente wie auf jeder anderen Admin-Seite, und das Umschalten erledigt
+osTickets `scp.js`. Die grauen Gruppenüberschriften sind
+`div.form-header.section-break`, die Warnung ist `#msg_warning`, versteckte
+Felder benutzen `.hidden`. Eigenes CSS gibt es nur dort, wo osTicket keine
+Klasse hat (knapp 20 Zeilen).
+
 Läuft das Skript nicht, fällt die Seite auf die schlichte Liste zurück –
-vollständig, lesbar und speicherbar; es wird nichts serverseitig
+vollständig, gegliedert und speicherbar; es wird nichts serverseitig
 ausgeblendet.
 
 ---
