@@ -25,6 +25,23 @@ Es gibt zwei Varianten – beide gehören nach `include/plugins/`:
 Danach unter *Admin → Verwalten → Plugins* installieren und aktivieren.
 Auf IIS nach dem Kopieren `iisreset` ausführen (OPcache).
 
+> Beide Varianten sind gleichwertig; die PHAR ist nur eine Datei statt eines
+> Ordners. Nicht beide gleichzeitig ablegen – osTicket würde das Plugin sonst
+> zweimal finden.
+
+### PHAR selbst bauen
+
+Nach Änderungen am Code die PHAR neu erzeugen:
+
+```
+php -d phar.readonly=0 tools/build-phar.php
+```
+
+Das legt `billing.phar` neben dem Plugin-Ordner an. `-d phar.readonly=0` ist
+nötig, weil PHP das Schreiben von PHAR-Archiven sonst verweigert und die
+Einstellung zur Laufzeit nicht geändert werden kann. Der Ordner `tools/`
+selbst landet nicht im Archiv.
+
 ---
 
 ## Voraussetzungen
