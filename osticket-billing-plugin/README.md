@@ -77,50 +77,61 @@ selbst landet nicht im Archiv.
 
 ## Einstellungen
 
-Die Konfigurationsseite ist in Reiter und Karten gegliedert; Einstellungen,
-die im aktuellen Zustand nichts bewirken, werden ausgeblendet (z. B. alle
-Betragsfelder im Modus „Nur Zeit“).
+Die Konfigurationsseite ist eine durchgehende Seite – wie bei jedem anderen
+osTicket-Plugin. Jede Gruppe wird von einer grauen Abschnittsleiste
+eingeleitet, darunter stehen ihre Einstellungen. Was im aktuellen Zustand
+nichts bewirkt, wird ausgeblendet (z. B. alle Betragsfelder im Modus
+„Nur Zeit").
 
-| Reiter | Inhalt |
+Reihenfolge der Abschnitte:
+
+| Abschnitt | Inhalt |
 |---|---|
-| **Abrechnung** | Abrechnungsmodell (Beträge oder nur Zeit), Standard-Stundensatz, Steuersatz, Rundung, Zahlenformat, Link zu den Zeitarten |
-| **Tickets** | Status-Einschränkung, was im Ticket angezeigt und protokolliert wird, Zugriff für Agenten |
-| **Bericht & Export** | Dateiname, Summen und freie Zeilen unter der Tabelle, Zusatzblock (Notiz oder Prüftabelle) |
-| **PDF-Layout** | Seite, Briefkopf mit Logo, Titel und Kopf-/Fußtexte |
-| **System** | Statusanzeige der Installation, Diagnose |
+| **Abrechnungsmodell** | Beträge oder nur Zeit, Standard-Stundensatz, Steuersatz, Link zu den Zeitarten |
+| **Rundung** | Rundungs-Inkrement, Mindestdauer |
+| **Zahlenformat** | Währungssymbol und Format (nur im Modus „Beträge") |
+| **Umfang** | Einschränkung auf einen Ticket-Status |
+| **Auf der Ticket-Seite** | Zusammenfassung im Zahnrad-Menü, Protokollierung, einfacher Modus |
+| **Zugriff** | Freigabe für Agenten |
+| **Export-Datei** | Dateiname-Schema |
+| **Unter der Tabelle** | Summen und zwei freie Zeilen |
+| **Zusatzblock** | Notiz oder Prüftabelle samt Vorgaben |
+| **PDF-Seite / PDF-Briefkopf / PDF-Texte** | Seite, Logo, Titel und Kopf-/Fußtexte |
+| **Status** | Zustand der Installation |
+| **Fehlersuche** | Diagnoseseite |
+| **Platzhalter** | Referenz aller `%{report.*}`-Platzhalter |
 
 Besonderheiten:
 
 * **Zahlenformat** – statt vier Einzelfeldern gibt es eine Auswahl
   (Deutsch, Schweiz, Englisch, Französisch). Sie setzt Dezimal- und
-  Tausendertrennzeichen sowie die Position des Währungssymbols. Wer eine
-  eigene Kombination braucht, wählt *Benutzerdefiniert…* und bekommt die
-  Einzelfelder zurück. Bestehende Installationen behalten ihre Werte: beim
-  Öffnen der Seite wird das passende Format automatisch erkannt, und nur
-  wenn ein Format ausgewählt ist, werden die Einzelwerte überschrieben.
-* **Platzhalter** – die Liste aller `%{report.*}`-Platzhalter liegt als
-  aufklappbares Feld unter den Reitern *Bericht & Export* und *PDF-Layout*.
-  Ein Klick fügt den Platzhalter an der Cursorposition des zuletzt
-  bearbeiteten Feldes ein.
+  Tausendertrennzeichen sowie die Position des Währungssymbols und füllt
+  die Felder sichtbar aus. Wer eine eigene Kombination braucht, wählt
+  *Benutzerdefiniert…* und bekommt die Einzelfelder zurück. Bestehende
+  Installationen behalten ihre Werte: beim Öffnen der Seite wird das
+  passende Format automatisch erkannt, und nur wenn ein Format ausgewählt
+  ist, werden die Einzelwerte überschrieben.
+* **Platzhalter** – die Liste aller `%{report.*}`-Platzhalter steht am Ende
+  der Seite. Ein Klick fügt den Platzhalter an der Cursorposition des
+  zuletzt bearbeiteten Feldes ein.
 * **Zusammenfassung im Ticket-Menü** – schaltet den Eintrag im Zahnrad-Menü
   des Tickets ab; die Zeitart-Auswahl unter den Ticket-Details bleibt
   erhalten, weil damit erfasst wird.
 
 Technisch: `config.php` beschreibt nur noch, *was* einstellbar ist,
-`class.BillingConfigUi.php` beschreibt, *wie* es dargestellt wird (Reiter,
-Gruppen, Reihenfolge, Ausblende-Regeln).
+`class.BillingConfigUi.php` beschreibt, *wie* es dargestellt wird (Gruppen,
+Reihenfolge, Ausblende-Regeln).
 
-Die Darstellung benutzt durchgehend osTickets eigene Bausteine – die
-Reiterleiste ist `ul.clean.tabs` samt `_container`, also dieselbe
-Komponente wie auf jeder anderen Admin-Seite, und das Umschalten erledigt
-osTickets `scp.js`. Die grauen Gruppenüberschriften sind
-`div.form-header.section-break`, die Warnung ist `#msg_warning`, versteckte
-Felder benutzen `.hidden`. Eigenes CSS gibt es nur dort, wo osTicket keine
-Klasse hat (knapp 20 Zeilen).
+Die Darstellung benutzt durchgehend osTickets eigene Bausteine – die grauen
+Abschnittsleisten sind `div.form-header.section-break`, also dieselbe
+Auszeichnung, die `SectionBreakField` selbst erzeugt; die Warnung ist
+`#msg_warning`, Schaltflächen sind `.action-button`, verborgene Felder
+benutzen `.hidden`. Eigenes CSS gibt es nur dort, wo osTicket keine Klasse
+hat (gut ein Dutzend Zeilen).
 
-Läuft das Skript nicht, fällt die Seite auf die schlichte Liste zurück –
-vollständig, gegliedert und speicherbar; es wird nichts serverseitig
-ausgeblendet.
+Läuft das Skript nicht, bleibt die Seite vollständig bedienbar – dann sind
+lediglich alle Felder sichtbar, auch die gerade wirkungslosen. Es wird
+nichts serverseitig ausgeblendet.
 
 ---
 

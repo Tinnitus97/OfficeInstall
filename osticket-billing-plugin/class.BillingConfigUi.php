@@ -231,105 +231,82 @@ class BillingConfigUi {
     /* ------------------------------------------------------------------
        The information architecture of the settings screen.
 
-       tabs[]   id, title, icon, lead, groups[]
-       groups[] id, title, icon, desc, fields[]
+       One continuous page, like every other osTicket plugin: a grey
+       section-break bar introduces each group, its settings follow. The
+       order below is the order on screen.
 
        "when" rules live in ::conditions(); everything referenced there is
-       hidden by the browser as soon as it cannot apply, so a tab only ever
-       shows the settings that actually do something right now.
+       hidden by the browser as soon as it cannot apply, so the page only
+       ever shows the settings that actually do something right now.
        ------------------------------------------------------------------ */
     static function layout($__) {
         return array(
-            array(
-                'id' => 'billing', 'icon' => 'icon-money',
-                'title' => $__('Billing'),
-                'lead'  => $__('How recorded time is turned into an invoice.'),
-                'groups' => array(
-                    array('id'=>'model', 'icon'=>'icon-dashboard',
-                          'title'=>$__('Billing model'),
-                          'desc' =>$__('Decides whether this plugin works with amounts or with hours only. Everything else on this tab follows from it.'),
-                          'fields'=>array('billing_mode','default_rate','tax_rate','manage_types')),
-                    array('id'=>'rounding', 'icon'=>'icon-time',
-                          'title'=>$__('Rounding'),
-                          'desc' =>$__('Applied per time type, after all entries of that type have been added up.'),
-                          'fields'=>array('round_increment','drop_below')),
-                    array('id'=>'number', 'icon'=>'icon-globe',
-                          'title'=>$__('Number format'),
-                          'desc' =>$__('How amounts are written in reports, in the PDF and in the CSV export.'),
-                          'fields'=>array('currency_symbol','number_format',
-                                          'currency_position','decimal_sep','thousand_sep')),
-                ),
-            ),
-            array(
-                'id' => 'tickets', 'icon' => 'icon-tags',
-                'title' => $__('Tickets'),
-                'lead'  => $__('Which tickets are picked up, and what billing shows inside a ticket.'),
-                'groups' => array(
-                    array('id'=>'scope', 'icon'=>'icon-filter',
-                          'title'=>$__('Scope'),
-                          'desc' =>$__('Limits every report and export to a part of your tickets.'),
-                          'fields'=>array('status_filter')),
-                    array('id'=>'ticketpage', 'icon'=>'icon-file-alt',
-                          'title'=>$__('On the ticket page'),
-                          'fields'=>array('link_ticket_view','log_ticket_events','hide_open_items')),
-                    array('id'=>'access', 'icon'=>'icon-lock',
-                          'title'=>$__('Access'),
-                          'fields'=>array('agent_access')),
-                ),
-            ),
-            array(
-                'id' => 'report', 'icon' => 'icon-file-text-alt',
-                'title' => $__('Report & export'),
-                'lead'  => $__('The document your customer gets - on screen, as CSV and as PDF.'),
-                'groups' => array(
-                    array('id'=>'file', 'icon'=>'icon-download-alt',
-                          'title'=>$__('Export file'),
-                          'fields'=>array('export_filename')),
-                    array('id'=>'totals', 'icon'=>'icon-th-list',
-                          'title'=>$__('Below the table'),
-                          'desc' =>$__('Totals and the two free lines printed directly under every report table.'),
-                          'fields'=>array('show_totals','table_footer_left','table_footer_right')),
-                    array('id'=>'extra', 'icon'=>'icon-list-alt',
-                          'title'=>$__('Additional block'),
-                          'desc' =>$__('An optional block underneath the table that each organization fills in for itself - either a free-text note or a checklist table. The settings here are the starting point for organizations that have not edited theirs yet.'),
-                          'fields'=>array('export_footer_mode','note_default_text',
-                                          'table_title','table_meta_text',
-                                          'table_columns','table_rows')),
-                ),
-            ),
-            array(
-                'id' => 'pdf', 'icon' => 'icon-print',
-                'title' => $__('PDF layout'),
-                'lead'  => $__('Applies to the PDF export only. The CSV export is unaffected.'),
-                'groups' => array(
-                    array('id'=>'page', 'icon'=>'icon-file-alt',
-                          'title'=>$__('Page'),
-                          'fields'=>array('pdf_orientation','pdf_page_size',
-                                          'pdf_page_numbers','pdf_show_meta')),
-                    array('id'=>'letterhead', 'icon'=>'icon-picture',
-                          'title'=>$__('Letterhead'),
-                          'desc' =>$__('The logo and text block at the top of the first page.'),
-                          'fields'=>array('pdf_logo_mode','pdf_logo_file',
-                                          'pdf_layout','pdf_text_align')),
-                    array('id'=>'texts', 'icon'=>'icon-font',
-                          'title'=>$__('Texts'),
-                          'fields'=>array('pdf_title','pdf_subtitle',
-                                          'pdf_header_text','pdf_footer_text')),
-                ),
-            ),
-            array(
-                'id' => 'system', 'icon' => 'icon-wrench',
-                'title' => $__('System'),
-                'lead'  => $__('Status of the installation and tools for troubleshooting.'),
-                'groups' => array(
-                    array('id'=>'status', 'icon'=>'icon-info-sign',
-                          'title'=>$__('Status'),
-                          'fields'=>array('sys_status')),
-                    array('id'=>'diag', 'icon'=>'icon-beaker',
-                          'title'=>$__('Troubleshooting'),
-                          'fields'=>array('enable_diag')),
-                ),
-            ),
+
+            /* ---- what time is worth ---------------------------------- */
+            array('id'=>'model', 'icon'=>'icon-dashboard',
+                  'title'=>$__('Billing model'),
+                  'desc' =>$__('Decides whether this plugin works with amounts or with hours only. Everything below follows from it.'),
+                  'fields'=>array('billing_mode','default_rate','tax_rate','manage_types')),
+            array('id'=>'rounding', 'icon'=>'icon-time',
+                  'title'=>$__('Rounding'),
+                  'desc' =>$__('Applied per time type, after all entries of that type have been added up.'),
+                  'fields'=>array('round_increment','drop_below')),
+            array('id'=>'number', 'icon'=>'icon-globe',
+                  'title'=>$__('Number format'),
+                  'desc' =>$__('How amounts are written in reports, in the PDF and in the CSV export.'),
+                  'fields'=>array('currency_symbol','number_format',
+                                  'currency_position','decimal_sep','thousand_sep')),
+
+            /* ---- which tickets, and what they show -------------------- */
+            array('id'=>'scope', 'icon'=>'icon-filter',
+                  'title'=>$__('Scope'),
+                  'desc' =>$__('Limits every report and export to a part of your tickets.'),
+                  'fields'=>array('status_filter')),
+            array('id'=>'ticketpage', 'icon'=>'icon-file-alt',
+                  'title'=>$__('On the ticket page'),
+                  'fields'=>array('link_ticket_view','log_ticket_events','hide_open_items')),
+            array('id'=>'access', 'icon'=>'icon-lock',
+                  'title'=>$__('Access'),
+                  'fields'=>array('agent_access')),
+
+            /* ---- the document the customer gets ----------------------- */
+            array('id'=>'file', 'icon'=>'icon-download-alt',
+                  'title'=>$__('Export file'),
+                  'fields'=>array('export_filename')),
+            array('id'=>'totals', 'icon'=>'icon-th-list',
+                  'title'=>$__('Below the table'),
+                  'desc' =>$__('Totals and the two free lines printed directly under every report table.'),
+                  'fields'=>array('show_totals','table_footer_left','table_footer_right')),
+            array('id'=>'extra', 'icon'=>'icon-list-alt',
+                  'title'=>$__('Additional block'),
+                  'desc' =>$__('An optional block underneath the table that each organization fills in for itself - either a free-text note or a checklist table. The settings here are the starting point for organizations that have not edited theirs yet.'),
+                  'fields'=>array('export_footer_mode','note_default_text',
+                                  'table_title','table_meta_text',
+                                  'table_columns','table_rows')),
+
+            /* ---- PDF only --------------------------------------------- */
+            array('id'=>'page', 'icon'=>'icon-print',
+                  'title'=>$__('PDF page'),
+                  'desc' =>$__('Applies to the PDF export only. The CSV export is unaffected.'),
+                  'fields'=>array('pdf_orientation','pdf_page_size',
+                                  'pdf_page_numbers','pdf_show_meta')),
+            array('id'=>'letterhead', 'icon'=>'icon-picture',
+                  'title'=>$__('PDF letterhead'),
+                  'desc' =>$__('The logo and text block at the top of the first page.'),
+                  'fields'=>array('pdf_logo_mode','pdf_logo_file',
+                                  'pdf_layout','pdf_text_align')),
+            array('id'=>'texts', 'icon'=>'icon-font',
+                  'title'=>$__('PDF texts'),
+                  'fields'=>array('pdf_title','pdf_subtitle',
+                                  'pdf_header_text','pdf_footer_text')),
+
+            /* ---- installation ----------------------------------------- */
+            array('id'=>'status', 'icon'=>'icon-info-sign',
+                  'title'=>$__('Status'),
+                  'fields'=>array('sys_status')),
+            array('id'=>'diag', 'icon'=>'icon-beaker',
+                  'title'=>$__('Troubleshooting'),
+                  'fields'=>array('enable_diag')),
         );
     }
 
@@ -338,9 +315,10 @@ class BillingConfigUi {
      *
      *   target  => array('field' => <other setting>, 'in' => array(values))
      *
-     * A target starting with "@" is a whole card. Hiding is done in the
-     * browser only - the inputs stay in the form and keep their value, so
-     * switching a mode back never loses what was configured before.
+     * A target starting with "@" is a whole group - its header bar and every
+     * setting under it. Hiding is done in the browser only: the inputs stay
+     * in the form and keep their value, so switching a mode back never loses
+     * what was configured before.
      */
     static function conditions() {
         return array(
@@ -360,11 +338,6 @@ class BillingConfigUi {
             'pdf_logo_file'      => array('field'=>'pdf_logo_mode',      'in'=>array('upload')),
             'pdf_layout'         => array('field'=>'pdf_logo_mode',      'in'=>array('helpdesk','upload')),
         );
-    }
-
-    /** Tabs on which the placeholder reference is worth showing. */
-    static function placeholderTabs() {
-        return array('report', 'pdf');
     }
 
     /** Placeholders understood by every text field of this plugin. */
@@ -409,51 +382,47 @@ class BillingConfigUi {
         $out  = array('bx_boot' => $boot);
         if ($notice)
             $out['bx_notice'] = self::marker($notice);
-        $used  = array();
-        $block = array();
+        $used   = array();
+        $groups = array();
 
-        foreach (self::layout($__) as $tab) {
-            $out['t_'.$tab['id']] = self::marker(
-                '<div class="bx-th"><h2>'.Format::htmlchars($tab['title']).'</h2>'
-                .'<p class="faded">'.Format::htmlchars($tab['lead']).'</p></div>');
+        foreach (self::layout($__) as $g) {
+            $desc = isset($g['desc']) ? $g['desc'] : '';
+            $members = array();
+            foreach ($g['fields'] as $key)
+                if (isset($defs[$key]))
+                    $members[] = $key;
+            if (!$members)
+                continue;
 
-            foreach ($tab['groups'] as $g) {
-                $desc = isset($g['desc']) ? $g['desc'] : '';
-                // Same markup osTicket's own SectionBreakField produces, so
-                // the grey header bar is the native one, not a lookalike.
-                $out['g_'.$g['id']] = self::marker(
-                    '<div class="form-header section-break">'
-                    .'<h3><i class="'.Format::htmlchars($g['icon']).'"></i> '
-                    .Format::htmlchars($g['title']).'</h3>'
-                    .($desc ? '<em>'.Format::htmlchars($desc).'</em>' : '')
-                    .'</div>');
+            // Same markup osTicket's own SectionBreakField produces, so the
+            // grey header bar is the native one, not a lookalike.
+            $out['g_'.$g['id']] = self::marker(
+                '<div class="form-header section-break">'
+                .'<h3><i class="'.Format::htmlchars($g['icon']).'"></i> '
+                .Format::htmlchars($g['title']).'</h3>'
+                .($desc ? '<em>'.Format::htmlchars($desc).'</em>' : '')
+                .'</div>');
 
-                foreach ($g['fields'] as $key) {
-                    if (isset($defs[$key])) {
-                        $out[$key] = $defs[$key];
-                        $used[$key] = true;
-                        if ($defs[$key]->isBlockLevel())
-                            $block[] = $key;
-                    }
-                }
+            foreach ($members as $key) {
+                $out[$key]  = $defs[$key];
+                $used[$key] = true;
             }
+            $groups[$g['id']] = $members;
         }
 
+        // A setting the layout forgot gets its own header rather than
+        // silently disappearing - a missing setting is a bug, an
+        // unreachable setting is a support case.
         $rest = array_diff_key($defs, $used);
         if ($rest) {
-            $out['t_more'] = self::marker(
-                '<div class="bx-th"><h2>'.Format::htmlchars($__('Other')).'</h2>'
-                .'<p class="faded">'
-                .Format::htmlchars($__('Settings that are not part of a group yet.'))
-                .'</p></div>');
             $out['g_more'] = self::marker(
                 '<div class="form-header section-break"><h3><i class="icon-question-sign"></i> '
-                .Format::htmlchars($__('Other')).'</h3></div>');
-            foreach ($rest as $k => $f) {
+                .Format::htmlchars($__('Other')).'</h3><em>'
+                .Format::htmlchars($__('Settings that are not part of a group yet.'))
+                .'</em></div>');
+            foreach ($rest as $k => $f)
                 $out[$k] = $f;
-                if ($f->isBlockLevel())
-                    $block[] = $k;
-            }
+            $groups['more'] = array_keys($rest);
         }
 
         $out['bx_ph'] = new BillingRawField(array(
@@ -461,10 +430,9 @@ class BillingConfigUi {
         ));
 
         // Filled in last: the script needs the render order (that is how it
-        // finds the fields at all, see assets()) and which of them render
-        // without a label column.
+        // finds the fields at all, see js()) and the group membership.
         $boot->set('configuration', array(
-            'content' => self::assets($__, $block, array_keys($out)),
+            'content' => self::assets($__, $groups, array_keys($out)),
         ));
 
         return $out;
@@ -496,32 +464,18 @@ class BillingConfigUi {
        Stylesheet and behaviour
        ------------------------------------------------------------------ */
 
-    private static function assets($__, array $block = array(), array $order = array()) {
+    private static function assets($__, array $groups = array(), array $order = array()) {
         $cfg = array(
-            'layout'     => array(),
             'conditions' => self::conditions(),
-            'phTabs'     => self::placeholderTabs(),
-            'block'      => $block,
+            // Which settings sit under which group header, so a rule can
+            // hide a whole group.
+            'groups'     => $groups,
             // Render order of every field, which is how the script maps the
             // markup back to setting names - see the note in js().
             'order'      => $order,
             // Lets the number-format presets fill in the detail fields live.
             'formats'    => class_exists('BillingConfig') ? BillingConfig::$numberFormats : array(),
-            'i18n'       => array(
-                'errors' => $__('This tab contains an invalid value.'),
-            ),
         );
-        foreach (self::layout($__) as $tab) {
-            $groups = array();
-            foreach ($tab['groups'] as $g)
-                $groups[] = array('id' => $g['id'], 'fields' => $g['fields']);
-            $cfg['layout'][] = array(
-                'id'     => $tab['id'],
-                'icon'   => $tab['icon'],
-                'title'  => $tab['title'],
-                'groups' => $groups,
-            );
-        }
 
         return '<style type="text/css" id="bx-css">'.self::css().'</style>'
              .'<script type="text/javascript">window.BX_CONFIG='
@@ -537,8 +491,6 @@ class BillingConfigUi {
         // page looks like every other admin page. What is left here is only
         // what osTicket has no class for.
         return <<<'CSS'
-.bx-th h2{margin:0 0 2px;}
-.bx-th p{margin:0 0 12px;}
 .bx-tokens{list-style:none;margin:8px 0;padding:0;
   display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 16px;}
 .bx-tokens li{margin:0;padding:0;font-size:95%;}
@@ -601,7 +553,7 @@ CSS;
 
     var offset = wrappers.indexOf(boot);
     if (offset < 0 || wrappers.length - offset !== CFG.order.length)
-      return;   // not the markup we expect - leave the plain list alone
+      return;   // not the markup we expect - leave the page alone
 
     var by = {};
     for (var i = 0; i < CFG.order.length; i++)
@@ -618,86 +570,9 @@ CSS;
     }
 
     root.setAttribute('data-bx-ready', '1');
+    setHidden(boot, true);          // carries only the stylesheet and this script
 
-    /* ---- osTicket's own tab component ---------------------------- */
-    var anchor = by['bx_notice'] || boot;
-    var ul = document.createElement('ul');
-    ul.className = 'clean tabs';
-    ul.id = 'bx-tabs';
-    var container = document.createElement('div');
-    container.id = 'bx-tabs_container';   // scp.js finds panels by this name
-    root.insertBefore(ul, anchor.nextSibling);
-    root.insertBefore(container, ul.nextSibling);
-
-    var panels = {}, items = {}, order = [], groups = {};
-
-    CFG.layout.forEach(function(tab){
-      var panel = document.createElement('div');
-      panel.className = 'tab_content';
-      panel.id = 'bx-tab-' + tab.id;
-
-      var marker = by['t_' + tab.id];
-      if (marker) {
-        var lead = marker.querySelector('.bx-th p');
-        if (lead) panel.appendChild(lead);      // keep the lead, drop the h2
-        marker.parentNode.removeChild(marker);
-      }
-
-      var moved = 0;
-      tab.groups.forEach(function(g){
-        var gm = by['g_' + g.id], head = gm ? gm.querySelector('.section-break') : null;
-        var placed = [];
-        g.fields.forEach(function(key){
-          if (by[key]) placed.push(by[key]);
-        });
-        if (!placed.length) return;
-        if (head) panel.appendChild(head);
-        if (gm) gm.parentNode.removeChild(gm);
-        placed.forEach(function(el){ panel.appendChild(el); moved++; });
-        groups[g.id] = { head: head, fields: placed };
-      });
-      if (!moved) return;
-
-      container.appendChild(panel);
-      panels[tab.id] = panel;
-      order.push(tab.id);
-
-      var li = document.createElement('li');
-      var a  = document.createElement('a');
-      a.href = '#' + panel.id;                  // scp.js switches on this
-      a.innerHTML = '<i class="' + tab.icon + '"></i> ';
-      a.appendChild(document.createTextNode(tab.title));
-      // scp.js does the switching; this only records the choice and keeps
-      // the placeholder box in step, which scp.js knows nothing about.
-      a.addEventListener('click', function(){
-        try { sessionStorage.setItem('bx-tab', tab.id); } catch(e) {}
-        showPlaceholders(tab.id);
-      });
-      li.appendChild(a);
-      ul.appendChild(li);
-      items[tab.id] = li;
-    });
-
-    if (!order.length) return;
-    setHidden(boot, true);
-
-    /* ---- placeholder reference, pinned below the panels ---------- */
-    var ph = by['bx_ph'];
-    if (ph) root.appendChild(ph);
-
-    function showPlaceholders(id){
-      if (ph) setHidden(ph, CFG.phTabs.indexOf(id) === -1);
-    }
-    function selectTab(id){
-      if (!panels[id]) id = order[0];
-      order.forEach(function(k){
-        panels[k].style.display = (k === id) ? '' : 'none';
-        items[k].className = (k === id ? 'active' : '');
-      });
-      showPlaceholders(id);
-    }
-
-    /* ---- conditional visibility ---------------------------------- */
+    /* ---- hide settings that cannot apply right now --------------- */
     var conds = CFG.conditions || {};
     function valueOf(name){
       var el = control(name);
@@ -712,10 +587,10 @@ CSS;
             on = (v === null) || rule.in.indexOf(String(v)) !== -1;
         if (target.charAt(0) === '@') {
           // a whole group: its header bar and every setting under it
-          var g = groups[target.substring(1)];
-          if (!g) continue;
-          setHidden(g.head, !on);
-          g.fields.forEach(function(el){ setHidden(el, !on); });
+          var id = target.substring(1), members = CFG.groups[id] || [];
+          setHidden(by['g_' + id], !on);
+          for (var m = 0; m < members.length; m++)
+            setHidden(by[members[m]], !on);
         } else {
           setHidden(by[target], !on);
         }
@@ -770,22 +645,6 @@ CSS;
         navigator.clipboard.writeText(token);
       }
     });
-
-    /* ---- first tab: the one with an error, else the last used ---- */
-    var start = null;
-    var bad = root.querySelector('.tab_content .form-field .error');
-    if (bad && bad.closest) {
-      var p = bad.closest('.tab_content');
-      if (p) {
-        for (var k in panels) if (panels[k] === p) start = k;
-        // osTicket styles li.error with a red tab border of its own
-        if (start && items[start]) items[start].className += ' error';
-      }
-    }
-    if (!start) {
-      try { start = sessionStorage.getItem('bx-tab'); } catch(e) {}
-    }
-    selectTab(start);
   }
 
   ready(function(){ try { build(); } catch (e) { if (window.console) console.warn('billing settings ui:', e); } });

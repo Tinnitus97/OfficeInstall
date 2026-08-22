@@ -347,6 +347,9 @@ msgstr "Datum letzte Prüfung"
 msgid "Day"
 msgstr "Tag"
 
+msgid "Decides whether this plugin works with amounts or with hours only. Everything below follows from it."
+msgstr "Legt fest, ob dieses Plugin mit Beträgen oder nur mit Stunden arbeitet. Alles Weitere richtet sich danach."
+
 msgid "Decides whether this plugin works with amounts or with hours only. Everything else on this tab follows from it."
 msgstr "Legt fest, ob dieses Plugin mit Beträgen oder nur mit Stunden arbeitet. Alles Weitere auf diesem Reiter richtet sich danach."
 
@@ -952,6 +955,15 @@ msgstr "PDF-Export"
 
 msgid "PDF layout"
 msgstr "PDF-Layout"
+
+msgid "PDF letterhead"
+msgstr "PDF-Briefkopf"
+
+msgid "PDF page"
+msgstr "PDF-Seite"
+
+msgid "PDF texts"
+msgstr "PDF-Texte"
 
 msgid "Per organization, choose what can be edited under the table and printed beneath it in the CSV/PDF export: nothing, a free-text customer note, or an editable table with configurable columns and rows."
 msgstr "Legt je Organisation fest, was unter der Tabelle bearbeitet und im CSV-/PDF-Export darunter gedruckt wird: nichts, eine Freitext-Kundennotiz oder eine bearbeitbare Tabelle mit konfigurierbaren Spalten und Zeilen."
