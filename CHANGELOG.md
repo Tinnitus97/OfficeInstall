@@ -2,6 +2,17 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.3.2] – 2026-10-11
+
+### Geändert
+
+- **Avalonia 12.1.3** (bisher 12.1.2) — Avalonia, Avalonia.Desktop,
+  Avalonia.Fonts.Inter und Avalonia.Themes.Fluent.
+- Pakete und GitHub Actions halten sich über Dependabot selbst auf Stand;
+  alle Workflows auf denselben, neuesten Stand gezogen.
+
+---
+
 ## [1.3.1] – 2026-08-19
 
 ### Behoben
