@@ -31,6 +31,18 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   entfernt das Deployment Tool beim Installieren über `<RemoveMSI/>` — wer
   *Behalten* wählt, bekommt es aus der Kopie der Konfiguration herausgenommen.
 
+- **OfficeInstall nach erfolgreicher Installation schließen.** Neue Option,
+  beim Start immer an und jederzeit abschaltbar. Schlägt die Installation fehl,
+  bleibt das Fenster offen.
+
+### Behoben
+
+- **Kein schwarzes Konsolenfenster mehr beim Installieren.** Die `setup.exe`
+  ist ein Konsolenprogramm; über die Shell gestartet, öffnete Windows ihr ein
+  leeres Konsolenfenster, das während der ganzen Installation stehen blieb.
+  Sie läuft jetzt ohne Fenster — wie beim Herunterladen schon bisher. Das
+  Fenster von Microsoft mit dem Fortschritt ist davon nicht betroffen.
+
 ### Geändert
 
 - **Keine Abfrage „Installation starten" mehr, wenn alles kompatibel ist.**

@@ -128,6 +128,22 @@
                                        Foreground="{DynamicResource TextBrush}"/>
                         </Grid>
 
+                        <!-- Nach einer fehlerfreien Installation von selbst beenden.
+                             Bei einem Fehler bleibt das Fenster offen. -->
+                        <Grid ColumnDefinitions="Auto,*" Margin="2,0,0,0">
+                            <ToggleSwitch Grid.Column="0" Classes="opt"
+                                          IsChecked="{Binding CloseAfterInstall}"
+                                          OnContent="{Binding SwitchOn}"
+                                          OffContent="{Binding SwitchOff}"
+                                          ToolTip.Tip="{Binding OptCloseAfterInstallHint}"
+                                          IsEnabled="{Binding UiEnabled}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding OptCloseAfterInstall}"
+                                       FontSize="10.5" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Margin="8,0,0,0"
+                                       ToolTip.Tip="{Binding OptCloseAfterInstallHint}"
+                                       Foreground="{DynamicResource TextBrush}"/>
+                        </Grid>
+
                         <!-- Beim Herunterladen zeigt der Balken einen echten Anteil,
                              sobald es eine Vergleichsgroesse gibt (ProgressKnown).
                              Sonst laeuft er unbestimmt - das Deployment Tool

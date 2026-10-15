@@ -309,6 +309,13 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _removeIncompatibleOffice;
 
+    /// <summary>
+    /// An: Nach einer fehlerfreien Installation beendet sich OfficeInstall.
+    /// Schlaegt sie fehl, bleibt das Fenster offen - dann wird das Protokoll
+    /// gebraucht. Beim Start immer an; abschalten laesst sie sich jederzeit.
+    /// </summary>
+    [ObservableProperty] private bool _closeAfterInstall = true;
+
     // ------------------------------------------------------------ Sprache
 
     [ObservableProperty] private bool _isEnglish;
@@ -387,6 +394,13 @@ public partial class MainWindowViewModel : ObservableObject
         "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel. " +
         "The installation starts without the \"Start installation\" prompt.\n" +
         "Off: If such Office is found, the program asks first.");
+    public string OptCloseAfterInstall => Tr("OfficeInstall nach erfolgreicher Installation schließen",
+                                             "Close OfficeInstall after a successful installation");
+    public string OptCloseAfterInstallHint => Tr(
+        "An: Ist die Installation ohne Fehler durchgelaufen, beendet sich OfficeInstall von selbst.\n" +
+        "Schlägt sie fehl, bleibt das Fenster offen - das Protokoll zeigt, was passiert ist.",
+        "On: Once the installation has finished without errors, OfficeInstall closes by itself.\n" +
+        "If it fails, the window stays open - the log shows what happened.");
     public string SwitchOn       => Tr("An", "On");
     public string SwitchOff      => Tr("Aus", "Off");
     public string BtnClearLog    => Tr("Log leeren", "Clear log");
@@ -1384,6 +1398,10 @@ public partial class MainWindowViewModel : ObservableObject
         if (!UiEnabled) return;
         var window = ActiveWindow;
 
+        // Erst NACH dem finally schliessen: Aufraeumen und Freigeben der
+        // Oberflaeche sollen vorher durchgelaufen sein.
+        var closeWhenDone = false;
+
         try
         {
             UiEnabled = false;
@@ -1623,6 +1641,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 Log(Tr("Fertig! Die Installation wurde ohne Fehler beendet.",
                        "Done! The installation finished without errors."));
+                closeWhenDone = CloseAfterInstall;
             }
             else
             {
@@ -1649,6 +1668,8 @@ public partial class MainWindowViewModel : ObservableObject
             BusyText = "";
             UiEnabled = true;
         }
+
+        if (closeWhenDone) Exit();
     }
 
     /// <summary>

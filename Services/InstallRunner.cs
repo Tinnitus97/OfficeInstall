@@ -325,6 +325,16 @@ public static class InstallRunner
     /// Startet das Deployment Tool. Es bringt seine eigene Oberflaeche mit
     /// (Display Level="Full" in den Konfigurationsdateien), deshalb wird hier
     /// nichts umgeleitet - der Fortschritt erscheint im Fenster von Microsoft.
+    ///
+    /// Die setup.exe selbst ist ein Konsolenprogramm. Ueber die Shell
+    /// gestartet, oeffnet Windows ihr ein leeres schwarzes Konsolenfenster,
+    /// das waehrend der ganzen Installation stehen bleibt und nichts anzeigt.
+    /// Deshalb in jedem Fall ohne Shell und ohne Fenster. Das Fenster von
+    /// Microsoft betrifft das nicht: Es gehoert zu einem eigenen Prozess
+    /// (OfficeClickToRun), den die setup.exe startet.
+    ///
+    /// Erhoehte Rechte braucht es dafuer nicht eigens - OfficeInstall laeuft
+    /// bereits als Administrator, und der Prozess erbt das.
     /// </summary>
     public static Process Start(InstallPlan plan)
     {
@@ -333,10 +343,8 @@ public static class InstallRunner
             FileName = plan.SetupExecutable,
             Arguments = plan.Arguments,
             WorkingDirectory = plan.WorkingDirectory,
-            // Beim Herunterladen zeigt das Deployment Tool nichts an - dann soll
-            // auch kein leeres Konsolenfenster aufblitzen.
-            UseShellExecute = !plan.IsDownload,
-            CreateNoWindow = plan.IsDownload
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
 
         return Process.Start(startInfo)

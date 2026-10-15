@@ -502,6 +502,17 @@ Vorlage es vorsieht.
 
 ---
 
+## Nach der Installation schließen
+
+Mit **OfficeInstall nach erfolgreicher Installation schließen** beendet sich
+der Launcher von selbst, sobald das Deployment Tool ohne Fehler fertig ist. Die
+Option steht bei jedem Start auf **An** und lässt sich abschalten.
+
+Schlägt die Installation fehl, bleibt das Fenster in jedem Fall offen — dann
+wird das Protokoll gebraucht.
+
+---
+
 ## Systemanforderungen
 
 | Anforderung | Details |
