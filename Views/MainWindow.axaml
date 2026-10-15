@@ -16,12 +16,49 @@
     <Grid Margin="10" RowDefinitions="Auto,*">
 
         <!-- ============ Kopfzeile ============ -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="2,0,2,7">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="2,0,2,7">
             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                 <TextBlock Classes="appTitle" Text="{Binding WindowTitle}"/>
                 <TextBlock Classes="appSubtitle" Text="{Binding AppSubtitle}"/>
             </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+
+            <!-- Die beiden Schalter im freien Platz der Kopfzeile: Sie gelten
+                 für jede Installation und gehören nicht zu Paketordner und Modus. -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="28,0,12,0">
+                <!-- Nicht kompatibles Office: An = vor der Installation ohne
+                     Rückfrage entfernen, Aus = vorher nachfragen. -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <ToggleSwitch Grid.Column="0" Classes="opt"
+                                  IsChecked="{Binding RemoveIncompatibleOffice}"
+                                  OnContent="{Binding SwitchOn}"
+                                  OffContent="{Binding SwitchOff}"
+                                  ToolTip.Tip="{Binding OptRemoveIncompatibleHint}"
+                                  IsEnabled="{Binding UiEnabled}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding OptRemoveIncompatible}"
+                               FontSize="10.5" TextWrapping="Wrap"
+                               VerticalAlignment="Center" Margin="8,0,0,0"
+                               ToolTip.Tip="{Binding OptRemoveIncompatibleHint}"
+                               Foreground="{DynamicResource TextBrush}"/>
+                </Grid>
+
+                <!-- Nach einer fehlerfreien Installation von selbst beenden.
+                     Bei einem Fehler bleibt das Fenster offen. -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <ToggleSwitch Grid.Column="0" Classes="opt"
+                                  IsChecked="{Binding CloseAfterInstall}"
+                                  OnContent="{Binding SwitchOn}"
+                                  OffContent="{Binding SwitchOff}"
+                                  ToolTip.Tip="{Binding OptCloseAfterInstallHint}"
+                                  IsEnabled="{Binding UiEnabled}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding OptCloseAfterInstall}"
+                               FontSize="10.5" TextWrapping="Wrap"
+                               VerticalAlignment="Center" Margin="8,0,0,0"
+                               ToolTip.Tip="{Binding OptCloseAfterInstallHint}"
+                               Foreground="{DynamicResource TextBrush}"/>
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
                 <Button Classes="secondary" Width="38" Content="{Binding ThemeIcon}"
                         FontSize="14" ToolTip.Tip="Hell-/Dunkelmodus"
                         Command="{Binding ToggleThemeCommand}"/>
@@ -109,39 +146,6 @@
                                       ToolTip.Tip="{Binding OptCleanupHint}"
                                       IsChecked="{Binding CleanupAfterUpdate}"
                                       IsEnabled="{Binding UiEnabled}"/>
-                        </Grid>
-
-                        <!-- Nicht kompatibles Office: An = vor der Installation ohne
-                             Rückfrage entfernen, Aus = vorher nachfragen. Der Schalter
-                             steht links, damit er nicht zwischen den Texten untergeht. -->
-                        <Grid ColumnDefinitions="Auto,*" Margin="2,4,0,0">
-                            <ToggleSwitch Grid.Column="0" Classes="opt"
-                                          IsChecked="{Binding RemoveIncompatibleOffice}"
-                                          OnContent="{Binding SwitchOn}"
-                                          OffContent="{Binding SwitchOff}"
-                                          ToolTip.Tip="{Binding OptRemoveIncompatibleHint}"
-                                          IsEnabled="{Binding UiEnabled}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding OptRemoveIncompatible}"
-                                       FontSize="10.5" TextWrapping="Wrap"
-                                       VerticalAlignment="Center" Margin="8,0,0,0"
-                                       ToolTip.Tip="{Binding OptRemoveIncompatibleHint}"
-                                       Foreground="{DynamicResource TextBrush}"/>
-                        </Grid>
-
-                        <!-- Nach einer fehlerfreien Installation von selbst beenden.
-                             Bei einem Fehler bleibt das Fenster offen. -->
-                        <Grid ColumnDefinitions="Auto,*" Margin="2,0,0,0">
-                            <ToggleSwitch Grid.Column="0" Classes="opt"
-                                          IsChecked="{Binding CloseAfterInstall}"
-                                          OnContent="{Binding SwitchOn}"
-                                          OffContent="{Binding SwitchOff}"
-                                          ToolTip.Tip="{Binding OptCloseAfterInstallHint}"
-                                          IsEnabled="{Binding UiEnabled}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding OptCloseAfterInstall}"
-                                       FontSize="10.5" TextWrapping="Wrap"
-                                       VerticalAlignment="Center" Margin="8,0,0,0"
-                                       ToolTip.Tip="{Binding OptCloseAfterInstallHint}"
-                                       Foreground="{DynamicResource TextBrush}"/>
                         </Grid>
 
                         <!-- Beim Herunterladen zeigt der Balken einen echten Anteil,
