@@ -18,11 +18,12 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   entfernen**:
 
   - **Aus:** Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste —
-    *Entfernen*, *Behalten* oder *Abbrechen*.
-  - **An:** keine Rückfrage, das Gefundene wird entfernt.
+    *Entfernen*, *Behalten* oder *Abbrechen*. Danach die Abfrage
+    **Installation starten**; sie nennt jetzt, was vorher entfernt wird oder
+    erhalten bleibt. Ohne Fund ist sie unverändert.
+  - **An:** gar keine Rückfrage — das Gefundene wird entfernt und die
+    Installation startet sofort.
 
-  Die Abfrage **Installation starten** bleibt in beiden Fällen und nennt jetzt,
-  was vorher entfernt wird oder erhalten bleibt. Ohne Fund ist sie unverändert.
   Der Schalter steht bei jedem Start auf *Aus*.
 
   Click-to-Run wird in einem eigenen Durchlauf des Deployment Tools vor der

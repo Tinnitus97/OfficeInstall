@@ -468,13 +468,11 @@ sich ineinander umstellen und gelten als passend.
 
 | Schalter | Was passiert |
 | --- | --- |
-| **Aus** | Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste: **Entfernen**, **Behalten** oder **Abbrechen**. |
-| **An** | Keine Rückfrage — das Gefundene wird entfernt. |
+| **Aus** | Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste: **Entfernen**, **Behalten** oder **Abbrechen**. Danach die gewohnte Abfrage **Installation starten**. |
+| **An** | Gar keine Rückfrage — das Gefundene wird entfernt und die Installation startet sofort. Was entfernt wird, steht im Protokoll. |
 
-Die gewohnte Abfrage **Installation starten** kommt in beiden Fällen. Sie nennt
-dann ausdrücklich, was vorher entfernt wird oder bewusst erhalten bleibt — es
-gibt also immer genau eine Bestätigung, bevor etwas deinstalliert wird. Ohne
-Fund bleibt sie Wort für Wort wie bisher.
+Bei **Aus** nennt die Abfrage **Installation starten**, was vorher entfernt wird
+oder bewusst erhalten bleibt. Ohne Fund bleibt sie Wort für Wort wie bisher.
 
 Der Schalter steht bei jedem Start auf **Aus**. Etwas, das ohne Rückfrage
 Software deinstalliert, soll man bewusst einschalten — nicht unbemerkt vom

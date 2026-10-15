@@ -297,8 +297,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>
     /// An: Office, das sich mit der gewaehlten Installation nicht vertraegt
-    /// (MSI und Click-to-Run), wird vorher ohne Rueckfrage entfernt.
-    /// Aus: Wird solches Office gefunden, fragt das Programm nach.
+    /// (MSI und Click-to-Run), wird vorher ohne Rueckfrage entfernt, und die
+    /// Installation startet ohne die Abfrage "Installation starten".
+    /// Aus: Wird solches Office gefunden, fragt das Programm nach; vor dem
+    /// Start kommt die gewohnte Abfrage.
     ///
     /// Bewusst nicht gespeichert und beim Start immer aus: Ein Schalter, der
     /// ohne Rueckfrage Software deinstalliert, soll man jedes Mal bewusst
@@ -377,11 +379,13 @@ public partial class MainWindowViewModel : ObservableObject
                                               "Remove incompatible Office automatically before installing");
     public string OptRemoveIncompatibleHint => Tr(
         "An: Office, das sich mit der gewählten Installation nicht verträgt, wird ohne Rückfrage entfernt - " +
-        "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal.\n" +
-        "Aus: Wird solches Office gefunden, fragt das Programm vorher nach.",
+        "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal. " +
+        "Die Installation startet ohne die Abfrage \"Installation starten\".\n" +
+        "Aus: Wird solches Office gefunden, fragt das Programm vorher nach. Vor dem Start kommt die gewohnte Abfrage.",
         "On: Office that is incompatible with the selected installation is removed without asking - " +
-        "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel.\n" +
-        "Off: If such Office is found, the program asks first.");
+        "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel. " +
+        "The installation starts without the \"Start installation\" prompt.\n" +
+        "Off: If such Office is found, the program asks first. The usual prompt appears before starting.");
     public string SwitchOn       => Tr("An", "On");
     public string SwitchOff      => Tr("Aus", "Off");
     public string BtnClearLog    => Tr("Log leeren", "Clear log");
@@ -1442,6 +1446,10 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
 
+            // Einmal gelesen: Der Schalter gilt fuer den ganzen Durchlauf, auch
+            // wenn er waehrenddessen umgelegt wuerde.
+            var automatic = RemoveIncompatibleOffice;
+
             // --- Vorhandenes Office, das sich nicht vertraegt ---
             var conflicts = await FindOfficeConflictsAsync(entry.Entry);
             var removeConflicts = false;
@@ -1451,7 +1459,7 @@ public partial class MainWindowViewModel : ObservableObject
                 Log(Tr("Nicht kompatibles Office gefunden:", "Incompatible Office found:"));
                 foreach (var line in conflicts.Lines) Log("  " + line);
 
-                if (RemoveIncompatibleOffice)
+                if (automatic)
                 {
                     removeConflicts = true;
                     Log(Tr("Schalter an - wird vor der Installation entfernt.",
@@ -1538,7 +1546,14 @@ public partial class MainWindowViewModel : ObservableObject
             Log(Tr($"Aufruf: {plan.CommandLine}", $"Command: {plan.CommandLine}"));
 
             // --- Rueckfrage vor dem eigentlichen Start ---
-            if (window is not null)
+            // Bei eingeschaltetem Schalter entfaellt sie: Wer ihn umlegt, will
+            // ohne weitere Rueckfrage installieren - samt Entfernen.
+            if (automatic)
+            {
+                Log(Tr("Schalter an - die Installation startet ohne Rückfrage.",
+                       "Switch on - the installation starts without asking."));
+            }
+            else if (window is not null)
             {
                 // Ohne Fund bleibt der Satz wie bisher - er beschreibt das
                 // RemoveMSI aus der Vorlage. Mit Fund sagt er, was tatsaechlich
