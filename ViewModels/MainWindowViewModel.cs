@@ -383,8 +383,8 @@ public partial class MainWindowViewModel : ObservableObject
                                        "aus Office\\Data entfernt. v32.cab und v64.cab bleiben erhalten.",
                                        "After a successful download, older version folders are removed " +
                                        "from Office\\Data. v32.cab and v64.cab are kept.");
-    public string OptRemoveIncompatible => Tr("Nicht kompatibles Office vor der Installation automatisch entfernen",
-                                              "Remove incompatible Office automatically before installing");
+    public string OptRemoveIncompatible => Tr("Nicht kompatibles Office automatisch entfernen",
+                                              "Remove incompatible Office automatically");
     public string OptRemoveIncompatibleHint => Tr(
         "An: Office, das sich mit der gewählten Installation nicht verträgt, wird ohne Rückfrage entfernt - " +
         "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal. " +
@@ -394,8 +394,8 @@ public partial class MainWindowViewModel : ObservableObject
         "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel. " +
         "The installation starts without the \"Start installation\" prompt.\n" +
         "Off: If such Office is found, the program asks first.");
-    public string OptCloseAfterInstall => Tr("OfficeInstall nach erfolgreicher Installation schließen",
-                                             "Close OfficeInstall after a successful installation");
+    public string OptCloseAfterInstall => Tr("Nach erfolgreicher Installation schließen",
+                                             "Close after a successful installation");
     public string OptCloseAfterInstallHint => Tr(
         "An: Ist die Installation ohne Fehler durchgelaufen, beendet sich OfficeInstall von selbst.\n" +
         "Schlägt sie fehl, bleibt das Fenster offen - das Protokoll zeigt, was passiert ist.",

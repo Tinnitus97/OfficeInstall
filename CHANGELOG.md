@@ -14,8 +14,8 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   vor einem Office in 64 Bit, oder ein Office aus *Current* vor einer
   Volumenlizenz aus *PerpetualVL2021*.
 
-  Neuer Schalter **Nicht kompatibles Office vor der Installation automatisch
-  entfernen**:
+  Neuer Schalter **Nicht kompatibles Office automatisch entfernen** in der
+  Kopfzeile:
 
   - **Aus:** Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste —
     *Entfernen*, *Behalten* oder *Abbrechen*. Danach die Abfrage
@@ -31,7 +31,7 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   entfernt das Deployment Tool beim Installieren über `<RemoveMSI/>` — wer
   *Behalten* wählt, bekommt es aus der Kopie der Konfiguration herausgenommen.
 
-- **OfficeInstall nach erfolgreicher Installation schließen.** Neue Option,
+- **Nach erfolgreicher Installation schließen.** Neuer Schalter in der Kopfzeile,
   beim Start immer an und jederzeit abschaltbar. Schlägt die Installation fehl,
   bleibt das Fenster offen.
 

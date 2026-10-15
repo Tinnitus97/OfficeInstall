@@ -464,7 +464,8 @@ sich ineinander umstellen und gelten als passend.
 
 ### Der Schalter
 
-**Nicht kompatibles Office vor der Installation automatisch entfernen**
+**Nicht kompatibles Office automatisch entfernen** — oben in der Kopfzeile, neben
+**Nach erfolgreicher Installation schließen**.
 
 | Schalter | Was passiert |
 | --- | --- |
@@ -504,7 +505,7 @@ Vorlage es vorsieht.
 
 ## Nach der Installation schließen
 
-Mit **OfficeInstall nach erfolgreicher Installation schließen** beendet sich
+Mit **Nach erfolgreicher Installation schließen** (Kopfzeile) beendet sich
 der Launcher von selbst, sobald das Deployment Tool ohne Fehler fertig ist. Die
 Option steht bei jedem Start auf **An** und lässt sich abschalten.
 
