@@ -20,7 +20,7 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   - **Aus:** Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste —
     *Entfernen*, *Behalten* oder *Abbrechen*. Danach die Abfrage
     **Installation starten**; sie nennt jetzt, was vorher entfernt wird oder
-    erhalten bleibt. Ohne Fund ist sie unverändert.
+    erhalten bleibt.
   - **An:** gar keine Rückfrage — das Gefundene wird entfernt und die
     Installation startet sofort.
 
@@ -30,6 +30,13 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   Installation entfernt; scheitert das, wird nicht installiert. MSI-Office
   entfernt das Deployment Tool beim Installieren über `<RemoveMSI/>` — wer
   *Behalten* wählt, bekommt es aus der Kopie der Konfiguration herausgenommen.
+
+### Geändert
+
+- **Keine Abfrage „Installation starten" mehr, wenn alles kompatibel ist.**
+  Wird nichts entfernt, war der Klick auf *Installieren* die Bestätigung. Die
+  Abfrage kommt nur noch, wenn nicht kompatibles Office gefunden wurde (und der
+  Schalter aus ist) oder sich die Registry nicht lesen ließ.
 
 ---
 

@@ -299,8 +299,9 @@ public partial class MainWindowViewModel : ObservableObject
     /// An: Office, das sich mit der gewaehlten Installation nicht vertraegt
     /// (MSI und Click-to-Run), wird vorher ohne Rueckfrage entfernt, und die
     /// Installation startet ohne die Abfrage "Installation starten".
-    /// Aus: Wird solches Office gefunden, fragt das Programm nach; vor dem
-    /// Start kommt die gewohnte Abfrage.
+    /// Aus: Wird solches Office gefunden, fragt das Programm nach.
+    /// Ist alles kompatibel, startet die Installation in beiden Faellen ohne
+    /// Rueckfrage.
     ///
     /// Bewusst nicht gespeichert und beim Start immer aus: Ein Schalter, der
     /// ohne Rueckfrage Software deinstalliert, soll man jedes Mal bewusst
@@ -381,11 +382,11 @@ public partial class MainWindowViewModel : ObservableObject
         "An: Office, das sich mit der gewählten Installation nicht verträgt, wird ohne Rückfrage entfernt - " +
         "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal. " +
         "Die Installation startet ohne die Abfrage \"Installation starten\".\n" +
-        "Aus: Wird solches Office gefunden, fragt das Programm vorher nach. Vor dem Start kommt die gewohnte Abfrage.",
+        "Aus: Wird solches Office gefunden, fragt das Programm vorher nach.",
         "On: Office that is incompatible with the selected installation is removed without asking - " +
         "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel. " +
         "The installation starts without the \"Start installation\" prompt.\n" +
-        "Off: If such Office is found, the program asks first. The usual prompt appears before starting.");
+        "Off: If such Office is found, the program asks first.");
     public string SwitchOn       => Tr("An", "On");
     public string SwitchOff      => Tr("Aus", "Off");
     public string BtnClearLog    => Tr("Log leeren", "Clear log");
@@ -1451,7 +1452,10 @@ public partial class MainWindowViewModel : ObservableObject
             var automatic = RemoveIncompatibleOffice;
 
             // --- Vorhandenes Office, das sich nicht vertraegt ---
-            var conflicts = await FindOfficeConflictsAsync(entry.Entry);
+            // null heisst: liess sich nicht pruefen. Das ist etwas anderes als
+            // "nichts gefunden" - siehe die Rueckfrage vor dem Start.
+            var scan = await FindOfficeConflictsAsync(entry.Entry);
+            var conflicts = scan ?? OfficeConflictReport.None;
             var removeConflicts = false;
 
             if (conflicts.Any)
@@ -1546,18 +1550,30 @@ public partial class MainWindowViewModel : ObservableObject
             Log(Tr($"Aufruf: {plan.CommandLine}", $"Command: {plan.CommandLine}"));
 
             // --- Rueckfrage vor dem eigentlichen Start ---
-            // Bei eingeschaltetem Schalter entfaellt sie: Wer ihn umlegt, will
-            // ohne weitere Rueckfrage installieren - samt Entfernen.
+            // Nur noch, wenn sie etwas zu sagen hat:
+            //   - Schalter an: nie. Wer ihn umlegt, will ohne Rueckfrage
+            //     installieren - samt Entfernen.
+            //   - Alles kompatibel: nie. Es wird nichts entfernt, und
+            //     "Installieren" war die Bestaetigung.
+            //   - Nicht kompatibles Office gefunden: ja - sie nennt, was
+            //     entfernt wird oder bleibt.
+            //   - Nicht pruefbar: ja, wie bisher. Ob etwas entfernt wird, weiss
+            //     dann niemand; RemoveMSI aus der Vorlage greift womoeglich.
             if (automatic)
             {
                 Log(Tr("Schalter an - die Installation startet ohne Rückfrage.",
                        "Switch on - the installation starts without asking."));
             }
+            else if (scan is { Any: false })
+            {
+                Log(Tr("Kein nicht kompatibles Office gefunden - die Installation startet ohne Rückfrage.",
+                       "No incompatible Office found - the installation starts without asking."));
+            }
             else if (window is not null)
             {
-                // Ohne Fund bleibt der Satz wie bisher - er beschreibt das
-                // RemoveMSI aus der Vorlage. Mit Fund sagt er, was tatsaechlich
-                // passiert: entfernen oder bewusst behalten.
+                // Liess sich nicht pruefen, bleibt der Satz wie bisher - er
+                // beschreibt das RemoveMSI aus der Vorlage. Mit Fund sagt er,
+                // was tatsaechlich passiert: entfernen oder bewusst behalten.
                 var names = string.Join("\n", conflicts.All.Select(c => "• " + c.Product.Name));
                 var existingOffice = !conflicts.Any
                     ? Tr("Vorhandene Office-Installationen werden dabei entfernt (RemoveMSI) und laufende " +
@@ -1638,11 +1654,11 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>
     /// Sucht installiertes Office, das der Installation im Weg steht.
     ///
-    /// Laesst sich die Registry nicht lesen, geht es weiter wie bisher: Die
-    /// Suche ist eine Hilfe, keine Voraussetzung - sie darf keine Installation
-    /// verhindern, die vorher funktioniert haette.
+    /// Laesst sich die Registry nicht lesen, kommt null zurueck, und es geht
+    /// weiter wie bisher: Die Suche ist eine Hilfe, keine Voraussetzung - sie
+    /// darf keine Installation verhindern, die vorher funktioniert haette.
     /// </summary>
-    private async Task<OfficeConflictReport> FindOfficeConflictsAsync(CatalogEntry entry)
+    private async Task<OfficeConflictReport?> FindOfficeConflictsAsync(CatalogEntry entry)
     {
         try
         {
@@ -1655,7 +1671,7 @@ public partial class MainWindowViewModel : ObservableObject
             Program.WriteCrashLog("FindOfficeConflicts", ex);
             Log(Tr($"[!] Installiertes Office ließ sich nicht prüfen: {ex.Message}",
                    $"[!] Installed Office could not be checked: {ex.Message}"));
-            return OfficeConflictReport.None;
+            return null;
         }
     }
 
