@@ -49,6 +49,20 @@ public static class OfficeProductNames
         ["VisioPro2021Volume"]    = "Visio 2021 Professional",
         ["VisioStd2024Volume"]    = "Visio 2024 Standard",
         ["VisioPro2024Volume"]    = "Visio 2024 Professional",
+
+        // --- Weitere Click-to-Run-Kennungen ---
+        // Nicht im Paket, aber haeufig schon auf dem Rechner. Gebraucht, um
+        // vorhandenes Office beim Namen zu nennen, statt die Kennung zu zeigen.
+        ["O365ProPlusEEANoTeamsRetail"]  = "Microsoft 365 Apps for Enterprise (ohne Teams)",
+        ["O365BusinessEEANoTeamsRetail"] = "Microsoft 365 Business (ohne Teams)",
+        ["ProPlusRetail"]                = "Office Professional Plus (Retail)",
+        ["ProfessionalRetail"]           = "Office Professional (Retail)",
+        ["VisioProRetail"]               = "Visio Professional (Retail)",
+        ["VisioStdRetail"]               = "Visio Standard (Retail)",
+        ["ProjectProRetail"]             = "Project Professional (Retail)",
+        ["ProjectStdRetail"]             = "Project Standard (Retail)",
+        ["LanguagePack"]                 = "Office-Sprachpaket",
+        ["ProofingTools"]                = "Office-Korrekturhilfen",
     };
 
     /// <summary>Klartextname zur Produktkennung, sonst die Kennung selbst.</summary>

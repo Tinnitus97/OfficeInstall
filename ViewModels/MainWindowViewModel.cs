@@ -293,6 +293,19 @@ public partial class MainWindowViewModel : ObservableObject
                 "If they are not available, they are downloaded from the internet.")
     };
 
+    // ---- Nicht kompatibles Office ----
+
+    /// <summary>
+    /// An: Office, das sich mit der gewaehlten Installation nicht vertraegt
+    /// (MSI und Click-to-Run), wird vorher ohne Rueckfrage entfernt.
+    /// Aus: Wird solches Office gefunden, fragt das Programm nach.
+    ///
+    /// Bewusst nicht gespeichert und beim Start immer aus: Ein Schalter, der
+    /// ohne Rueckfrage Software deinstalliert, soll man jedes Mal bewusst
+    /// einschalten - nicht unbemerkt vom letzten Mal erben.
+    /// </summary>
+    [ObservableProperty] private bool _removeIncompatibleOffice;
+
     // ------------------------------------------------------------ Sprache
 
     [ObservableProperty] private bool _isEnglish;
@@ -360,6 +373,17 @@ public partial class MainWindowViewModel : ObservableObject
                                        "aus Office\\Data entfernt. v32.cab und v64.cab bleiben erhalten.",
                                        "After a successful download, older version folders are removed " +
                                        "from Office\\Data. v32.cab and v64.cab are kept.");
+    public string OptRemoveIncompatible => Tr("Nicht kompatibles Office vor der Installation automatisch entfernen",
+                                              "Remove incompatible Office automatically before installing");
+    public string OptRemoveIncompatibleHint => Tr(
+        "An: Office, das sich mit der gewählten Installation nicht verträgt, wird ohne Rückfrage entfernt - " +
+        "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal.\n" +
+        "Aus: Wird solches Office gefunden, fragt das Programm vorher nach.",
+        "On: Office that is incompatible with the selected installation is removed without asking - " +
+        "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel.\n" +
+        "Off: If such Office is found, the program asks first.");
+    public string SwitchOn       => Tr("An", "On");
+    public string SwitchOff      => Tr("Aus", "Off");
     public string BtnClearLog    => Tr("Log leeren", "Clear log");
     public string LogTitle       => Tr("Aktivitäts-Protokoll", "Activity log");
     public string TabX64         => Tr("64 Bit", "64-bit");
@@ -1418,11 +1442,67 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
 
+            // --- Vorhandenes Office, das sich nicht vertraegt ---
+            var conflicts = await FindOfficeConflictsAsync(entry.Entry);
+            var removeConflicts = false;
+
+            if (conflicts.Any)
+            {
+                Log(Tr("Nicht kompatibles Office gefunden:", "Incompatible Office found:"));
+                foreach (var line in conflicts.Lines) Log("  " + line);
+
+                if (RemoveIncompatibleOffice)
+                {
+                    removeConflicts = true;
+                    Log(Tr("Schalter an - wird vor der Installation entfernt.",
+                           "Switch on - will be removed before installing."));
+                }
+                else if (window is not null)
+                {
+                    var choice = await MessageBox.ShowChoice(window,
+                        Tr("Nicht kompatibles Office gefunden", "Incompatible Office found"),
+                        Tr($"Auf diesem Computer ist Office installiert, das sich nicht mit\n" +
+                           $"{entry.Title} ({entry.Entry.ClientEdition} Bit · {entry.Entry.ChannelFolderName}) verträgt:\n\n" +
+                           string.Join("\n", conflicts.Lines) + "\n\n" +
+                           "Soll es vor der Installation entfernt werden?\n" +
+                           "Bleibt es, bricht das Deployment Tool die Installation voraussichtlich ab.",
+                           $"Office is installed on this computer that is incompatible with\n" +
+                           $"{entry.Title} ({entry.Entry.ClientEdition}-bit · {entry.Entry.ChannelFolderName}):\n\n" +
+                           string.Join("\n", conflicts.Lines) + "\n\n" +
+                           "Remove it before installing?\n" +
+                           "If it stays, the deployment tool will most likely abort the installation."),
+                        new MessageBox.Choice(Tr("Abbrechen", "Cancel")),
+                        new MessageBox.Choice(Tr("Behalten", "Keep")),
+                        new MessageBox.Choice(Tr("Entfernen", "Remove"), Danger: true));
+
+                    if (choice == 2)
+                    {
+                        removeConflicts = true;
+                        Log(Tr("Wird vor der Installation entfernt.", "Will be removed before installing."));
+                    }
+                    else if (choice == 1)
+                    {
+                        Log(Tr("Wird behalten - auch RemoveMSI entfällt für diese Installation.",
+                               "Kept - RemoveMSI is dropped for this installation as well."));
+                    }
+                    else
+                    {
+                        Log(Tr("Abgebrochen.", "Cancelled."));
+                        return;
+                    }
+                }
+            }
+
+            // MSI-Office entfernt das Deployment Tool beim Installieren selbst -
+            // ueber RemoveMSI in der Kopie der Konfiguration. Ohne Fund bleibt
+            // die Vorlage unangetastet (null), sonst entscheidet die Antwort.
+            bool? removeMsi = conflicts.HasMsi ? removeConflicts : null;
+
             // --- Vorbereiten ---
             InstallPlan plan;
             try
             {
-                plan = await Task.Run(() => InstallRunner.Prepare(entry.Entry, SelectedMode));
+                plan = await Task.Run(() => InstallRunner.Prepare(entry.Entry, SelectedMode, removeMsi: removeMsi));
             }
             catch (Exception ex)
             {
@@ -1460,16 +1540,29 @@ public partial class MainWindowViewModel : ObservableObject
             // --- Rueckfrage vor dem eigentlichen Start ---
             if (window is not null)
             {
+                // Ohne Fund bleibt der Satz wie bisher - er beschreibt das
+                // RemoveMSI aus der Vorlage. Mit Fund sagt er, was tatsaechlich
+                // passiert: entfernen oder bewusst behalten.
+                var names = string.Join("\n", conflicts.All.Select(c => "• " + c.Product.Name));
+                var existingOffice = !conflicts.Any
+                    ? Tr("Vorhandene Office-Installationen werden dabei entfernt (RemoveMSI) und laufende " +
+                         "Office-Programme geschlossen.",
+                         "Existing Office installations will be removed (RemoveMSI) and running Office " +
+                         "applications closed.")
+                    : removeConflicts
+                        ? Tr($"Vorher wird entfernt:\n{names}\n\nLaufende Office-Programme werden geschlossen.",
+                             $"Removed beforehand:\n{names}\n\nRunning Office applications will be closed.")
+                        : Tr($"Bleibt erhalten:\n{names}\n\nLaufende Office-Programme werden geschlossen.",
+                             $"Kept:\n{names}\n\nRunning Office applications will be closed.");
+
                 var confirm = await MessageBox.ShowYesNo(window,
                     Tr("Installation starten", "Start installation"),
                     Tr($"{entry.Title}\n{entry.Entry.ClientEdition} Bit · {entry.Entry.ChannelFolderName}\n\n{source}" +
                        (plan.PinnedVersion is not null ? $"\nVersion {plan.PinnedVersion}" : "") + "\n\n" +
-                       "Vorhandene Office-Installationen werden dabei entfernt (RemoveMSI) und laufende " +
-                       "Office-Programme geschlossen. Jetzt starten?",
+                       existingOffice + " Jetzt starten?",
                        $"{entry.Title}\n{entry.Entry.ClientEdition}-bit · {entry.Entry.ChannelFolderName}\n\n{source}" +
                        (plan.PinnedVersion is not null ? $"\nVersion {plan.PinnedVersion}" : "") + "\n\n" +
-                       "Existing Office installations will be removed (RemoveMSI) and running Office " +
-                       "applications closed. Start now?"));
+                       existingOffice + " Start now?"));
 
                 if (!confirm)
                 {
@@ -1477,6 +1570,11 @@ public partial class MainWindowViewModel : ObservableObject
                     return;
                 }
             }
+
+            // --- Nicht kompatibles Click-to-Run vorher entfernen ---
+            // MSI braucht hier nichts: Das erledigt RemoveMSI beim Installieren.
+            if (removeConflicts && conflicts.HasClickToRun && !await RemoveClickToRunAsync(entry.Entry, window))
+                return;
 
             // --- Starten und warten ---
             IsBusy = true;
@@ -1520,6 +1618,69 @@ public partial class MainWindowViewModel : ObservableObject
             BusyText = "";
             UiEnabled = true;
         }
+    }
+
+    /// <summary>
+    /// Sucht installiertes Office, das der Installation im Weg steht.
+    ///
+    /// Laesst sich die Registry nicht lesen, geht es weiter wie bisher: Die
+    /// Suche ist eine Hilfe, keine Voraussetzung - sie darf keine Installation
+    /// verhindern, die vorher funktioniert haette.
+    /// </summary>
+    private async Task<OfficeConflictReport> FindOfficeConflictsAsync(CatalogEntry entry)
+    {
+        try
+        {
+            var inventory = await Task.Run(InstalledOffice.Scan);
+            return InstalledOffice.FindConflicts(inventory, entry.ClientEdition,
+                                                 entry.Channel?.FolderName ?? entry.ChannelFolderName);
+        }
+        catch (Exception ex)
+        {
+            Program.WriteCrashLog("FindOfficeConflicts", ex);
+            Log(Tr($"[!] Installiertes Office ließ sich nicht prüfen: {ex.Message}",
+                   $"[!] Installed Office could not be checked: {ex.Message}"));
+            return OfficeConflictReport.None;
+        }
+    }
+
+    /// <summary>
+    /// Entfernt alle Click-to-Run-Produkte und wartet auf das Ende.
+    ///
+    /// Gibt false zurueck, wenn das Entfernen gescheitert ist. Dann wird gar
+    /// nicht erst installiert - das Deployment Tool scheiterte sonst an genau
+    /// dem Office, das gerade nicht wegging.
+    /// </summary>
+    private async Task<bool> RemoveClickToRunAsync(CatalogEntry entry, Window? window)
+    {
+        IsBusy = true;
+        BusyText = Tr("Nicht kompatibles Office wird entfernt - der Fortschritt erscheint im Fenster von Microsoft.",
+                      "Removing incompatible Office - progress is shown in the Microsoft window.");
+
+        var plan = await Task.Run(() => InstallRunner.PrepareClickToRunRemoval(entry));
+        Log(Tr("Entferne Click-to-Run ...", "Removing Click-to-Run ..."));
+        Log(Tr($"Aufruf: {plan.CommandLine}", $"Command: {plan.CommandLine}"));
+
+        using var process = InstallRunner.Start(plan);
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode == 0)
+        {
+            Log(Tr("Click-to-Run entfernt.", "Click-to-Run removed."));
+            return true;
+        }
+
+        Log(Tr($"[FEHLER] Das Entfernen endete mit Rückgabewert {process.ExitCode} - es wird nicht installiert.",
+               $"[ERROR] Removal exited with code {process.ExitCode} - nothing will be installed."));
+        if (window is not null)
+            await MessageBox.ShowInfo(window,
+                Tr("Entfernen fehlgeschlagen", "Removal failed"),
+                Tr($"Das vorhandene Office ließ sich nicht entfernen (Rückgabewert {process.ExitCode}).\n\n" +
+                   "Die Installation wurde deshalb nicht gestartet. Einzelheiten stehen in den " +
+                   "Protokolldateien unter %TEMP%.",
+                   $"The existing Office could not be removed (exit code {process.ExitCode}).\n\n" +
+                   "The installation was therefore not started. Details are in the log files under %TEMP%."));
+        return false;
     }
 
     // ------------------------------------------------------------ Offline-Bestand

@@ -47,6 +47,9 @@ public sealed class InstallPlan
 
     public bool IsDownload => string.Equals(Verb, "download", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>true, wenn der Aufruf Office entfernt statt installiert.</summary>
+    public bool IsRemoval { get; init; }
+
     /// <summary>Wie viele Produkte in der Konfiguration stehen (1 bei Einzelaufrufen).</summary>
     public int ProductCount { get; init; } = 1;
 
@@ -100,8 +103,13 @@ public static class InstallRunner
     /// Stellt alles bereit, was fuer den Aufruf gebraucht wird, und legt die
     /// noetigen Kopien an. Der Vorgang selbst wird noch nicht gestartet -
     /// dadurch laesst sich das Ergebnis pruefen und protokollieren.
+    ///
+    /// <paramref name="removeMsi"/> setzt oder entfernt &lt;RemoveMSI/&gt; in
+    /// der Kopie; null laesst die Vorlage unveraendert. Siehe
+    /// <see cref="OfficeConfiguration.ApplyRemoveMsi"/>.
     /// </summary>
-    public static InstallPlan Prepare(CatalogEntry entry, InstallMode requestedMode, string? tempRoot = null)
+    public static InstallPlan Prepare(CatalogEntry entry, InstallMode requestedMode, string? tempRoot = null,
+                                      bool? removeMsi = null)
     {
         if (entry.SetupExecutable is null)
             throw new InvalidOperationException("Es wurde keine setup.exe gefunden.");
@@ -137,7 +145,7 @@ public static class InstallRunner
 
             OfficeConfiguration.WriteWithSourcePath(
                 entry.Configuration.FilePath, configurationCopy, entry.Offline.SourcePath,
-                pinned, folderChannel);
+                pinned, folderChannel, removeMsi);
 
             return new InstallPlan
             {
@@ -159,7 +167,7 @@ public static class InstallRunner
         File.Copy(entry.SetupExecutable, setupCopy, overwrite: true);
 
         OfficeConfiguration.WriteWithoutSourcePath(
-            entry.Configuration.FilePath, configurationCopy, folderChannel);
+            entry.Configuration.FilePath, configurationCopy, folderChannel, removeMsi);
 
         return new InstallPlan
         {
@@ -170,6 +178,44 @@ public static class InstallRunner
             SourcePath = null,
             Channel = folderChannel,
             ChannelCorrectedFrom = wrongChannel
+        };
+    }
+
+    /// <summary>
+    /// Bereitet das Entfernen ALLER Click-to-Run-Produkte vor - als eigenen
+    /// Durchlauf des Deployment Tools vor der eigentlichen Installation.
+    ///
+    /// Warum getrennt und nicht &lt;Remove All="TRUE"/&gt; in derselben Datei wie
+    /// &lt;Add&gt;? Das Deployment Tool wuerde dann in einem Zug entfernen und
+    /// neu installieren - schlaegt die Installation fehl, ist das alte Office
+    /// trotzdem weg, und im Protokoll laesst sich nicht mehr auseinanderhalten,
+    /// welcher Teil gescheitert ist. Getrennt laesst sich nach dem Entfernen
+    /// pruefen, ob es geklappt hat, und erst dann installieren.
+    ///
+    /// Benutzt wird die setup.exe der Installationsbasis; zum Entfernen
+    /// braucht das Deployment Tool keine Quelldateien.
+    /// </summary>
+    public static InstallPlan PrepareClickToRunRemoval(CatalogEntry entry, string? tempRoot = null)
+    {
+        if (entry.SetupExecutable is null)
+            throw new InvalidOperationException("Es wurde keine setup.exe gefunden.");
+
+        var workFolder = Path.Combine(tempRoot ?? DefaultTempRoot,
+                                      entry.Configuration.ArchitectureFolderName,
+                                      entry.Configuration.ChannelFolderName);
+        Directory.CreateDirectory(workFolder);
+
+        var configuration = Path.Combine(workFolder, "entfernen_click-to-run.xml");
+        OfficeConfiguration.WriteRemoveAllConfig(configuration);
+
+        return new InstallPlan
+        {
+            SetupExecutable = entry.SetupExecutable,
+            ConfigurationFile = configuration,
+            WorkingDirectory = workFolder,
+            // Fuer das Entfernen ohne Bedeutung - es wird nichts geladen.
+            EffectiveMode = InstallMode.Online,
+            IsRemoval = true
         };
     }
 

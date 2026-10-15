@@ -111,6 +111,23 @@
                                       IsEnabled="{Binding UiEnabled}"/>
                         </Grid>
 
+                        <!-- Nicht kompatibles Office: An = vor der Installation ohne
+                             Rückfrage entfernen, Aus = vorher nachfragen. Der Schalter
+                             steht links, damit er nicht zwischen den Texten untergeht. -->
+                        <Grid ColumnDefinitions="Auto,*" Margin="2,4,0,0">
+                            <ToggleSwitch Grid.Column="0" Classes="opt"
+                                          IsChecked="{Binding RemoveIncompatibleOffice}"
+                                          OnContent="{Binding SwitchOn}"
+                                          OffContent="{Binding SwitchOff}"
+                                          ToolTip.Tip="{Binding OptRemoveIncompatibleHint}"
+                                          IsEnabled="{Binding UiEnabled}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding OptRemoveIncompatible}"
+                                       FontSize="10.5" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Margin="8,0,0,0"
+                                       ToolTip.Tip="{Binding OptRemoveIncompatibleHint}"
+                                       Foreground="{DynamicResource TextBrush}"/>
+                        </Grid>
+
                         <!-- Beim Herunterladen zeigt der Balken einen echten Anteil,
                              sobald es eine Vergleichsgroesse gibt (ProgressKnown).
                              Sonst laeuft er unbestimmt - das Deployment Tool

@@ -121,9 +121,12 @@ public sealed class OfficeConfiguration
     /// PerpetualVL2019 versehentlich Channel="PerpetualVL2021", lehnt das
     /// Deployment Tool die Installation ab:
     /// "This product can't be installed on the selected update channel."
+    ///
+    /// ZU <paramref name="removeMsi"/>: siehe <see cref="ApplyRemoveMsi"/>.
     /// </summary>
     public static void WriteWithSourcePath(string sourceFile, string targetFile, string sourcePath,
-                                           Version? pinnedVersion = null, string? channelName = null)
+                                           Version? pinnedVersion = null, string? channelName = null,
+                                           bool? removeMsi = null)
     {
         var document = XDocument.Load(sourceFile);
         var add = document.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Add")
@@ -136,6 +139,8 @@ public sealed class OfficeConfiguration
 
         if (pinnedVersion is not null)
             add.SetAttributeValue("Version", pinnedVersion.ToString());
+
+        ApplyRemoveMsi(document, removeMsi);
 
         var directory = Path.GetDirectoryName(Path.GetFullPath(targetFile));
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
@@ -184,7 +189,7 @@ public sealed class OfficeConfiguration
     /// dass der Fehler dann erst nach dem Herunterladen kommt.
     /// </summary>
     public static void WriteWithoutSourcePath(string sourceFile, string targetFile,
-                                              string? channelName = null)
+                                              string? channelName = null, bool? removeMsi = null)
     {
         var document = XDocument.Load(sourceFile);
         var add = document.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Add")
@@ -194,6 +199,72 @@ public sealed class OfficeConfiguration
 
         if (!string.IsNullOrWhiteSpace(channelName))
             add.SetAttributeValue("Channel", channelName);
+
+        ApplyRemoveMsi(document, removeMsi);
+
+        var directory = Path.GetDirectoryName(Path.GetFullPath(targetFile));
+        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+        document.Save(targetFile);
+    }
+
+    /// <summary>
+    /// Setzt oder entfernt &lt;RemoveMSI/&gt; in einer Kopie der Konfiguration.
+    ///
+    ///   null  - die Vorlage bleibt, wie sie ist (der Normalfall)
+    ///   true  - RemoveMSI wird ergaenzt, falls es fehlt: MSI-Office soll weg
+    ///   false - RemoveMSI wird entfernt: Wer beim Rueckfragen "Behalten"
+    ///           gewaehlt hat, dem darf das Deployment Tool sein MSI-Office
+    ///           nicht trotzdem abraeumen, nur weil die Vorlage es so vorsieht.
+    /// </summary>
+    public static void ApplyRemoveMsi(XDocument document, bool? removeMsi)
+    {
+        if (removeMsi is null || document.Root is null) return;
+
+        var existing = document.Root.Elements().Where(e => e.Name.LocalName == "RemoveMSI").ToList();
+
+        if (removeMsi == false)
+        {
+            existing.ForEach(e => e.Remove());
+            return;
+        }
+
+        if (existing.Count > 0) return;
+
+        // Direkt hinter <Add> - dort steht es auch in den Vorlagen des Pakets.
+        var add = document.Root.Elements().FirstOrDefault(e => e.Name.LocalName == "Add");
+        var element = new XElement(document.Root.Name.Namespace + "RemoveMSI");
+        if (add is not null) add.AddAfterSelf(element);
+        else document.Root.Add(element);
+    }
+
+    /// <summary>true, wenn die Datei &lt;RemoveMSI/&gt; enthaelt - fuer die Kontrolle im Test.</summary>
+    public static bool HasRemoveMsi(string file)
+    {
+        try
+        {
+            return XDocument.Load(file).Root?.Elements().Any(e => e.Name.LocalName == "RemoveMSI") == true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Schreibt eine Konfiguration, die ALLE Click-to-Run-Produkte entfernt.
+    ///
+    /// Gezielter geht es nicht, und es muss auch nicht: Alle
+    /// Click-to-Run-Produkte teilen sich eine Installation. Passt deren
+    /// Architektur oder Kanal nicht, passt es fuer jedes Produkt darin nicht.
+    ///
+    /// Display Level="Full" zeigt das Fenster von Microsoft - wie beim
+    /// Installieren. FORCEAPPSHUTDOWN schliesst offene Office-Programme, statt
+    /// den Vorgang an ihnen scheitern zu lassen.
+    /// </summary>
+    public static void WriteRemoveAllConfig(string targetFile)
+    {
+        var document = new XDocument(
+            new XElement("Configuration",
+                new XElement("Remove", new XAttribute("All", "TRUE")),
+                new XElement("Property", new XAttribute("Name", "FORCEAPPSHUTDOWN"), new XAttribute("Value", "TRUE")),
+                new XElement("Display", new XAttribute("Level", "Full"), new XAttribute("AcceptEULA", "TRUE"))));
 
         var directory = Path.GetDirectoryName(Path.GetFullPath(targetFile));
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);

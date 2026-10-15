@@ -438,6 +438,66 @@ abbrechen und stattdessen online installieren.
 
 ---
 
+## Nicht kompatibles Office entfernen
+
+Vor jeder Installation sieht der Launcher nach, welches Office schon auf dem
+Rechner liegt — in der Registry, ohne etwas anzufassen. Als **nicht kompatibel**
+gilt:
+
+| Art | Wann | Woran erkannt |
+| --- | --- | --- |
+| **MSI** (Office 2010 bis 2016, auch Visio und Project) | immer | Deinstallationseintrag über den *Office Setup Controller* |
+| **Click-to-Run** | wenn Architektur oder Kanalfamilie nicht passen | `HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration` |
+
+Bei MSI deckt sich das mit `<RemoveMSI/>`, das ohnehin in allen
+Konfigurationsdateien des Pakets steht. Office 2007 wird bewusst nicht
+erfasst: Das kann `<RemoveMSI/>` nicht entfernen, und eine Liste, die
+„wird entfernt" verspricht, muss das auch halten.
+
+Bei Click-to-Run zählt die ganze Installation, nicht das einzelne Produkt: Alle
+Click-to-Run-Produkte eines Rechners teilen sich Version, Kanal und
+Architektur. Ein Microsoft 365 in 32 Bit verhindert deshalb jedes Office in
+64 Bit, und ein Office aus *Current* verträgt sich nicht mit einer
+Volumenlizenz aus *PerpetualVL2021*. *Current*, *Monthly Enterprise*,
+*Semi-Annual* und die Vorschaukanäle bilden dagegen eine Familie — die lassen
+sich ineinander umstellen und gelten als passend.
+
+### Der Schalter
+
+**Nicht kompatibles Office vor der Installation automatisch entfernen**
+
+| Schalter | Was passiert |
+| --- | --- |
+| **Aus** | Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste: **Entfernen**, **Behalten** oder **Abbrechen**. |
+| **An** | Keine Rückfrage — das Gefundene wird entfernt. |
+
+Die gewohnte Abfrage **Installation starten** kommt in beiden Fällen. Sie nennt
+dann ausdrücklich, was vorher entfernt wird oder bewusst erhalten bleibt — es
+gibt also immer genau eine Bestätigung, bevor etwas deinstalliert wird. Ohne
+Fund bleibt sie Wort für Wort wie bisher.
+
+Der Schalter steht bei jedem Start auf **Aus**. Etwas, das ohne Rückfrage
+Software deinstalliert, soll man bewusst einschalten — nicht unbemerkt vom
+letzten Mal erben.
+
+### Wie entfernt wird
+
+- **Click-to-Run** in einem eigenen Durchlauf des Deployment Tools **vor** der
+  Installation, mit `<Remove All="TRUE"/>`. Scheitert das Entfernen, wird gar
+  nicht erst installiert — das Deployment Tool scheiterte sonst an genau dem
+  Office, das nicht wegging.
+- **MSI** übernimmt das Deployment Tool beim Installieren selbst: Die Kopie der
+  Konfiguration bekommt `<RemoveMSI/>`, falls es in der Vorlage fehlt.
+
+Wer bei der Rückfrage **Behalten** wählt, bekommt auch kein `<RemoveMSI/>` —
+sonst räumte das Deployment Tool das MSI-Office trotzdem ab, nur weil die
+Vorlage es vorsieht.
+
+> Lässt sich die Registry nicht lesen, geht es weiter wie bisher. Die Prüfung
+> ist eine Hilfe, keine Voraussetzung.
+
+---
+
 ## Systemanforderungen
 
 | Anforderung | Details |
@@ -497,6 +557,7 @@ Services/OfflineSource.cs         Office\Data erkennen und Version bestimmen
 Services/OnlineVersionService.cs  Versionsübersicht von Microsoft auswerten
 Services/ConnectivityService.cs   kurze Netzprüfung vor jedem Onlinezugriff
 Services/InstallRunner.cs         Modus auflösen, Aufruf vorbereiten und starten
+Services/InstalledOffice.cs       vorhandenes Office finden, Konflikte bestimmen
 Services/TempWorkspace.cs         Arbeitsordner unter %TEMP% anlegen und leeren
 Services/UpdateService.cs         update.json abfragen, Programm und Konfigurationen einspielen
 Services/DeploymentToolService.cs setup.exe finden, holen, entpacken und verteilen

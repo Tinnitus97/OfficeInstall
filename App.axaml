@@ -297,5 +297,13 @@
             <Setter Property="MinHeight" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
+
+        <!-- ============ ToggleSwitch ============ -->
+        <Style Selector="ToggleSwitch.opt">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
     </Application.Styles>
 </Application>
