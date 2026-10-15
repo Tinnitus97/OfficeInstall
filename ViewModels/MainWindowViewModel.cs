@@ -21,7 +21,7 @@ namespace OfficeInstall.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private const string VersionString = "1.3.2";
+    private const string VersionString = "1.4.0";
 
     private readonly object _logLock = new();
     private readonly StringBuilder _logBuffer = new();
