@@ -21,7 +21,7 @@ namespace OfficeInstall.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private const string VersionString = "1.3.2";
+    private const string VersionString = "1.4.0";
 
     private readonly object _logLock = new();
     private readonly StringBuilder _logBuffer = new();
@@ -293,6 +293,28 @@ public partial class MainWindowViewModel : ObservableObject
                 "If they are not available, they are downloaded from the internet.")
     };
 
+    // ---- Nicht kompatibles Office ----
+
+    /// <summary>
+    /// An: Office, das sich mit der gewaehlten Installation nicht vertraegt
+    /// (MSI und Click-to-Run), wird vorher ohne Rueckfrage entfernt.
+    /// Aus: Wird solches Office gefunden, fragt das Programm nach.
+    /// Eine Abfrage "Installation starten" gibt es in keinem Fall - der Klick
+    /// auf "Installieren" ist die Bestaetigung.
+    ///
+    /// Bewusst nicht gespeichert und beim Start immer aus: Ein Schalter, der
+    /// ohne Rueckfrage Software deinstalliert, soll man jedes Mal bewusst
+    /// einschalten - nicht unbemerkt vom letzten Mal erben.
+    /// </summary>
+    [ObservableProperty] private bool _removeIncompatibleOffice;
+
+    /// <summary>
+    /// An: Nach einer fehlerfreien Installation beendet sich OfficeInstall.
+    /// Schlaegt sie fehl, bleibt das Fenster offen - dann wird das Protokoll
+    /// gebraucht. Beim Start immer an; abschalten laesst sie sich jederzeit.
+    /// </summary>
+    [ObservableProperty] private bool _closeAfterInstall = true;
+
     // ------------------------------------------------------------ Sprache
 
     [ObservableProperty] private bool _isEnglish;
@@ -360,6 +382,24 @@ public partial class MainWindowViewModel : ObservableObject
                                        "aus Office\\Data entfernt. v32.cab und v64.cab bleiben erhalten.",
                                        "After a successful download, older version folders are removed " +
                                        "from Office\\Data. v32.cab and v64.cab are kept.");
+    public string OptRemoveIncompatible => Tr("Nicht kompatibles Office automatisch entfernen",
+                                              "Remove incompatible Office automatically");
+    public string OptRemoveIncompatibleHint => Tr(
+        "An: Office, das sich mit der gewählten Installation nicht verträgt, wird ohne Rückfrage entfernt - " +
+        "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal.\n" +
+        "Aus: Wird solches Office gefunden, fragt das Programm vorher nach.",
+        "On: Office that is incompatible with the selected installation is removed without asking - " +
+        "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel.\n" +
+        "Off: If such Office is found, the program asks first.");
+    public string OptCloseAfterInstall => Tr("Nach erfolgreicher Installation schließen",
+                                             "Close after a successful installation");
+    public string OptCloseAfterInstallHint => Tr(
+        "An: Ist die Installation ohne Fehler durchgelaufen, beendet sich OfficeInstall von selbst.\n" +
+        "Schlägt sie fehl, bleibt das Fenster offen - das Protokoll zeigt, was passiert ist.",
+        "On: Once the installation has finished without errors, OfficeInstall closes by itself.\n" +
+        "If it fails, the window stays open - the log shows what happened.");
+    public string SwitchOn       => Tr("An", "On");
+    public string SwitchOff      => Tr("Aus", "Off");
     public string BtnClearLog    => Tr("Log leeren", "Clear log");
     public string LogTitle       => Tr("Aktivitäts-Protokoll", "Activity log");
     public string TabX64         => Tr("64 Bit", "64-bit");
@@ -1355,6 +1395,10 @@ public partial class MainWindowViewModel : ObservableObject
         if (!UiEnabled) return;
         var window = ActiveWindow;
 
+        // Erst NACH dem finally schliessen: Aufraeumen und Freigeben der
+        // Oberflaeche sollen vorher durchgelaufen sein.
+        var closeWhenDone = false;
+
         try
         {
             UiEnabled = false;
@@ -1418,11 +1462,71 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
 
+            // Einmal gelesen: Der Schalter gilt fuer den ganzen Durchlauf, auch
+            // wenn er waehrenddessen umgelegt wuerde.
+            var automatic = RemoveIncompatibleOffice;
+
+            // --- Vorhandenes Office, das sich nicht vertraegt ---
+            var conflicts = await FindOfficeConflictsAsync(entry.Entry);
+            var removeConflicts = false;
+
+            if (conflicts.Any)
+            {
+                Log(Tr("Nicht kompatibles Office gefunden:", "Incompatible Office found:"));
+                foreach (var line in conflicts.Lines) Log("  " + line);
+
+                if (automatic)
+                {
+                    removeConflicts = true;
+                    Log(Tr("Schalter an - wird vor der Installation entfernt.",
+                           "Switch on - will be removed before installing."));
+                }
+                else if (window is not null)
+                {
+                    var choice = await MessageBox.ShowChoice(window,
+                        Tr("Nicht kompatibles Office gefunden", "Incompatible Office found"),
+                        Tr($"Auf diesem Computer ist Office installiert, das sich nicht mit\n" +
+                           $"{entry.Title} ({entry.Entry.ClientEdition} Bit · {entry.Entry.ChannelFolderName}) verträgt:\n\n" +
+                           string.Join("\n", conflicts.Lines) + "\n\n" +
+                           "Soll es vor der Installation entfernt werden?\n" +
+                           "Bleibt es, bricht das Deployment Tool die Installation voraussichtlich ab.",
+                           $"Office is installed on this computer that is incompatible with\n" +
+                           $"{entry.Title} ({entry.Entry.ClientEdition}-bit · {entry.Entry.ChannelFolderName}):\n\n" +
+                           string.Join("\n", conflicts.Lines) + "\n\n" +
+                           "Remove it before installing?\n" +
+                           "If it stays, the deployment tool will most likely abort the installation."),
+                        new MessageBox.Choice(Tr("Abbrechen", "Cancel")),
+                        new MessageBox.Choice(Tr("Behalten", "Keep")),
+                        new MessageBox.Choice(Tr("Entfernen", "Remove"), Danger: true));
+
+                    if (choice == 2)
+                    {
+                        removeConflicts = true;
+                        Log(Tr("Wird vor der Installation entfernt.", "Will be removed before installing."));
+                    }
+                    else if (choice == 1)
+                    {
+                        Log(Tr("Wird behalten - auch RemoveMSI entfällt für diese Installation.",
+                               "Kept - RemoveMSI is dropped for this installation as well."));
+                    }
+                    else
+                    {
+                        Log(Tr("Abgebrochen.", "Cancelled."));
+                        return;
+                    }
+                }
+            }
+
+            // MSI-Office entfernt das Deployment Tool beim Installieren selbst -
+            // ueber RemoveMSI in der Kopie der Konfiguration. Ohne Fund bleibt
+            // die Vorlage unangetastet (null), sonst entscheidet die Antwort.
+            bool? removeMsi = conflicts.HasMsi ? removeConflicts : null;
+
             // --- Vorbereiten ---
             InstallPlan plan;
             try
             {
-                plan = await Task.Run(() => InstallRunner.Prepare(entry.Entry, SelectedMode));
+                plan = await Task.Run(() => InstallRunner.Prepare(entry.Entry, SelectedMode, removeMsi: removeMsi));
             }
             catch (Exception ex)
             {
@@ -1457,26 +1561,14 @@ public partial class MainWindowViewModel : ObservableObject
             Log(Tr($"Konfiguration: {plan.ConfigurationFile}", $"Configuration: {plan.ConfigurationFile}"));
             Log(Tr($"Aufruf: {plan.CommandLine}", $"Command: {plan.CommandLine}"));
 
-            // --- Rueckfrage vor dem eigentlichen Start ---
-            if (window is not null)
-            {
-                var confirm = await MessageBox.ShowYesNo(window,
-                    Tr("Installation starten", "Start installation"),
-                    Tr($"{entry.Title}\n{entry.Entry.ClientEdition} Bit · {entry.Entry.ChannelFolderName}\n\n{source}" +
-                       (plan.PinnedVersion is not null ? $"\nVersion {plan.PinnedVersion}" : "") + "\n\n" +
-                       "Vorhandene Office-Installationen werden dabei entfernt (RemoveMSI) und laufende " +
-                       "Office-Programme geschlossen. Jetzt starten?",
-                       $"{entry.Title}\n{entry.Entry.ClientEdition}-bit · {entry.Entry.ChannelFolderName}\n\n{source}" +
-                       (plan.PinnedVersion is not null ? $"\nVersion {plan.PinnedVersion}" : "") + "\n\n" +
-                       "Existing Office installations will be removed (RemoveMSI) and running Office " +
-                       "applications closed. Start now?"));
+            // Keine Rueckfrage vor dem Start: Der Klick auf "Installieren" ist
+            // die Bestaetigung. Gefragt wird nur noch zu nicht kompatiblem
+            // Office, und das nur bei ausgeschaltetem Schalter (siehe oben).
 
-                if (!confirm)
-                {
-                    Log(Tr("Abgebrochen.", "Cancelled."));
-                    return;
-                }
-            }
+            // --- Nicht kompatibles Click-to-Run vorher entfernen ---
+            // MSI braucht hier nichts: Das erledigt RemoveMSI beim Installieren.
+            if (removeConflicts && conflicts.HasClickToRun && !await RemoveClickToRunAsync(entry.Entry, window))
+                return;
 
             // --- Starten und warten ---
             IsBusy = true;
@@ -1494,6 +1586,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 Log(Tr("Fertig! Die Installation wurde ohne Fehler beendet.",
                        "Done! The installation finished without errors."));
+                closeWhenDone = CloseAfterInstall;
             }
             else
             {
@@ -1520,6 +1613,71 @@ public partial class MainWindowViewModel : ObservableObject
             BusyText = "";
             UiEnabled = true;
         }
+
+        if (closeWhenDone) Exit();
+    }
+
+    /// <summary>
+    /// Sucht installiertes Office, das der Installation im Weg steht.
+    ///
+    /// Laesst sich die Registry nicht lesen, geht es weiter wie bisher: Die
+    /// Suche ist eine Hilfe, keine Voraussetzung - sie darf keine Installation
+    /// verhindern, die vorher funktioniert haette.
+    /// </summary>
+    private async Task<OfficeConflictReport> FindOfficeConflictsAsync(CatalogEntry entry)
+    {
+        try
+        {
+            var inventory = await Task.Run(InstalledOffice.Scan);
+            return InstalledOffice.FindConflicts(inventory, entry.ClientEdition,
+                                                 entry.Channel?.FolderName ?? entry.ChannelFolderName);
+        }
+        catch (Exception ex)
+        {
+            Program.WriteCrashLog("FindOfficeConflicts", ex);
+            Log(Tr($"[!] Installiertes Office ließ sich nicht prüfen: {ex.Message}",
+                   $"[!] Installed Office could not be checked: {ex.Message}"));
+            return OfficeConflictReport.None;
+        }
+    }
+
+    /// <summary>
+    /// Entfernt alle Click-to-Run-Produkte und wartet auf das Ende.
+    ///
+    /// Gibt false zurueck, wenn das Entfernen gescheitert ist. Dann wird gar
+    /// nicht erst installiert - das Deployment Tool scheiterte sonst an genau
+    /// dem Office, das gerade nicht wegging.
+    /// </summary>
+    private async Task<bool> RemoveClickToRunAsync(CatalogEntry entry, Window? window)
+    {
+        IsBusy = true;
+        BusyText = Tr("Nicht kompatibles Office wird entfernt - der Fortschritt erscheint im Fenster von Microsoft.",
+                      "Removing incompatible Office - progress is shown in the Microsoft window.");
+
+        var plan = await Task.Run(() => InstallRunner.PrepareClickToRunRemoval(entry));
+        Log(Tr("Entferne Click-to-Run ...", "Removing Click-to-Run ..."));
+        Log(Tr($"Aufruf: {plan.CommandLine}", $"Command: {plan.CommandLine}"));
+
+        using var process = InstallRunner.Start(plan);
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode == 0)
+        {
+            Log(Tr("Click-to-Run entfernt.", "Click-to-Run removed."));
+            return true;
+        }
+
+        Log(Tr($"[FEHLER] Das Entfernen endete mit Rückgabewert {process.ExitCode} - es wird nicht installiert.",
+               $"[ERROR] Removal exited with code {process.ExitCode} - nothing will be installed."));
+        if (window is not null)
+            await MessageBox.ShowInfo(window,
+                Tr("Entfernen fehlgeschlagen", "Removal failed"),
+                Tr($"Das vorhandene Office ließ sich nicht entfernen (Rückgabewert {process.ExitCode}).\n\n" +
+                   "Die Installation wurde deshalb nicht gestartet. Einzelheiten stehen in den " +
+                   "Protokolldateien unter %TEMP%.",
+                   $"The existing Office could not be removed (exit code {process.ExitCode}).\n\n" +
+                   "The installation was therefore not started. Details are in the log files under %TEMP%."));
+        return false;
     }
 
     // ------------------------------------------------------------ Offline-Bestand
@@ -1900,8 +2058,12 @@ public partial class MainWindowViewModel : ObservableObject
     // ------------------------------------------------------------ Deployment Tool
 
     /// <summary>
-    /// Prueft die Fassung des Deployment Tools und ersetzt sie auf Wunsch durch
-    /// die aktuelle vom Microsoft Download Center.
+    /// Prueft die Fassung des Deployment Tools und ersetzt sie durch die
+    /// aktuelle vom Microsoft Download Center.
+    ///
+    /// Ohne Rueckfrage und ohne Erfolgsmeldung: Der Klick auf den Knopf ist
+    /// die Zustimmung, und was geschehen ist, steht im Protokoll. Ein Fenster
+    /// erscheint nur noch, wenn etwas schiefgeht.
     /// </summary>
     [RelayCommand]
     private async Task UpdateDeploymentTool()
@@ -1972,46 +2134,16 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 Log(Tr($"Das vorhandene Deployment Tool {OdtLocalVersion} ist aktuell - nichts zu tun.",
                        $"The installed deployment tool {OdtLocalVersion} is up to date - nothing to do."));
-                if (window is not null)
-                    await MessageBox.ShowInfo(window,
-                        Tr("Bereits aktuell", "Already up to date"),
-                        Tr($"Das Deployment Tool im Paket hat Version {OdtLocalVersion}.\n" +
-                           "Eine neuere Fassung wird nicht angeboten.",
-                           $"The deployment tool in the package is version {OdtLocalVersion}.\n" +
-                           "No newer release is offered."));
                 return;
             }
 
             var targets = DeploymentToolService.DeploymentTargets(RootFolder);
 
-            if (window is not null)
-            {
-                var vorhanden = OdtLocalVersion is null
-                    ? Tr("Im Paket ist bisher keine setup.exe vorhanden.",
-                         "There is no setup.exe in the package yet.")
-                    : Tr($"Vorhanden ist Version {OdtLocalVersion}.", $"Version {OdtLocalVersion} is present.");
-
-                var confirm = await MessageBox.ShowYesNo(window,
-                    Tr("Deployment Tool holen", "Get deployment tool"),
-                    Tr($"{vorhanden}\nAngeboten wird {release.Version}.\n\n" +
-                       $"Die Datei wird vom offiziellen Microsoft Download Center geladen, entpackt und an " +
-                       $"{targets.Count} Stelle(n) im Paket abgelegt:\n\n" +
-                       string.Join("\n", targets.Take(6)) +
-                       (targets.Count > 6 ? "\n..." : "") +
-                       "\n\nJetzt holen?",
-                       $"{vorhanden}\nVersion {release.Version} is offered.\n\n" +
-                       $"The file will be downloaded from the official Microsoft Download Center, extracted and " +
-                       $"placed at {targets.Count} location(s) in the package:\n\n" +
-                       string.Join("\n", targets.Take(6)) +
-                       (targets.Count > 6 ? "\n..." : "") +
-                       "\n\nGet it now?"));
-
-                if (!confirm)
-                {
-                    Log(Tr("Abgebrochen.", "Cancelled."));
-                    return;
-                }
-            }
+            Log(OdtLocalVersion is null
+                ? Tr("Im Paket ist bisher keine setup.exe vorhanden.", "There is no setup.exe in the package yet.")
+                : Tr($"Vorhanden ist Version {OdtLocalVersion}.", $"Version {OdtLocalVersion} is present."));
+            Log(Tr($"Ziel ({targets.Count} Stelle(n) im Paket):", $"Target ({targets.Count} location(s) in the package):"));
+            foreach (var target in targets) Log("  " + target);
 
             BusyText = Tr($"Deployment Tool {release.Version} wird geladen...",
                           $"Downloading deployment tool {release.Version}...");
@@ -2026,14 +2158,11 @@ public partial class MainWindowViewModel : ObservableObject
             var count = DeploymentToolService.Deploy(extracted, targets);
             Log(Tr($"{count} Datei(en) im Paket ersetzt.", $"Replaced {count} file(s) in the package."));
 
+            Log(Tr($"Deployment Tool {extractedVersion} liegt jetzt an {count} Stelle(n) im Paket.",
+                   $"Deployment tool {extractedVersion} is now present at {count} location(s) in the package."));
+
             UiEnabled = true;
             await Scan();
-
-            if (window is not null)
-                await MessageBox.ShowInfo(window,
-                    Tr("Deployment Tool aktualisiert", "Deployment tool updated"),
-                    Tr($"Version {extractedVersion} liegt jetzt an {count} Stelle(n) im Paket.",
-                       $"Version {extractedVersion} is now present at {count} location(s) in the package."));
         }
         catch (Exception ex)
         {

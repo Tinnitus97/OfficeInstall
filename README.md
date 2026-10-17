@@ -289,7 +289,9 @@ Paketordner.
 
 Der Abgleich kostet dabei keinen Download: Die angebotene Version steckt bereits
 im Dateinamen (`officedeploymenttool_20228-20124.exe` → 16.0.20228.20124).
-Geladen wird nur, wenn es wirklich etwas Neueres gibt, und erst nach Rückfrage.
+Geladen wird nur, wenn es wirklich etwas Neueres gibt — ohne Rückfrage und ohne
+Erfolgsmeldung; was passiert ist, steht im Protokoll. Ein Fenster erscheint nur,
+wenn etwas schiefgeht.
 
 > **Zur Bezugsquelle:** Im Netz kursiert die Abkürzung
 > `officecdn.microsoft.com/pr/wsus/setup.exe`. Microsoft hat auf Nachfrage
@@ -438,6 +440,78 @@ abbrechen und stattdessen online installieren.
 
 ---
 
+## Nicht kompatibles Office entfernen
+
+Vor jeder Installation sieht der Launcher nach, welches Office schon auf dem
+Rechner liegt — in der Registry, ohne etwas anzufassen. Als **nicht kompatibel**
+gilt:
+
+| Art | Wann | Woran erkannt |
+| --- | --- | --- |
+| **MSI** (Office 2010 bis 2016, auch Visio und Project) | immer | Deinstallationseintrag über den *Office Setup Controller* |
+| **Click-to-Run** | wenn Architektur oder Kanalfamilie nicht passen | `HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration` |
+
+Bei MSI deckt sich das mit `<RemoveMSI/>`, das ohnehin in allen
+Konfigurationsdateien des Pakets steht. Office 2007 wird bewusst nicht
+erfasst: Das kann `<RemoveMSI/>` nicht entfernen, und eine Liste, die
+„wird entfernt" verspricht, muss das auch halten.
+
+Bei Click-to-Run zählt die ganze Installation, nicht das einzelne Produkt: Alle
+Click-to-Run-Produkte eines Rechners teilen sich Version, Kanal und
+Architektur. Ein Microsoft 365 in 32 Bit verhindert deshalb jedes Office in
+64 Bit, und ein Office aus *Current* verträgt sich nicht mit einer
+Volumenlizenz aus *PerpetualVL2021*. *Current*, *Monthly Enterprise*,
+*Semi-Annual* und die Vorschaukanäle bilden dagegen eine Familie — die lassen
+sich ineinander umstellen und gelten als passend.
+
+### Der Schalter
+
+**Nicht kompatibles Office automatisch entfernen** — oben in der Kopfzeile, neben
+**Nach erfolgreicher Installation schließen**.
+
+| Schalter | Was passiert |
+| --- | --- |
+| **Aus** | Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste: **Entfernen**, **Behalten** oder **Abbrechen**. |
+| **An** | Keine Rückfrage — das Gefundene wird entfernt. Was entfernt wird, steht im Protokoll. |
+
+Eine Abfrage **Installation starten** gibt es nicht: Der Klick auf
+**Installieren** ist die Bestätigung. Ist alles kompatibel, startet die
+Installation also sofort. Laufende Office-Programme werden dabei weiterhin
+geschlossen (`FORCEAPPSHUTDOWN` aus der Vorlage).
+
+Der Schalter steht bei jedem Start auf **Aus**. Etwas, das ohne Rückfrage
+Software deinstalliert, soll man bewusst einschalten — nicht unbemerkt vom
+letzten Mal erben.
+
+### Wie entfernt wird
+
+- **Click-to-Run** in einem eigenen Durchlauf des Deployment Tools **vor** der
+  Installation, mit `<Remove All="TRUE"/>`. Scheitert das Entfernen, wird gar
+  nicht erst installiert — das Deployment Tool scheiterte sonst an genau dem
+  Office, das nicht wegging.
+- **MSI** übernimmt das Deployment Tool beim Installieren selbst: Die Kopie der
+  Konfiguration bekommt `<RemoveMSI/>`, falls es in der Vorlage fehlt.
+
+Wer bei der Rückfrage **Behalten** wählt, bekommt auch kein `<RemoveMSI/>` —
+sonst räumte das Deployment Tool das MSI-Office trotzdem ab, nur weil die
+Vorlage es vorsieht.
+
+> Lässt sich die Registry nicht lesen, geht es weiter wie bisher. Die Prüfung
+> ist eine Hilfe, keine Voraussetzung.
+
+---
+
+## Nach der Installation schließen
+
+Mit **Nach erfolgreicher Installation schließen** (Kopfzeile) beendet sich
+der Launcher von selbst, sobald das Deployment Tool ohne Fehler fertig ist. Die
+Option steht bei jedem Start auf **An** und lässt sich abschalten.
+
+Schlägt die Installation fehl, bleibt das Fenster in jedem Fall offen — dann
+wird das Protokoll gebraucht.
+
+---
+
 ## Systemanforderungen
 
 | Anforderung | Details |
@@ -497,6 +571,7 @@ Services/OfflineSource.cs         Office\Data erkennen und Version bestimmen
 Services/OnlineVersionService.cs  Versionsübersicht von Microsoft auswerten
 Services/ConnectivityService.cs   kurze Netzprüfung vor jedem Onlinezugriff
 Services/InstallRunner.cs         Modus auflösen, Aufruf vorbereiten und starten
+Services/InstalledOffice.cs       vorhandenes Office finden, Konflikte bestimmen
 Services/TempWorkspace.cs         Arbeitsordner unter %TEMP% anlegen und leeren
 Services/UpdateService.cs         update.json abfragen, Programm und Konfigurationen einspielen
 Services/DeploymentToolService.cs setup.exe finden, holen, entpacken und verteilen

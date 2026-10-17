@@ -13,15 +13,32 @@ namespace OfficeInstall.Views;
 /// </summary>
 public static class MessageBox
 {
+    /// <summary>Eine Schaltflaeche fuer <see cref="ShowChoice"/>.</summary>
+    public sealed record Choice(string Label, bool Primary = false, bool Danger = false);
+
     public static async Task ShowInfo(Window owner, string title, string message)
-        => await Show(owner, title, message, yesNo: false);
+        => await Show(owner, title, message, new[] { new Choice("OK", Primary: true) }, okStyle: true);
 
     public static async Task<bool> ShowYesNo(Window owner, string title, string message)
-        => await Show(owner, title, message, yesNo: true);
+        => await Show(owner, title, message,
+                      new[] { new Choice(Loc.Tr("Nein", "No")), new Choice(Loc.Tr("Ja", "Yes"), Primary: true) },
+                      okStyle: false) == 1;
 
-    private static async Task<bool> Show(Window owner, string title, string message, bool yesNo)
+    /// <summary>
+    /// Frage mit beliebig vielen Antworten, von links nach rechts in der
+    /// angegebenen Reihenfolge. Gibt den Index der gewaehlten zurueck - oder
+    /// -1, wenn das Fenster ueber das X geschlossen wurde.
+    ///
+    /// Etwas breiter als die uebrigen Dialoge: Solche Fragen tragen meist eine
+    /// Aufzaehlung, deren Zeilen sonst mitten im Satz umbrechen.
+    /// </summary>
+    public static Task<int> ShowChoice(Window owner, string title, string message, params Choice[] choices)
+        => Show(owner, title, message, choices, okStyle: false, width: 540);
+
+    private static async Task<int> Show(Window owner, string title, string message,
+                                        Choice[] choices, bool okStyle, double width = 460)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<int>();
 
         var text = new TextBlock
         {
@@ -41,27 +58,31 @@ public static class MessageBox
         var dialog = new Window
         {
             Title = title,
-            Width = 460,
+            Width = width,
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = ThemeBrushes.Base
         };
 
-        if (yesNo)
+        for (var i = 0; i < choices.Length; i++)
         {
-            var yes = MakeButton(Loc.Tr("Ja", "Yes"), ThemeBrushes.Green, ThemeBrushes.Crust);
-            var no = MakeButton(Loc.Tr("Nein", "No"), ThemeBrushes.Surface0, ThemeBrushes.Text);
-            yes.Click += (_, _) => { tcs.TrySetResult(true); dialog.Close(); };
-            no.Click += (_, _) => { tcs.TrySetResult(false); dialog.Close(); };
-            buttons.Children.Add(no);
-            buttons.Children.Add(yes);
-        }
-        else
-        {
-            var ok = MakeButton("OK", ThemeBrushes.Blue, ThemeBrushes.Crust);
-            ok.Click += (_, _) => { tcs.TrySetResult(true); dialog.Close(); };
-            buttons.Children.Add(ok);
+            var index = i;
+            var choice = choices[i];
+
+            // Hinweis-Dialoge behalten ihr blaues OK; bei Fragen ist die
+            // Hauptantwort gruen, eine zerstoererische rot.
+            var (bg, fg) = choice switch
+            {
+                { Danger: true }               => (ThemeBrushes.Red, ThemeBrushes.Crust),
+                { Primary: true } when okStyle => (ThemeBrushes.Blue, ThemeBrushes.Crust),
+                { Primary: true }              => (ThemeBrushes.Green, ThemeBrushes.Crust),
+                _                              => (ThemeBrushes.Surface0, ThemeBrushes.Text)
+            };
+
+            var button = MakeButton(choice.Label, bg, fg);
+            button.Click += (_, _) => { tcs.TrySetResult(index); dialog.Close(); };
+            buttons.Children.Add(button);
         }
 
         dialog.Content = new StackPanel
@@ -70,7 +91,7 @@ public static class MessageBox
             Children = { text, buttons }
         };
 
-        dialog.Closed += (_, _) => tcs.TrySetResult(false);
+        dialog.Closed += (_, _) => tcs.TrySetResult(-1);
 
         await dialog.ShowDialog(owner);
         return await tcs.Task;

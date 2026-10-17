@@ -26,4 +26,5 @@ internal static class ThemeBrushes
     public static IBrush Subtext => Get("SubtextBrush", "#A6ADC8");
     public static IBrush Blue    => Get("BlueBrush", "#89B4FA");
     public static IBrush Green   => Get("GreenBrush", "#A6E3A1");
+    public static IBrush Red     => Get("RedBrush", "#F38BA8");
 }

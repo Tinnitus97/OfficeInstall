@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Xml.Linq;
 using OfficeInstall.Services;
 
 namespace OfficeTests;
@@ -1112,6 +1113,209 @@ internal static class Program
             OfficeProductNames.EditionRank("ProjectPro2021Volume").ToString());
         Check("ersatzweise wird der Klartextname gelesen",
             OfficeProductNames.EditionRank("EigeneKennung", "Office 2021 Home und Student") == 1);
+
+        Console.WriteLine("\n== Installiertes Office erkennen ==");
+        const string cdnCurrent = "http://officecdn.microsoft.com/pr/492350f6-3a01-4f97-b9c0-c7c6ddf67d60";
+        const string cdnMonthlyEnterprise = "http://officecdn.microsoft.com/pr/55336b82-a18d-4dd6-b5f6-9e5095c314a6";
+        const string cdnVl2019 = "http://officecdn.microsoft.com/pr/f2e724c1-748f-4b47-8fb8-8e0d210e9208";
+
+        Check("Kanal aus der CDN-Adresse", InstalledOffice.ChannelFromUrl(cdnCurrent) == "Current");
+        Check("Grossschreibung in der Kennung stoert nicht",
+            InstalledOffice.ChannelFromUrl("http://officecdn.microsoft.com/pr/5030841D-C919-4594-8D2D-84AE4F96E58E")
+                == "PerpetualVL2021");
+        Check("Kanal, den das Paket nicht anbietet, wird trotzdem erkannt",
+            InstalledOffice.ChannelFromUrl(cdnMonthlyEnterprise) == "MonthlyEnterprise");
+        Check("unbekannte Kennung ergibt keinen Kanal",
+            InstalledOffice.ChannelFromUrl("http://officecdn.microsoft.com/pr/00000000-0000-0000-0000-000000000000") is null);
+        Check("ohne Adresse kein Kanal", InstalledOffice.ChannelFromUrl(null) is null);
+
+        Check("Monthly Enterprise gehoert zur Familie Current",
+            InstalledOffice.ChannelFamily("MonthlyEnterprise") == "Current");
+        Check("jede Volumenlizenz ist ihre eigene Familie",
+            InstalledOffice.ChannelFamily("PerpetualVL2019") == "PerpetualVL2019");
+        Check("Familie aus den Produkten: eine Volumenlizenz entscheidet",
+            InstalledOffice.ChannelFamilyFromProducts(new[] { "VisioProRetail", "ProPlus2019Volume" }) == "PerpetualVL2019");
+        Check("Familie aus den Produkten: sonst Retail",
+            InstalledOffice.ChannelFamilyFromProducts(new[] { "O365ProPlusRetail", "HomeBusiness2021Retail" }) == "Current");
+
+        var m365 = InstalledOffice.ClickToRunFromValues(
+            " O365ProPlusRetail , VisioProRetail,o365proplusretail", "x86", "16.0.18129.20158", null, cdnCurrent);
+        Check("Click-to-Run: Produkte getrennt, doppelte entfernt",
+            m365 is not null && m365.ProductIds.SequenceEqual(new[] { "O365ProPlusRetail", "VisioProRetail" }),
+            m365 is null ? "null" : string.Join(",", m365.ProductIds));
+        Check("Click-to-Run: x86 ist 32 Bit", m365?.Architecture == 32);
+        Check("Click-to-Run: Kanal aus CDNBaseUrl", m365?.Channel == "Current", m365?.Channel);
+        Check("Click-to-Run: UpdateChannel gewinnt gegen CDNBaseUrl",
+            InstalledOffice.ClickToRunFromValues("O365ProPlusRetail", "x64", null, cdnMonthlyEnterprise, cdnCurrent)?.Channel
+                == "MonthlyEnterprise");
+        Check("Click-to-Run: ohne Produkte keine Installation",
+            InstalledOffice.ClickToRunFromValues("", "x64", "16.0.1", null, cdnCurrent) is null
+            && InstalledOffice.ClickToRunFromValues(null, "x64", null, null, null) is null);
+
+        const string setupController =
+            "\"C:\\Program Files\\Common Files\\Microsoft Shared\\OFFICE16\\Office Setup Controller\\setup.exe\" " +
+            "/uninstall PROPLUS /dll OSETUP.DLL";
+        var proPlus2016 = InstalledOffice.MsiFromUninstallEntry(
+            "Office16.PROPLUS", "Microsoft Office Professional Plus 2016", "16.0.4266.1001", setupController, 0, 32);
+        Check("MSI-Office wird am Setup Controller erkannt",
+            proPlus2016 is { Kind: InstalledOfficeKind.Msi, Architecture: 32, Version: "16.0.4266.1001" });
+        Check("versteckte Komponenten zaehlen nicht",
+            InstalledOffice.MsiFromUninstallEntry("{90160000-0011-0000-0000-0000000FF1CE}",
+                "Microsoft Office Professional Plus 2016", "16.0", setupController, 1, 32) is null);
+        Check("die Access-Datenbankengine zaehlt nicht",
+            InstalledOffice.MsiFromUninstallEntry("{90160000-00D1-0409-1000-0000000FF1CE}",
+                "Microsoft Access database engine 2016 (English)", "16.0.5044.1000",
+                "MsiExec.exe /X{90160000-00D1-0409-1000-0000000FF1CE}", 0, 64) is null);
+        Check("ein Click-to-Run-Eintrag zaehlt nicht als MSI",
+            InstalledOffice.MsiFromUninstallEntry("O365ProPlusRetail - de-de", "Microsoft 365 Apps for enterprise - de-de",
+                "16.0.18129.20158",
+                "\"C:\\Program Files\\Common Files\\Microsoft Shared\\ClickToRun\\OfficeClickToRun.exe\" " +
+                "scenario=install scenariosubtype=ARP productstoremove=O365ProPlusRetail.16_de-de_x-none", 0, 64) is null);
+        Check("ohne Namen kein Eintrag",
+            InstalledOffice.MsiFromUninstallEntry("Office16.PROPLUS", " ", "16.0", setupController, 0, 64) is null);
+        Check("Office 2010 wird erkannt",
+            InstalledOffice.MsiFromUninstallEntry("Office14.PROPLUS", "Microsoft Office Professional Plus 2010",
+                "14.0.7015.1000", setupController.Replace("OFFICE16", "OFFICE14"), 0, 32) is not null);
+        Check("Office 2007 nicht - das entfernt RemoveMSI nicht",
+            InstalledOffice.MsiFromUninstallEntry("PROPLUS", "Microsoft Office Professional Plus 2007",
+                "12.0.6612.1000", setupController.Replace("OFFICE16", "OFFICE12"), 0, 32) is null);
+        Check("ohne DisplayVersion zaehlt der Pfad des Setup Controllers",
+            InstalledOffice.MsiFromUninstallEntry("Office15.STANDARD", "Microsoft Office Standard 2013",
+                null, setupController.Replace("OFFICE16", "OFFICE15"), 0, 64) is not null
+            && InstalledOffice.MsiFromUninstallEntry("STANDARD", "Microsoft Office Standard 2007",
+                null, setupController.Replace("OFFICE16", "OFFICE12"), 0, 32) is null);
+
+        Check("ausserhalb von Windows ist der Bestand leer",
+            OperatingSystem.IsWindows()
+            || InstalledOffice.Scan() is { ClickToRun: null, Msi.Count: 0 });
+
+        Console.WriteLine("\n== Was sich nicht vertraegt ==");
+        var bestandM365 = new OfficeInventory { ClickToRun = m365 };
+
+        var andereArchitektur = InstalledOffice.FindConflicts(bestandM365, 64, "Current");
+        Check("andere Architektur ist ein Konflikt",
+            andereArchitektur.HasClickToRun && !andereArchitektur.HasMsi);
+        Check("alle Produkte der Installation werden genannt",
+            andereArchitektur.ClickToRun.Count == 2, andereArchitektur.ClickToRun.Count.ToString());
+        Check("gleiche Architektur, gleiche Familie: kein Konflikt",
+            !InstalledOffice.FindConflicts(bestandM365, 32, "Current").Any);
+
+        var bestandMec = new OfficeInventory
+        {
+            ClickToRun = InstalledOffice.ClickToRunFromValues("O365ProPlusRetail", "x64", null, cdnMonthlyEnterprise, null)
+        };
+        Check("Monthly Enterprise vertraegt sich mit Current",
+            !InstalledOffice.FindConflicts(bestandMec, 64, "Current").Any);
+        Check("Microsoft 365 vertraegt sich nicht mit einer Volumenlizenz",
+            InstalledOffice.FindConflicts(bestandMec, 64, "PerpetualVL2024").HasClickToRun);
+
+        var bestand2019 = new OfficeInventory
+        {
+            ClickToRun = InstalledOffice.ClickToRunFromValues("ProPlus2019Volume", "x64", null, null, cdnVl2019)
+        };
+        Check("PerpetualVL2019 vertraegt sich nicht mit PerpetualVL2021",
+            InstalledOffice.FindConflicts(bestand2019, 64, "PerpetualVL2021").HasClickToRun);
+        Check("dieselbe Volumenlizenz: kein Konflikt",
+            !InstalledOffice.FindConflicts(bestand2019, 64, "PerpetualVL2019").Any);
+
+        var bestandOhneKanal = new OfficeInventory
+        {
+            ClickToRun = InstalledOffice.ClickToRunFromValues("Standard2021Volume", "x64", null, null, null)
+        };
+        Check("ohne Kanal entscheidet das Produkt",
+            InstalledOffice.FindConflicts(bestandOhneKanal, 64, "Current").HasClickToRun
+            && !InstalledOffice.FindConflicts(bestandOhneKanal, 64, "PerpetualVL2021").Any);
+
+        var ohneArchitektur = new OfficeInventory
+        {
+            ClickToRun = InstalledOffice.ClickToRunFromValues("O365ProPlusRetail", null, null, null, cdnCurrent)
+        };
+        Check("unbekannte Architektur wird nicht geraten",
+            !InstalledOffice.FindConflicts(ohneArchitektur, 32, "Current").Any);
+
+        var bestandMsi = new OfficeInventory { Msi = new[] { proPlus2016! } };
+        var msiKonflikt = InstalledOffice.FindConflicts(bestandMsi, 64, "Current");
+        Check("MSI-Office ist immer ein Konflikt", msiKonflikt.HasMsi && !msiKonflikt.HasClickToRun);
+        Check("leerer Bestand: kein Konflikt",
+            !InstalledOffice.FindConflicts(OfficeInventory.Empty, 64, "Current").Any);
+
+        var beides = InstalledOffice.FindConflicts(
+            new OfficeInventory { ClickToRun = m365, Msi = new[] { proPlus2016! } }, 64, "Current");
+        Check("je Installation eine Kopfzeile und eine Produktzeile",
+            beides.Lines.Count == 4, string.Join(" | ", beides.Lines));
+        Check("der Grund steht in der Kopfzeile",
+            beides.Lines.Count > 0 && beides.Lines[0].Contains("32 statt 64", StringComparison.Ordinal),
+            beides.Lines.FirstOrDefault());
+        Check("die Produkte stehen beim Namen darunter",
+            beides.Lines.Count > 1
+            && beides.Lines[1].Contains("Microsoft 365 Apps for Enterprise", StringComparison.Ordinal)
+            && beides.Lines[1].Contains("Visio Professional (Retail)", StringComparison.Ordinal),
+            beides.Lines.ElementAtOrDefault(1));
+        Check("MSI-Office steht mit seinem eigenen Namen da",
+            beides.Lines.Count > 3 && beides.Lines[3].Contains("Professional Plus 2016", StringComparison.Ordinal),
+            beides.Lines.ElementAtOrDefault(3));
+
+        Console.WriteLine("\n== RemoveMSI in der Kopie ==");
+        var mitRemoveMsi = student.Configuration.FilePath;   // die Vorlagen hier enthalten RemoveMSI
+        var msiKopie = Path.Combine(root, "removemsi", "msiKopie.xml");
+
+        OfficeConfiguration.WriteWithoutSourcePath(mitRemoveMsi, msiKopie, "Current");
+        Check("ohne Angabe bleibt die Vorlage, wie sie ist", OfficeConfiguration.HasRemoveMsi(msiKopie));
+
+        OfficeConfiguration.WriteWithoutSourcePath(mitRemoveMsi, msiKopie, "Current", removeMsi: false);
+        Check("Behalten nimmt RemoveMSI heraus", !OfficeConfiguration.HasRemoveMsi(msiKopie));
+
+        OfficeConfiguration.WriteWithSourcePath(mitRemoveMsi, msiKopie, @"C:\quelle", null, "Current", removeMsi: true);
+        Check("vorhandenes RemoveMSI wird nicht verdoppelt",
+            XDocument.Load(msiKopie).Root!.Elements().Count(e => e.Name.LocalName == "RemoveMSI") == 1);
+
+        var ohneRemoveMsi = Path.Combine(root, "removemsi", "ohne.xml");
+        Touch(ohneRemoveMsi, """
+            <Configuration>
+              <Add OfficeClientEdition="64"><Product ID="O365ProPlusRetail"><Language ID="de-de" /></Product></Add>
+              <Display Level="Full" AcceptEULA="TRUE" />
+            </Configuration>
+            """);
+        OfficeConfiguration.WriteWithSourcePath(ohneRemoveMsi, msiKopie, @"C:\quelle", null, "Current", removeMsi: true);
+        Check("Entfernen ergaenzt RemoveMSI", OfficeConfiguration.HasRemoveMsi(msiKopie));
+        Check("RemoveMSI steht direkt hinter Add",
+            XDocument.Load(msiKopie).Root!.Elements().Select(e => e.Name.LocalName)
+                .SequenceEqual(new[] { "Add", "RemoveMSI", "Display" }),
+            string.Join(",", XDocument.Load(msiKopie).Root!.Elements().Select(e => e.Name.LocalName)));
+
+        var planBehalten = InstallRunner.Prepare(student, InstallMode.Online, temp, removeMsi: false);
+        Check("Prepare reicht Behalten an die Kopie durch",
+            !OfficeConfiguration.HasRemoveMsi(planBehalten.ConfigurationFile));
+        var planOffline = InstallRunner.Prepare(vl2021, InstallMode.Offline, temp, removeMsi: false);
+        Check("auch offline", !OfficeConfiguration.HasRemoveMsi(planOffline.ConfigurationFile));
+        Check("die Vorlage selbst bleibt unberuehrt", OfficeConfiguration.HasRemoveMsi(mitRemoveMsi));
+
+        Console.WriteLine("\n== Click-to-Run entfernen ==");
+        var entfernen = InstallRunner.PrepareClickToRunRemoval(student, temp);
+        var entfernenXml = XDocument.Load(entfernen.ConfigurationFile).Root!;
+
+        Check("eigener Durchlauf mit /configure", entfernen.Arguments.StartsWith("/configure \"", StringComparison.Ordinal),
+            entfernen.Arguments);
+        Check("als Entfernen gekennzeichnet", entfernen.IsRemoval && !entfernen.IsDownload);
+        Check("benutzt die setup.exe der Basis", entfernen.SetupExecutable == student.SetupExecutable);
+        Check("entfernt alle Click-to-Run-Produkte",
+            entfernenXml.Elements("Remove").Any(e => (string?)e.Attribute("All") == "TRUE"));
+        Check("installiert dabei nichts", !entfernenXml.Elements("Add").Any());
+        Check("zeigt das Fenster von Microsoft",
+            entfernenXml.Elements("Display").Any(e => (string?)e.Attribute("Level") == "Full"));
+        Check("schliesst offene Office-Programme",
+            entfernenXml.Elements("Property").Any(e => (string?)e.Attribute("Name") == "FORCEAPPSHUTDOWN"
+                                                       && (string?)e.Attribute("Value") == "TRUE"));
+
+        var ohneSetup = new CatalogEntry
+        {
+            Configuration = student.Configuration, Channel = student.Channel, Offline = student.Offline,
+            SetupExecutable = null, ClientEdition = student.ClientEdition
+        };
+        var abgelehnt = false;
+        try { InstallRunner.PrepareClickToRunRemoval(ohneSetup, temp); }
+        catch (InvalidOperationException) { abgelehnt = true; }
+        Check("ohne setup.exe wird nichts vorbereitet", abgelehnt);
 
         Console.WriteLine($"\nErgebnis: {_passed} bestanden, {_failed} fehlgeschlagen.");
 

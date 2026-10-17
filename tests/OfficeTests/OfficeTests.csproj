@@ -33,6 +33,7 @@
     <Compile Include="../../Services/OnlineVersionService.cs" />
     <Compile Include="../../Services/ConnectivityService.cs" />
     <Compile Include="../../Services/InstallRunner.cs" />
+    <Compile Include="../../Services/InstalledOffice.cs" />
     <Compile Include="../../Services/DeploymentToolService.cs" />
     <Compile Include="../../Services/LegacyOfficeDownloads.cs" />
     <Compile Include="../../Services/TempWorkspace.cs" />

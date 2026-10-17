@@ -2,6 +2,58 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.4.0] – 2026-10-15
+
+### Hinzugefügt
+
+- **Nicht kompatibles Office vor der Installation entfernen.** Vor jeder
+  Installation liest der Launcher aus der Registry, welches Office schon auf
+  dem Rechner liegt. Als nicht kompatibel gilt MSI-Office 2010 bis 2016 (auch
+  Visio und Project) sowie die Click-to-Run-Installation, wenn ihre
+  Architektur oder Kanalfamilie nicht passt — etwa ein Microsoft 365 in 32 Bit
+  vor einem Office in 64 Bit, oder ein Office aus *Current* vor einer
+  Volumenlizenz aus *PerpetualVL2021*.
+
+  Neuer Schalter **Nicht kompatibles Office automatisch entfernen** in der
+  Kopfzeile:
+
+  - **Aus:** Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste —
+    *Entfernen*, *Behalten* oder *Abbrechen*.
+  - **An:** keine Rückfrage — das Gefundene wird entfernt.
+
+  Der Schalter steht bei jedem Start auf *Aus*.
+
+  Click-to-Run wird in einem eigenen Durchlauf des Deployment Tools vor der
+  Installation entfernt; scheitert das, wird nicht installiert. MSI-Office
+  entfernt das Deployment Tool beim Installieren über `<RemoveMSI/>` — wer
+  *Behalten* wählt, bekommt es aus der Kopie der Konfiguration herausgenommen.
+
+- **Nach erfolgreicher Installation schließen.** Neuer Schalter in der Kopfzeile,
+  beim Start immer an und jederzeit abschaltbar. Schlägt die Installation fehl,
+  bleibt das Fenster offen.
+
+### Behoben
+
+- **Kein schwarzes Konsolenfenster mehr beim Installieren.** Die `setup.exe`
+  ist ein Konsolenprogramm; über die Shell gestartet, öffnete Windows ihr ein
+  leeres Konsolenfenster, das während der ganzen Installation stehen blieb.
+  Sie läuft jetzt ohne Fenster — wie beim Herunterladen schon bisher. Das
+  Fenster von Microsoft mit dem Fortschritt ist davon nicht betroffen.
+
+### Geändert
+
+- **Deployment Tool ohne Rückfragen aktualisieren.** Die Abfrage „Deployment
+  Tool holen" sowie die Meldungen „Deployment Tool aktualisiert" und „Bereits
+  aktuell" entfallen; Version, Ziele und Ergebnis stehen im Protokoll. Ein
+  Fenster gibt es nur noch bei Fehlern — offline, kein Downloadlink oder ein
+  gescheiterter Download.
+
+- **Keine Abfrage „Installation starten" mehr.** Der Klick auf *Installieren*
+  ist die Bestätigung. Gefragt wird nur noch zu nicht kompatiblem Office, und
+  das nur bei ausgeschaltetem Schalter.
+
+---
+
 ## [1.3.2] – 2026-10-11
 
 ### Geändert
