@@ -2113,8 +2113,12 @@ public partial class MainWindowViewModel : ObservableObject
     // ------------------------------------------------------------ Deployment Tool
 
     /// <summary>
-    /// Prueft die Fassung des Deployment Tools und ersetzt sie auf Wunsch durch
-    /// die aktuelle vom Microsoft Download Center.
+    /// Prueft die Fassung des Deployment Tools und ersetzt sie durch die
+    /// aktuelle vom Microsoft Download Center.
+    ///
+    /// Ohne Rueckfrage und ohne Erfolgsmeldung: Der Klick auf den Knopf ist
+    /// die Zustimmung, und was geschehen ist, steht im Protokoll. Ein Fenster
+    /// erscheint nur noch, wenn etwas schiefgeht.
     /// </summary>
     [RelayCommand]
     private async Task UpdateDeploymentTool()
@@ -2185,46 +2189,16 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 Log(Tr($"Das vorhandene Deployment Tool {OdtLocalVersion} ist aktuell - nichts zu tun.",
                        $"The installed deployment tool {OdtLocalVersion} is up to date - nothing to do."));
-                if (window is not null)
-                    await MessageBox.ShowInfo(window,
-                        Tr("Bereits aktuell", "Already up to date"),
-                        Tr($"Das Deployment Tool im Paket hat Version {OdtLocalVersion}.\n" +
-                           "Eine neuere Fassung wird nicht angeboten.",
-                           $"The deployment tool in the package is version {OdtLocalVersion}.\n" +
-                           "No newer release is offered."));
                 return;
             }
 
             var targets = DeploymentToolService.DeploymentTargets(RootFolder);
 
-            if (window is not null)
-            {
-                var vorhanden = OdtLocalVersion is null
-                    ? Tr("Im Paket ist bisher keine setup.exe vorhanden.",
-                         "There is no setup.exe in the package yet.")
-                    : Tr($"Vorhanden ist Version {OdtLocalVersion}.", $"Version {OdtLocalVersion} is present.");
-
-                var confirm = await MessageBox.ShowYesNo(window,
-                    Tr("Deployment Tool holen", "Get deployment tool"),
-                    Tr($"{vorhanden}\nAngeboten wird {release.Version}.\n\n" +
-                       $"Die Datei wird vom offiziellen Microsoft Download Center geladen, entpackt und an " +
-                       $"{targets.Count} Stelle(n) im Paket abgelegt:\n\n" +
-                       string.Join("\n", targets.Take(6)) +
-                       (targets.Count > 6 ? "\n..." : "") +
-                       "\n\nJetzt holen?",
-                       $"{vorhanden}\nVersion {release.Version} is offered.\n\n" +
-                       $"The file will be downloaded from the official Microsoft Download Center, extracted and " +
-                       $"placed at {targets.Count} location(s) in the package:\n\n" +
-                       string.Join("\n", targets.Take(6)) +
-                       (targets.Count > 6 ? "\n..." : "") +
-                       "\n\nGet it now?"));
-
-                if (!confirm)
-                {
-                    Log(Tr("Abgebrochen.", "Cancelled."));
-                    return;
-                }
-            }
+            Log(OdtLocalVersion is null
+                ? Tr("Im Paket ist bisher keine setup.exe vorhanden.", "There is no setup.exe in the package yet.")
+                : Tr($"Vorhanden ist Version {OdtLocalVersion}.", $"Version {OdtLocalVersion} is present."));
+            Log(Tr($"Ziel ({targets.Count} Stelle(n) im Paket):", $"Target ({targets.Count} location(s) in the package):"));
+            foreach (var target in targets) Log("  " + target);
 
             BusyText = Tr($"Deployment Tool {release.Version} wird geladen...",
                           $"Downloading deployment tool {release.Version}...");
@@ -2239,14 +2213,11 @@ public partial class MainWindowViewModel : ObservableObject
             var count = DeploymentToolService.Deploy(extracted, targets);
             Log(Tr($"{count} Datei(en) im Paket ersetzt.", $"Replaced {count} file(s) in the package."));
 
+            Log(Tr($"Deployment Tool {extractedVersion} liegt jetzt an {count} Stelle(n) im Paket.",
+                   $"Deployment tool {extractedVersion} is now present at {count} location(s) in the package."));
+
             UiEnabled = true;
             await Scan();
-
-            if (window is not null)
-                await MessageBox.ShowInfo(window,
-                    Tr("Deployment Tool aktualisiert", "Deployment tool updated"),
-                    Tr($"Version {extractedVersion} liegt jetzt an {count} Stelle(n) im Paket.",
-                       $"Version {extractedVersion} is now present at {count} location(s) in the package."));
         }
         catch (Exception ex)
         {

@@ -45,6 +45,12 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
 ### Geändert
 
+- **Deployment Tool ohne Rückfragen aktualisieren.** Die Abfrage „Deployment
+  Tool holen" sowie die Meldungen „Deployment Tool aktualisiert" und „Bereits
+  aktuell" entfallen; Version, Ziele und Ergebnis stehen im Protokoll. Ein
+  Fenster gibt es nur noch bei Fehlern — offline, kein Downloadlink oder ein
+  gescheiterter Download.
+
 - **Keine Abfrage „Installation starten" mehr, wenn alles kompatibel ist.**
   Wird nichts entfernt, war der Klick auf *Installieren* die Bestätigung. Die
   Abfrage kommt nur noch, wenn nicht kompatibles Office gefunden wurde (und der

@@ -289,7 +289,9 @@ Paketordner.
 
 Der Abgleich kostet dabei keinen Download: Die angebotene Version steckt bereits
 im Dateinamen (`officedeploymenttool_20228-20124.exe` → 16.0.20228.20124).
-Geladen wird nur, wenn es wirklich etwas Neueres gibt, und erst nach Rückfrage.
+Geladen wird nur, wenn es wirklich etwas Neueres gibt — ohne Rückfrage und ohne
+Erfolgsmeldung; was passiert ist, steht im Protokoll. Ein Fenster erscheint nur,
+wenn etwas schiefgeht.
 
 > **Zur Bezugsquelle:** Im Netz kursiert die Abkürzung
 > `officecdn.microsoft.com/pr/wsus/setup.exe`. Microsoft hat auf Nachfrage
