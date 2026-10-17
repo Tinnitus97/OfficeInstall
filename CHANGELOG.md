@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
-## [1.4.0] – 2026-10-15
+## [1.4.0] – 2026-10-17
 
 ### Hinzugefügt
 
@@ -51,6 +51,9 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 - **Keine Abfrage „Installation starten" mehr.** Der Klick auf *Installieren*
   ist die Bestätigung. Gefragt wird nur noch zu nicht kompatiblem Office, und
   das nur bei ausgeschaltetem Schalter.
+
+- **Avalonia 12.1.4** (bisher 12.1.3) — Avalonia, Avalonia.Desktop,
+  Avalonia.Fonts.Inter und Avalonia.Themes.Fluent.
 
 ---
 
