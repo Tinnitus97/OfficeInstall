@@ -297,11 +297,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>
     /// An: Office, das sich mit der gewaehlten Installation nicht vertraegt
-    /// (MSI und Click-to-Run), wird vorher ohne Rueckfrage entfernt, und die
-    /// Installation startet ohne die Abfrage "Installation starten".
+    /// (MSI und Click-to-Run), wird vorher ohne Rueckfrage entfernt.
     /// Aus: Wird solches Office gefunden, fragt das Programm nach.
-    /// Ist alles kompatibel, startet die Installation in beiden Faellen ohne
-    /// Rueckfrage.
+    /// Eine Abfrage "Installation starten" gibt es in keinem Fall - der Klick
+    /// auf "Installieren" ist die Bestaetigung.
     ///
     /// Bewusst nicht gespeichert und beim Start immer aus: Ein Schalter, der
     /// ohne Rueckfrage Software deinstalliert, soll man jedes Mal bewusst
@@ -387,12 +386,10 @@ public partial class MainWindowViewModel : ObservableObject
                                               "Remove incompatible Office automatically");
     public string OptRemoveIncompatibleHint => Tr(
         "An: Office, das sich mit der gewählten Installation nicht verträgt, wird ohne Rückfrage entfernt - " +
-        "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal. " +
-        "Die Installation startet ohne die Abfrage \"Installation starten\".\n" +
+        "MSI-Fassungen (Office 2010 bis 2016) und Click-to-Run mit anderer Architektur oder anderem Kanal.\n" +
         "Aus: Wird solches Office gefunden, fragt das Programm vorher nach.",
         "On: Office that is incompatible with the selected installation is removed without asking - " +
-        "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel. " +
-        "The installation starts without the \"Start installation\" prompt.\n" +
+        "MSI releases (Office 2010 to 2016) and Click-to-Run with a different architecture or channel.\n" +
         "Off: If such Office is found, the program asks first.");
     public string OptCloseAfterInstall => Tr("Nach erfolgreicher Installation schließen",
                                              "Close after a successful installation");
@@ -1470,10 +1467,7 @@ public partial class MainWindowViewModel : ObservableObject
             var automatic = RemoveIncompatibleOffice;
 
             // --- Vorhandenes Office, das sich nicht vertraegt ---
-            // null heisst: liess sich nicht pruefen. Das ist etwas anderes als
-            // "nichts gefunden" - siehe die Rueckfrage vor dem Start.
-            var scan = await FindOfficeConflictsAsync(entry.Entry);
-            var conflicts = scan ?? OfficeConflictReport.None;
+            var conflicts = await FindOfficeConflictsAsync(entry.Entry);
             var removeConflicts = false;
 
             if (conflicts.Any)
@@ -1567,58 +1561,9 @@ public partial class MainWindowViewModel : ObservableObject
             Log(Tr($"Konfiguration: {plan.ConfigurationFile}", $"Configuration: {plan.ConfigurationFile}"));
             Log(Tr($"Aufruf: {plan.CommandLine}", $"Command: {plan.CommandLine}"));
 
-            // --- Rueckfrage vor dem eigentlichen Start ---
-            // Nur noch, wenn sie etwas zu sagen hat:
-            //   - Schalter an: nie. Wer ihn umlegt, will ohne Rueckfrage
-            //     installieren - samt Entfernen.
-            //   - Alles kompatibel: nie. Es wird nichts entfernt, und
-            //     "Installieren" war die Bestaetigung.
-            //   - Nicht kompatibles Office gefunden: ja - sie nennt, was
-            //     entfernt wird oder bleibt.
-            //   - Nicht pruefbar: ja, wie bisher. Ob etwas entfernt wird, weiss
-            //     dann niemand; RemoveMSI aus der Vorlage greift womoeglich.
-            if (automatic)
-            {
-                Log(Tr("Schalter an - die Installation startet ohne Rückfrage.",
-                       "Switch on - the installation starts without asking."));
-            }
-            else if (scan is { Any: false })
-            {
-                Log(Tr("Kein nicht kompatibles Office gefunden - die Installation startet ohne Rückfrage.",
-                       "No incompatible Office found - the installation starts without asking."));
-            }
-            else if (window is not null)
-            {
-                // Liess sich nicht pruefen, bleibt der Satz wie bisher - er
-                // beschreibt das RemoveMSI aus der Vorlage. Mit Fund sagt er,
-                // was tatsaechlich passiert: entfernen oder bewusst behalten.
-                var names = string.Join("\n", conflicts.All.Select(c => "• " + c.Product.Name));
-                var existingOffice = !conflicts.Any
-                    ? Tr("Vorhandene Office-Installationen werden dabei entfernt (RemoveMSI) und laufende " +
-                         "Office-Programme geschlossen.",
-                         "Existing Office installations will be removed (RemoveMSI) and running Office " +
-                         "applications closed.")
-                    : removeConflicts
-                        ? Tr($"Vorher wird entfernt:\n{names}\n\nLaufende Office-Programme werden geschlossen.",
-                             $"Removed beforehand:\n{names}\n\nRunning Office applications will be closed.")
-                        : Tr($"Bleibt erhalten:\n{names}\n\nLaufende Office-Programme werden geschlossen.",
-                             $"Kept:\n{names}\n\nRunning Office applications will be closed.");
-
-                var confirm = await MessageBox.ShowYesNo(window,
-                    Tr("Installation starten", "Start installation"),
-                    Tr($"{entry.Title}\n{entry.Entry.ClientEdition} Bit · {entry.Entry.ChannelFolderName}\n\n{source}" +
-                       (plan.PinnedVersion is not null ? $"\nVersion {plan.PinnedVersion}" : "") + "\n\n" +
-                       existingOffice + " Jetzt starten?",
-                       $"{entry.Title}\n{entry.Entry.ClientEdition}-bit · {entry.Entry.ChannelFolderName}\n\n{source}" +
-                       (plan.PinnedVersion is not null ? $"\nVersion {plan.PinnedVersion}" : "") + "\n\n" +
-                       existingOffice + " Start now?"));
-
-                if (!confirm)
-                {
-                    Log(Tr("Abgebrochen.", "Cancelled."));
-                    return;
-                }
-            }
+            // Keine Rueckfrage vor dem Start: Der Klick auf "Installieren" ist
+            // die Bestaetigung. Gefragt wird nur noch zu nicht kompatiblem
+            // Office, und das nur bei ausgeschaltetem Schalter (siehe oben).
 
             // --- Nicht kompatibles Click-to-Run vorher entfernen ---
             // MSI braucht hier nichts: Das erledigt RemoveMSI beim Installieren.
@@ -1675,11 +1620,11 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>
     /// Sucht installiertes Office, das der Installation im Weg steht.
     ///
-    /// Laesst sich die Registry nicht lesen, kommt null zurueck, und es geht
-    /// weiter wie bisher: Die Suche ist eine Hilfe, keine Voraussetzung - sie
-    /// darf keine Installation verhindern, die vorher funktioniert haette.
+    /// Laesst sich die Registry nicht lesen, geht es weiter wie bisher: Die
+    /// Suche ist eine Hilfe, keine Voraussetzung - sie darf keine Installation
+    /// verhindern, die vorher funktioniert haette.
     /// </summary>
-    private async Task<OfficeConflictReport?> FindOfficeConflictsAsync(CatalogEntry entry)
+    private async Task<OfficeConflictReport> FindOfficeConflictsAsync(CatalogEntry entry)
     {
         try
         {
@@ -1692,7 +1637,7 @@ public partial class MainWindowViewModel : ObservableObject
             Program.WriteCrashLog("FindOfficeConflicts", ex);
             Log(Tr($"[!] Installiertes Office ließ sich nicht prüfen: {ex.Message}",
                    $"[!] Installed Office could not be checked: {ex.Message}"));
-            return null;
+            return OfficeConflictReport.None;
         }
     }
 

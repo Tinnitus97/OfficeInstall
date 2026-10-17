@@ -471,17 +471,13 @@ sich ineinander umstellen und gelten als passend.
 
 | Schalter | Was passiert |
 | --- | --- |
-| **Aus** | Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste: **Entfernen**, **Behalten** oder **Abbrechen**. Danach die Abfrage **Installation starten**, die nennt, was vorher entfernt wird oder bewusst erhalten bleibt. |
-| **An** | Gar keine Rückfrage — das Gefundene wird entfernt und die Installation startet sofort. Was entfernt wird, steht im Protokoll. |
+| **Aus** | Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste: **Entfernen**, **Behalten** oder **Abbrechen**. |
+| **An** | Keine Rückfrage — das Gefundene wird entfernt. Was entfernt wird, steht im Protokoll. |
 
-Ist **alles kompatibel**, startet die Installation in beiden Stellungen ohne
-Rückfrage: Es wird nichts entfernt, und der Klick auf **Installieren** war die
-Bestätigung. Laufende Office-Programme werden dabei weiterhin geschlossen
-(`FORCEAPPSHUTDOWN` aus der Vorlage).
-
-Nur wenn sich die Registry nicht lesen lässt, kommt die Abfrage
-**Installation starten** wie bisher — dann weiß das Programm nicht, ob etwas
-entfernt wird.
+Eine Abfrage **Installation starten** gibt es nicht: Der Klick auf
+**Installieren** ist die Bestätigung. Ist alles kompatibel, startet die
+Installation also sofort. Laufende Office-Programme werden dabei weiterhin
+geschlossen (`FORCEAPPSHUTDOWN` aus der Vorlage).
 
 Der Schalter steht bei jedem Start auf **Aus**. Etwas, das ohne Rückfrage
 Software deinstalliert, soll man bewusst einschalten — nicht unbemerkt vom

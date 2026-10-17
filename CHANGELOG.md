@@ -18,11 +18,8 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   Kopfzeile:
 
   - **Aus:** Wird etwas gefunden, kommt vorher eine Rückfrage mit der Liste —
-    *Entfernen*, *Behalten* oder *Abbrechen*. Danach die Abfrage
-    **Installation starten**; sie nennt jetzt, was vorher entfernt wird oder
-    erhalten bleibt.
-  - **An:** gar keine Rückfrage — das Gefundene wird entfernt und die
-    Installation startet sofort.
+    *Entfernen*, *Behalten* oder *Abbrechen*.
+  - **An:** keine Rückfrage — das Gefundene wird entfernt.
 
   Der Schalter steht bei jedem Start auf *Aus*.
 
@@ -51,10 +48,9 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   Fenster gibt es nur noch bei Fehlern — offline, kein Downloadlink oder ein
   gescheiterter Download.
 
-- **Keine Abfrage „Installation starten" mehr, wenn alles kompatibel ist.**
-  Wird nichts entfernt, war der Klick auf *Installieren* die Bestätigung. Die
-  Abfrage kommt nur noch, wenn nicht kompatibles Office gefunden wurde (und der
-  Schalter aus ist) oder sich die Registry nicht lesen ließ.
+- **Keine Abfrage „Installation starten" mehr.** Der Klick auf *Installieren*
+  ist die Bestätigung. Gefragt wird nur noch zu nicht kompatiblem Office, und
+  das nur bei ausgeschaltetem Schalter.
 
 ---
 
