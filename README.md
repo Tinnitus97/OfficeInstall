@@ -4,7 +4,7 @@
 
 **Microsoft Office installieren — online oder aus vorliegenden Offline-Dateien, mit Warnung bei veraltetem Stand.**
 
-![Version](https://img.shields.io/badge/Version-1.2.1-blue)
+![Version](https://img.shields.io/badge/Version-1.5.0-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 
@@ -16,6 +16,20 @@ Die native Ablösung für die `start.bat` des OfficeInstall-Pakets. Gleiche Aufg
 gleiche Konfigurationsdateien — aber als kompilierte Windows-Anwendung mit
 derselben Technik und Optik wie das *Windows DaSi Tool*, der *Skript-Launcher*
 und die *Inventarisierung*.
+
+### Neu in 1.5.0
+
+- **Nur die EXE genügt:** Die Vorlagen stecken in der EXE, das Deployment Tool
+  holt sie beim ersten Start selbst — siehe [Erster Start](#erster-start-nur-die-exe-genügt).
+- **Sichereres Update:** Programm-Updates nur mit Prüfsumme über https, das
+  Deployment Tool muss von Microsoft signiert sein, und der Austausch der EXE
+  klappt jetzt auch bei Umlauten im Benutzernamen.
+- **Downloads werden nachgeprüft**, statt dem Rückgabewert blind zu glauben.
+- **Protokoll als Datei** unter `%LOCALAPPDATA%\OfficeInstall\Protokoll.txt`.
+- Zwei gleichzeitig geöffnete Fenster stören sich nicht mehr, die Oberfläche
+  springt nicht mehr.
+
+Alle Einzelheiten stehen im [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -593,20 +607,24 @@ Datei zu `Protokoll.alt.txt`, und eine neue beginnt).
 | --- | --- |
 | **Betriebssystem** | Windows 10 oder Windows 11 |
 | **Berechtigungen** | Administratorrechte — die UAC-Abfrage erfolgt automatisch beim Start (ersetzt den `Get_Admin`-Block der alten `start.bat`) |
-| **setup.exe** | Das Office Deployment Tool muss im Ordner der Installationsbasis liegen (ersatzweise im Architektur- oder Paketordner) |
+| **setup.exe** | Das Office Deployment Tool holt OfficeInstall beim ersten Start selbst von Microsoft (Internet nötig); es darf auch schon im Ordner der Installationsbasis, im Architektur- oder im Paketordner liegen |
+| **Internet** | Für Online-Installation, Deployment Tool und Updates. Offline-Installation und die eingebauten Vorlagen kommen ohne aus |
 | **.NET** | Nicht erforderlich — die Laufzeit ist in der EXE enthalten |
 
 ---
 
 ## Nutzung
 
-1. `OfficeInstall.exe` in den Ordner legen, in dem vorher die
-   `start.bat` lag — also neben `x32` und `x64`.
-2. EXE starten und die UAC-Abfrage mit **Ja** bestätigen. Der Paketordner wird
-   sofort durchsucht.
-3. **64 Bit** oder **32 Bit** wählen und den **Modus** festlegen.
-4. Bei der gewünschten Zeile auf **Installieren** klicken und die Rückfrage
-   bestätigen. Der Fortschritt erscheint anschließend im Fenster von Microsoft;
+1. `OfficeInstall.exe` in einen eigenen Ordner legen — oder in den Ordner, in
+   dem vorher die `start.bat` lag, also neben `x32` und `x64`.
+2. EXE starten und die UAC-Abfrage mit **Ja** bestätigen. Fehlt noch etwas
+   (Vorlagen, Deployment Tool), richtet sich der Ordner von selbst ein; danach
+   wird er durchsucht.
+3. **64 Bit** oder **32 Bit** wählen und den **Modus** festlegen. Oben in der
+   Kopfzeile bei Bedarf **Nicht kompatibles Office automatisch entfernen** und
+   **Nach erfolgreicher Installation schließen** einstellen.
+4. Bei der gewünschten Zeile auf **Installieren** klicken — es geht ohne weitere
+   Rückfrage los. Den Fortschritt zeigt das Installationsfenster von Microsoft;
    das Ergebnis steht danach im Protokoll.
 
 ### Offline-Dateien anlegen oder erneuern
@@ -689,9 +707,10 @@ Anwendung, die beliebigen heruntergeladenen Code ausführt, ist ein Einfallstor
 und wird von Virenscannern zu Recht angefasst.
 
 Der Paketstand aus `Versionscheck\Version.txt` wird weiterhin gelesen und in der
-Kopfzeile angezeigt. Wer eine Aktualisierungsmeldung möchte, kann sie wie im
-Windows DaSi Tool nachrüsten: eine Textdatei mit der aktuellen Versionsnummer im
-Netz, ein Vergleich, ein Hinweisband — ohne Ausführung von Fremdcode.
+Kopfzeile angezeigt. An die Stelle des alten Mechanismus ist die
+[Selbstaktualisierung](#selbstaktualisierung) getreten: Sie lädt nur die
+veröffentlichte EXE bzw. `configs.zip`, prüft die SHA256-Summe und führt keinen
+fremden Code aus.
 
 `aria2c.exe` wird nicht mehr benötigt.
 
