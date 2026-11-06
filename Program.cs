@@ -14,8 +14,14 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // Globale Absturz-Faenger: schreiben jede unbehandelte Exception in
+        // Selbstaktualisierung: Diese Fassung wurde von der alten mit
+        // "--austausch" gestartet, um sich an deren Stelle zu kopieren. Dann
+        // gibt es kein Fenster - nur den Austausch und den Neustart.
+        if (Services.SelfUpdate.TryRunSwap(args)) return;
+
+        // Globale Absturz-Faenger: schreiben jede UNBEHANDELTE Exception in
         // eine Logdatei auf dem Desktop, statt die App kommentarlos zu beenden.
+        // Abgefangene Fehler gehen dagegen ins Protokoll (ActivityLog).
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             WriteCrashLog("AppDomain.UnhandledException", e.ExceptionObject as Exception);
 
@@ -46,10 +52,13 @@ internal static class Program
     /// <summary>
     /// Schreibt einen Absturzbericht nach
     /// %USERPROFILE%\Desktop\OfficeInstall_Absturz.log
-    /// (mit Rueckfall ins TEMP-Verzeichnis).
+    /// (mit Rueckfall ins TEMP-Verzeichnis). Nur fuer echte Abstuerze - die
+    /// sollen auffallen. Waechst die Datei ueber 1 MB, beginnt sie neu.
     /// </summary>
-    public static void WriteCrashLog(string source, Exception? ex)
+    private static void WriteCrashLog(string source, Exception? ex)
     {
+        if (ex is not null) Services.ActivityLog.Error(source, ex);
+
         try
         {
             var sb = new StringBuilder();
@@ -79,6 +88,8 @@ internal static class Program
             {
                 path = Path.Combine(Path.GetTempPath(), "OfficeInstall_Absturz.log");
             }
+            if (File.Exists(path) && new FileInfo(path).Length > Services.ActivityLog.DefaultMaxBytes)
+                File.Delete(path);
             File.AppendAllText(path, sb.ToString(), Encoding.UTF8);
         }
         catch

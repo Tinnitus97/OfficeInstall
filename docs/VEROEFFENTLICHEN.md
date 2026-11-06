@@ -45,8 +45,8 @@ deshalb ausdrücklich.
 
 ## Ein neues Programm veröffentlichen
 
-1. `<Version>` in der `.csproj` und `VersionString` in
-   `ViewModels/MainWindowViewModel.cs` auf dieselbe Nummer setzen.
+1. `<Version>` in der `.csproj` setzen. Mehr nicht — Fenstertitel,
+   Update-Vergleich und Kennung für Webanfragen lesen die Nummer daraus.
 2. `CHANGELOG.md` ergänzen.
 3. Committen und pushen (GitHub Desktop: *Commit to main* → *Push origin*).
 4. Veröffentlichen — **einer** der drei Wege:

@@ -52,7 +52,7 @@ public static class OnlineVersionService
         // Zeitgrenze je Abfrage ueber ein CancellationToken - am Client laesst
         // sie sich nach der ersten Anfrage nicht mehr aendern.
         var client = new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("OfficeInstall/1.3");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         return client;
     }

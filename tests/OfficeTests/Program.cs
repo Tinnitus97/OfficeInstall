@@ -36,6 +36,32 @@ internal static class Program
             """);
     }
 
+    /// <summary>
+    /// Lesehilfen fuer die erzeugten Konfigurationsdateien. Das Programm selbst
+    /// braucht sie nicht - sie dienen nur der Kontrolle hier.
+    /// </summary>
+    private static class TestXml
+    {
+        private static XElement? Add(string file)
+        {
+            try { return XDocument.Load(file).Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Add"); }
+            catch { return null; }
+        }
+
+        public static string? ReadChannel(string file) => (string?)Add(file)?.Attribute("Channel");
+
+        public static string? ReadSourcePath(string file) => (string?)Add(file)?.Attribute("SourcePath");
+
+        public static int CountProducts(string file)
+            => Add(file)?.Elements().Count(e => e.Name.LocalName == "Product") ?? 0;
+
+        public static bool HasRemoveMsi(string file)
+        {
+            try { return XDocument.Load(file).Root?.Elements().Any(e => e.Name.LocalName == "RemoveMSI") == true; }
+            catch { return false; }
+        }
+    }
+
     private static void Touch(string path, string content = "x")
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -136,6 +162,30 @@ internal static class Program
         Check("bei mehreren Versionen gewinnt die neueste",
             mehrere.LatestVersion?.ToString() == "16.0.18129.20158", mehrere.LatestVersion?.ToString());
 
+        Console.WriteLine("\n== Download nachpruefen ==");
+        var pruefOrdner = Path.Combine(root, "nachpruefen");
+        Check("ohne Office\\Data ist der Download unvollstaendig",
+            OfflineSource.VerifyDownload(pruefOrdner, 64, null) is not null);
+        var pruefDaten = Path.Combine(pruefOrdner, "Office", "Data");
+        Directory.CreateDirectory(Path.Combine(pruefDaten, "16.0.2.2"));
+        Check("ohne Cab-Datei ist der Download unvollstaendig",
+            OfflineSource.VerifyDownload(pruefOrdner, 64, null)?.Contains("v64.cab") == true,
+            OfflineSource.VerifyDownload(pruefOrdner, 64, null));
+        Touch(Path.Combine(pruefDaten, "v64.cab"));
+        Check("leerer Versionsordner ist unvollstaendig",
+            OfflineSource.VerifyDownload(pruefOrdner, 64, null)?.Contains("leer") == true,
+            OfflineSource.VerifyDownload(pruefOrdner, 64, null));
+        Touch(Path.Combine(pruefDaten, "16.0.2.2", "stream.x64.x-none.dat"), new string('x', 100));
+        Check("vollstaendiger Bestand besteht die Pruefung",
+            OfflineSource.VerifyDownload(pruefOrdner, 64, null) is null,
+            OfflineSource.VerifyDownload(pruefOrdner, 64, null));
+        Check("gleiche Version wie online besteht die Pruefung",
+            OfflineSource.VerifyDownload(pruefOrdner, 64, new Version("16.0.2.2")) is null);
+        Check("aelterer Stand als online gemeldet ist unvollstaendig",
+            OfflineSource.VerifyDownload(pruefOrdner, 64, new Version("16.0.3.0"))?.Contains("erwartet") == true);
+        Check("32-Bit-Bestand verlangt v32.cab",
+            OfflineSource.VerifyDownload(pruefOrdner, 32, null)?.Contains("v32.cab") == true);
+
         Console.WriteLine("\n== Versionsvergleich ==");
         var lokal = new Version("16.0.17928.20216");
         var neuer = new Version("16.0.20228.20124");
@@ -160,8 +210,8 @@ internal static class Program
         Check("Offline-Plan setzt SourcePath",
             offlinePlan.SourcePath == Path.Combine(root, "x64", "PerpetualVL2021"), offlinePlan.SourcePath);
         Check("SourcePath steht auch in der erzeugten XML",
-            OfficeConfiguration.ReadSourcePath(offlinePlan.ConfigurationFile) == offlinePlan.SourcePath,
-            OfficeConfiguration.ReadSourcePath(offlinePlan.ConfigurationFile));
+            TestXml.ReadSourcePath(offlinePlan.ConfigurationFile) == offlinePlan.SourcePath,
+            TestXml.ReadSourcePath(offlinePlan.ConfigurationFile));
         Check("Offline laeuft im Ordner der Basis",
             offlinePlan.WorkingDirectory == Path.Combine(root, "x64", "PerpetualVL2021"), offlinePlan.WorkingDirectory);
         Check("Offline benutzt die vorhandene setup.exe",
@@ -180,8 +230,8 @@ internal static class Program
             OfficeConfiguration.ReadVersion(offlinePlan.ConfigurationFile) == "16.0.17928.20216",
             OfficeConfiguration.ReadVersion(offlinePlan.ConfigurationFile));
         Check("Kanal der Vorlage bleibt unangetastet",
-            OfficeConfiguration.ReadChannel(offlinePlan.ConfigurationFile) == "PerpetualVL2021",
-            OfficeConfiguration.ReadChannel(offlinePlan.ConfigurationFile));
+            TestXml.ReadChannel(offlinePlan.ConfigurationFile) == "PerpetualVL2021",
+            TestXml.ReadChannel(offlinePlan.ConfigurationFile));
 
         var onlinePlan = InstallRunner.Prepare(vl2021, InstallMode.Online, temp);
         Check("Online-Plan setzt keinen SourcePath", onlinePlan.SourcePath is null);
@@ -190,7 +240,7 @@ internal static class Program
             OfficeConfiguration.ReadVersion(onlinePlan.ConfigurationFile) is null,
             OfficeConfiguration.ReadVersion(onlinePlan.ConfigurationFile));
         Check("Online-XML enthaelt keinen SourcePath",
-            OfficeConfiguration.ReadSourcePath(onlinePlan.ConfigurationFile) is null);
+            TestXml.ReadSourcePath(onlinePlan.ConfigurationFile) is null);
         Check("Online laeuft in einem eigenen Arbeitsordner",
             onlinePlan.WorkingDirectory != vl2021.Configuration.BaseFolder, onlinePlan.WorkingDirectory);
         Check("im Arbeitsordner liegt eine Kopie der setup.exe",
@@ -223,11 +273,11 @@ internal static class Program
         var downloadPlan = InstallRunner.PrepareDownload(vl2021, temp);
         Check("Download benutzt den Schalter /download",
             downloadPlan.Arguments.StartsWith("/download \"", StringComparison.Ordinal), downloadPlan.Arguments);
-        Check("Download ist als solcher erkennbar", downloadPlan.IsDownload);
+        Check("Download ist als solcher erkennbar", downloadPlan.Verb == "download");
         Check("Download setzt SourcePath auf den Basis-Ordner",
             downloadPlan.SourcePath == Path.Combine(root, "x64", "PerpetualVL2021"), downloadPlan.SourcePath);
         Check("SourcePath steht auch in der Download-XML",
-            OfficeConfiguration.ReadSourcePath(downloadPlan.ConfigurationFile) == downloadPlan.SourcePath);
+            TestXml.ReadSourcePath(downloadPlan.ConfigurationFile) == downloadPlan.SourcePath);
         // Beim Herunterladen soll gerade der neueste Stand geholt werden -
         // eine festgeschriebene Version wuerde das verhindern.
         Check("Download schreibt keine Version fest",
@@ -263,12 +313,12 @@ internal static class Program
         Check("gemeinsame Datei enthaelt alle Produkte der Basis",
             basisPlan.ProductCount == 2, basisPlan.ProductCount.ToString());
         Check("gemeinsame Datei ist auch als Datei so gespeichert",
-            OfficeConfiguration.CountProducts(basisPlan.ConfigurationFile) == 2,
-            OfficeConfiguration.CountProducts(basisPlan.ConfigurationFile).ToString());
+            TestXml.CountProducts(basisPlan.ConfigurationFile) == 2,
+            TestXml.CountProducts(basisPlan.ConfigurationFile).ToString());
         Check("gemeinsame Datei setzt SourcePath",
-            OfficeConfiguration.ReadSourcePath(basisPlan.ConfigurationFile)
+            TestXml.ReadSourcePath(basisPlan.ConfigurationFile)
                 == Path.Combine(root, "x64", "Current"));
-        Check("gemeinsame Datei benutzt /download", basisPlan.IsDownload);
+        Check("gemeinsame Datei benutzt /download", basisPlan.Verb == "download");
         Check("gemeinsame Download-Datei schreibt keine Version fest",
             OfficeConfiguration.ReadVersion(basisPlan.ConfigurationFile) is null);
 
@@ -280,18 +330,18 @@ internal static class Program
         OfficeConfiguration.WriteWithSourcePath(ohneKanal, festgelegt, @"C:\Office\Current",
             new Version("16.0.17928.20216"), "Current");
         Check("Kanal wird ergaenzt, wenn er fehlt",
-            OfficeConfiguration.ReadChannel(festgelegt) == "Current", OfficeConfiguration.ReadChannel(festgelegt));
+            TestXml.ReadChannel(festgelegt) == "Current", TestXml.ReadChannel(festgelegt));
         Check("Version wird geschrieben",
             OfficeConfiguration.ReadVersion(festgelegt) == "16.0.17928.20216");
         Check("SourcePath wird geschrieben",
-            OfficeConfiguration.ReadSourcePath(festgelegt) == @"C:\Office\Current");
+            TestXml.ReadSourcePath(festgelegt) == @"C:\Office\Current");
 
         var ohneVersion = Path.Combine(root, "temp", "ohne_version.xml");
         OfficeConfiguration.WriteWithSourcePath(ohneKanal, ohneVersion, @"C:\Office\Current");
         Check("ohne Angabe bleibt die Datei ohne Version",
             OfficeConfiguration.ReadVersion(ohneVersion) is null);
         Check("ohne Angabe wird auch kein Kanal erfunden",
-            OfficeConfiguration.ReadChannel(ohneVersion) is null);
+            TestXml.ReadChannel(ohneVersion) is null);
 
         // Der Ordner sticht die Vorlage: Ein abweichender Kanal in der XML
         // laesst das Deployment Tool sonst mit "This product can't be
@@ -301,8 +351,8 @@ internal static class Program
             Path.Combine(root, "x64", "PerpetualVL2021", "configuration_Standard_2021.xml"),
             kanalKorrigiert, @"C:\Office\VL2019", new Version("16.0.10417.20197"), "PerpetualVL2019");
         Check("abweichender Kanal wird auf den Ordner gesetzt",
-            OfficeConfiguration.ReadChannel(kanalKorrigiert) == "PerpetualVL2019",
-            OfficeConfiguration.ReadChannel(kanalKorrigiert));
+            TestXml.ReadChannel(kanalKorrigiert) == "PerpetualVL2019",
+            TestXml.ReadChannel(kanalKorrigiert));
 
         Check("gleicher Kanal gilt als passend",
             OfficeConfiguration.ChannelMatchesFolder("PerpetualVL2019", "PerpetualVL2019"));
@@ -335,23 +385,23 @@ internal static class Program
             schiefPlan.ChannelCorrectedFrom == "PerpetualVL2021", schiefPlan.ChannelCorrectedFrom);
         Check("verwendet wird der Ordner", schiefPlan.Channel == "PerpetualVL2019", schiefPlan.Channel);
         Check("in der erzeugten XML steht der Ordner-Kanal",
-            OfficeConfiguration.ReadChannel(schiefPlan.ConfigurationFile) == "PerpetualVL2019",
-            OfficeConfiguration.ReadChannel(schiefPlan.ConfigurationFile));
+            TestXml.ReadChannel(schiefPlan.ConfigurationFile) == "PerpetualVL2019",
+            TestXml.ReadChannel(schiefPlan.ConfigurationFile));
         Check("die vorliegende Version wird festgeschrieben",
             OfficeConfiguration.ReadVersion(schiefPlan.ConfigurationFile) == "16.0.10417.20197",
             OfficeConfiguration.ReadVersion(schiefPlan.ConfigurationFile));
 
         var schiefOnline = InstallRunner.Prepare(schiefEintrag, InstallMode.Online, Path.Combine(schief, "temp"));
         Check("auch online wird der Kanal berichtigt",
-            OfficeConfiguration.ReadChannel(schiefOnline.ConfigurationFile) == "PerpetualVL2019",
-            OfficeConfiguration.ReadChannel(schiefOnline.ConfigurationFile));
+            TestXml.ReadChannel(schiefOnline.ConfigurationFile) == "PerpetualVL2019",
+            TestXml.ReadChannel(schiefOnline.ConfigurationFile));
         Check("online bleibt ohne SourcePath",
-            OfficeConfiguration.ReadSourcePath(schiefOnline.ConfigurationFile) is null);
+            TestXml.ReadSourcePath(schiefOnline.ConfigurationFile) is null);
 
         var schiefDownload = InstallRunner.PrepareDownload(schiefEintrag, Path.Combine(schief, "temp"));
         Check("auch der Download benutzt den Ordner-Kanal",
-            OfficeConfiguration.ReadChannel(schiefDownload.ConfigurationFile) == "PerpetualVL2019",
-            OfficeConfiguration.ReadChannel(schiefDownload.ConfigurationFile));
+            TestXml.ReadChannel(schiefDownload.ConfigurationFile) == "PerpetualVL2019",
+            TestXml.ReadChannel(schiefDownload.ConfigurationFile));
         Check("der Download schreibt weiterhin keine Version fest",
             OfficeConfiguration.ReadVersion(schiefDownload.ConfigurationFile) is null);
 
@@ -521,6 +571,24 @@ internal static class Program
               "https://download.microsoft.com/download/abc/officedeploymenttool_20300-20001.exe");
         Check("feste Adresse aus ODT-Url.txt wird gelesen",
             DeploymentToolService.ReadUrlOverride(root)?.EndsWith("20300-20001.exe", StringComparison.Ordinal) == true);
+        Touch(Path.Combine(root, "Versionscheck", "ODT-Url.txt"),
+              "https://example.invalid/download/officedeploymenttool_20300-20001.exe");
+        Check("fremder Server in ODT-Url.txt wird verworfen",
+            DeploymentToolService.ReadUrlOverride(root) is null);
+        Touch(Path.Combine(root, "Versionscheck", "ODT-Url.txt"),
+              "http://download.microsoft.com/download/abc/officedeploymenttool_20300-20001.exe");
+        Check("unverschluesselte Adresse in ODT-Url.txt wird verworfen",
+            DeploymentToolService.ReadUrlOverride(root) is null);
+        Check("Unterdomaene als Tarnung wird nicht als Microsoft erkannt",
+            !DeploymentToolService.IsMicrosoftDownloadUrl("https://download.microsoft.com.example.invalid/a.exe"));
+        Check("Benutzerangabe als Tarnung wird nicht als Microsoft erkannt",
+            !DeploymentToolService.IsMicrosoftDownloadUrl("https://download.microsoft.com@example.invalid/a.exe"));
+        Check("Unterzeichner wird aus dem Zertifikatsnamen gelesen",
+            Authenticode.OrganizationOf("CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US")
+                == Authenticode.MicrosoftSigner);
+        Check("Unterzeichner mit Komma in Anfuehrungszeichen",
+            Authenticode.OrganizationOf("CN=x, O=\"Fremd, Inc.\", C=US") == "Fremd, Inc.");
+        Check("ohne O= kein Unterzeichner", Authenticode.OrganizationOf("CN=nur ein Name") is null);
         Touch(Path.Combine(root, "Versionscheck", "ODT-Url.txt"), "kein-link");
         Check("unbrauchbarer Inhalt von ODT-Url.txt wird verworfen",
             DeploymentToolService.ReadUrlOverride(root) is null);
@@ -593,6 +661,30 @@ internal static class Program
         Check("Pruefadresse ist die von Windows genutzte",
             ConnectivityService.ProbeUrl.Contains("msftconnecttest.com", StringComparison.Ordinal),
             ConnectivityService.ProbeUrl);
+
+        Check("Ersatzpruefung laeuft ueber https",
+            ConnectivityService.FallbackProbeUrl.StartsWith("https://", StringComparison.Ordinal));
+
+        Console.WriteLine("\n== Protokolldatei ==");
+        ActivityLog.Folder = Path.Combine(root, "protokoll");
+        ActivityLog.MaxBytes = 300;
+        ActivityLog.Append("erste Zeile");
+        Check("Protokollzeile landet in der Datei",
+            File.Exists(ActivityLog.FilePath) && File.ReadAllText(ActivityLog.FilePath).Contains("erste Zeile"));
+        Check("mit Zeitstempel",
+            System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(ActivityLog.FilePath),
+                @"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}  erste Zeile"));
+        try { throw new InvalidOperationException("Testfehler"); }
+        catch (Exception ex) { ActivityLog.Error("Pruefung", ex); }
+        Check("abgefangener Fehler steht mit Quelle und Typ im Protokoll",
+            File.ReadAllText(ActivityLog.FilePath).Contains("[FEHLER in Pruefung] System.InvalidOperationException: Testfehler"));
+        for (var i = 0; i < 20; i++) ActivityLog.Append($"Fuellzeile {i}");
+        Check("zu grosse Datei wird abgeloest",
+            File.Exists(ActivityLog.PreviousFilePath) && new FileInfo(ActivityLog.FilePath).Length <= 400,
+            new FileInfo(ActivityLog.FilePath).Length.ToString());
+        Check("es bleibt bei zwei Dateien",
+            Directory.GetFiles(ActivityLog.Folder).Length == 2, Directory.GetFiles(ActivityLog.Folder).Length.ToString());
+        ActivityLog.MaxBytes = ActivityLog.DefaultMaxBytes;
 
         Console.WriteLine("\n== Suche ==");
         Check("leere Suche zeigt alles", OfficeCatalog.Matches(student, ""));
@@ -681,7 +773,10 @@ internal static class Program
 
         Console.WriteLine("\n== Arbeitsordner aufraeumen ==");
         Check("Arbeitsordner liegt unter TEMP",
-            TempWorkspace.Root == Path.Combine(Path.GetTempPath(), "OfficeInstall"), TempWorkspace.Root);
+            TempWorkspace.BaseRoot == Path.Combine(Path.GetTempPath(), "OfficeInstall"), TempWorkspace.BaseRoot);
+        Check("jedes Fenster hat seinen eigenen Arbeitsordner",
+            TempWorkspace.Root == Path.Combine(TempWorkspace.BaseRoot, Environment.ProcessId.ToString()),
+            TempWorkspace.Root);
         Check("Deployment Tool bekommt einen Unterordner",
             TempWorkspace.DeploymentFolder == Path.Combine(TempWorkspace.Root, "odt"),
             TempWorkspace.DeploymentFolder);
@@ -710,6 +805,35 @@ internal static class Program
         Check("zweites Aufräumen ist wirkungslos statt fehlerhaft",
             !tmpNochmal.Removed && tmpNochmal.Error is null, tmpNochmal.Error);
         Check("nicht vorhandener Arbeitsordner meldet nichts", !TempWorkspace.Exists);
+
+        // Reste anderer Fenster: beendet -> weg, laufend (hier: das eigene) -> bleibt.
+        var fremdBeendet = Path.Combine(TempWorkspace.BaseRoot, "2147483000");
+        var altesLayout = Path.Combine(TempWorkspace.BaseRoot, "x64");
+        Touch(Path.Combine(fremdBeendet, "configuration.xml"), new string('x', 1000));
+        Touch(Path.Combine(altesLayout, "Current", "configuration.xml"), new string('x', 1000));
+        Touch(Path.Combine(TempWorkspace.BaseRoot, "rest.txt"), "x");
+        Touch(Path.Combine(TempWorkspace.Root, "x64", "Current", "configuration.xml"));
+        using (var anderesProgramm = OperatingSystem.IsWindows()
+                   ? System.Diagnostics.Process.Start("ping", "-n 6 127.0.0.1")
+                   : System.Diagnostics.Process.Start("sleep", "5"))
+        {
+            var fremdLaufend = Path.Combine(TempWorkspace.BaseRoot, anderesProgramm.Id.ToString());
+            Touch(Path.Combine(fremdLaufend, "a.xml"));
+
+            var reste = TempWorkspace.ClearStale();
+            Check("Reste beendeter Fenster werden entfernt",
+                reste.Removed && reste.Error is null && !Directory.Exists(fremdBeendet), reste.Error);
+            Check("Reste aus der Zeit vor den getrennten Ordnern werden entfernt",
+                !Directory.Exists(altesLayout) && !File.Exists(Path.Combine(TempWorkspace.BaseRoot, "rest.txt")));
+            Check("der eigene Arbeitsordner bleibt",
+                File.Exists(Path.Combine(TempWorkspace.Root, "x64", "Current", "configuration.xml")));
+            Check("fremdes Programm unter wiederverwendeter Nummer schuetzt den Ordner nicht",
+                !Directory.Exists(fremdLaufend));
+            anderesProgramm.Kill();
+        }
+        TempWorkspace.Clear();
+        Check("Aufraeumen des eigenen Ordners laesst den Oberordner stehen",
+            !TempWorkspace.Exists && Directory.Exists(TempWorkspace.BaseRoot));
 
         Console.WriteLine("\n== Selbstaktualisierung ==");
         var manifestJson = """
@@ -810,8 +934,8 @@ internal static class Program
             UpdateService.ComputeSha256(summeDatei));
 
         Check("Arbeitsordner liegt neben dem Arbeitsordner des Programms",
-            UpdateService.WorkFolder != TempWorkspace.Root
-            && !UpdateService.WorkFolder.StartsWith(TempWorkspace.Root + Path.DirectorySeparatorChar,
+            UpdateService.WorkFolder != TempWorkspace.BaseRoot
+            && !UpdateService.WorkFolder.StartsWith(TempWorkspace.BaseRoot + Path.DirectorySeparatorChar,
                                                     StringComparison.OrdinalIgnoreCase),
             UpdateService.WorkFolder);
 
@@ -822,6 +946,82 @@ internal static class Program
         Check("hinterlegte Adresse wird benutzt",
             UpdateService.ResolveManifestUrl(root) == "https://intern.example.test/office/update.json",
             UpdateService.ResolveManifestUrl(root));
+        Touch(Path.Combine(root, "Versionscheck", "Update-Url.txt"),
+              "http://intern.example.test/office/update.json\n");
+        Check("unverschluesselte hinterlegte Adresse wird uebergangen",
+            UpdateService.ResolveManifestUrl(root) == UpdateService.DefaultManifestUrl,
+            UpdateService.ResolveManifestUrl(root));
+        File.Delete(Path.Combine(root, "Versionscheck", "Update-Url.txt"));
+
+        // --- Ohne Pruefsumme oder ueber http wird nichts eingespielt ---
+        var ohneSumme = UpdateService.Parse("""
+            { "program": { "version": "9.9.9", "url": "https://example.invalid/OfficeInstall.exe" } }
+            """);
+        Check("Programmeintrag ohne Pruefsumme ist unbrauchbar", !ohneSumme.Program.IsUsable);
+        var ueberHttp = UpdateService.Parse("""
+            { "program": { "version": "9.9.9", "url": "http://example.invalid/OfficeInstall.exe", "sha256": "aa" } }
+            """);
+        Check("Programmeintrag ueber http ist unbrauchbar", !ueberHttp.Program.IsUsable);
+        Check("https gilt als sicher", UpdateService.IsSecureUrl("https://example.invalid/a.zip"));
+        Check("http gilt nicht als sicher", !UpdateService.IsSecureUrl("http://example.invalid/a.zip"));
+        Check("Unsinn gilt nicht als sicher", !UpdateService.IsSecureUrl("https//kaputt"));
+
+        var ladeZiel = Path.Combine(root, "geladen.exe");
+        var ohneSummeGeladen = UpdateService.DownloadAsync(
+            "https://example.invalid/OfficeInstall.exe", "", ladeZiel, System.Threading.CancellationToken.None).Result;
+        Check("Laden ohne Pruefsumme wird verweigert",
+            !ohneSummeGeladen.Success && !File.Exists(ladeZiel), ohneSummeGeladen.Error);
+        var httpGeladen = UpdateService.DownloadAsync(
+            "http://example.invalid/OfficeInstall.exe", "aa", ladeZiel, System.Threading.CancellationToken.None).Result;
+        Check("Laden ueber http wird verweigert",
+            !httpGeladen.Success && !File.Exists(ladeZiel), httpGeladen.Error);
+
+        Console.WriteLine("\n== Programmaustausch ==");
+        var tauschOrdner = Path.Combine(root, "tausch");
+        Directory.CreateDirectory(tauschOrdner);
+        var neueExe = Path.Combine(tauschOrdner, "neu.exe");
+        var alteExe = Path.Combine(tauschOrdner, "OfficeInstall.exe");
+        File.WriteAllText(neueExe, "neu");
+        File.WriteAllText(alteExe, "alt");
+
+        Check("normaler Start ist kein Austauschlauf", !SelfUpdate.TryRunSwap(Array.Empty<string>()));
+        Check("fremde Argumente sind kein Austauschlauf", !SelfUpdate.TryRunSwap(new[] { "--irgendwas", "a", "1" }));
+        Check("unvollstaendiger Austauschaufruf wird nicht ausgefuehrt",
+            !SelfUpdate.TryRunSwap(new[] { SelfUpdate.SwapArgument, alteExe }));
+
+        var tausch = SelfUpdate.Swap(neueExe, alteExe, 0, TimeSpan.FromSeconds(1));
+        Check("Austausch ersetzt die alte Datei",
+            tausch is null && File.ReadAllText(alteExe) == "neu", tausch);
+
+        var tauschBeendet = SelfUpdate.Swap(neueExe, alteExe, int.MaxValue - 7, TimeSpan.FromSeconds(1));
+        Check("nicht (mehr) laufender Vorgang haelt den Austausch nicht auf", tauschBeendet is null, tauschBeendet);
+
+        var ohneQuelle = SelfUpdate.Swap(Path.Combine(tauschOrdner, "fehlt.exe"), alteExe, 0, TimeSpan.Zero);
+        Check("fehlende neue Fassung wird gemeldet",
+            ohneQuelle is not null && ohneQuelle.Contains("fehlt"), ohneQuelle);
+
+        var ohneZiel = SelfUpdate.Swap(neueExe, Path.Combine(tauschOrdner, "gibt", "es", "nicht.exe"),
+                                       0, TimeSpan.Zero, attempts: 2, delay: TimeSpan.FromMilliseconds(10));
+        Check("nicht beschreibbares Ziel wird nach den Versuchen gemeldet",
+            ohneZiel is not null && ohneZiel.Contains("ließ sich nicht ersetzen"), ohneZiel);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            using var wartend = System.Diagnostics.Process.Start("sleep", "1");
+            File.WriteAllText(alteExe, "alt");
+            var uhr = System.Diagnostics.Stopwatch.StartNew();
+            var nachWarten = SelfUpdate.Swap(neueExe, alteExe, wartend.Id, TimeSpan.FromSeconds(10));
+            Check("Austausch wartet, bis das alte Programm beendet ist",
+                nachWarten is null && uhr.ElapsedMilliseconds >= 700 && File.ReadAllText(alteExe) == "neu",
+                $"{nachWarten} nach {uhr.ElapsedMilliseconds} ms");
+        }
+
+        try { File.Delete(SelfUpdate.FailureFile); } catch { }
+        Check("ohne Fehlerdatei gibt es nichts zu melden", SelfUpdate.TakeFailure() is null);
+        Directory.CreateDirectory(UpdateService.WorkFolder);
+        File.WriteAllText(SelfUpdate.FailureFile, "Datei gesperrt");
+        Check("Fehler des letzten Austauschs wird gemeldet", SelfUpdate.TakeFailure() == "Datei gesperrt");
+        Check("und danach nur einmal", SelfUpdate.TakeFailure() is null && !File.Exists(SelfUpdate.FailureFile));
 
         Console.WriteLine("\n== Leerer oder fremder Ordner ==");
         var empty = OfficeCatalog.Scan(Path.Combine(root, "leer"));
@@ -987,8 +1187,9 @@ internal static class Program
         var berichte = new List<DownloadProgressReport>();
         using (var stop = new System.Threading.CancellationTokenSource())
         {
+            var beobachtungsPlan = DownloadProgress.Plan(wachsend, zielVersion);
             var lauf = DownloadProgress.WatchAsync(
-                wachsend, zielVersion,
+                beobachtungsPlan,
                 new Progress<DownloadProgressReport>(b => { lock (berichte) berichte.Add(b); }),
                 stop.Token);
 
@@ -1017,6 +1218,17 @@ internal static class Program
             kopie.Count > 0 ? kopie[^1].ReferenceBytes.ToString() : "keine");
         Check("die Beobachtung endet mit dem Abbruch",
             kopie.Count < 100, kopie.Count.ToString());
+        Check("Zuwachs zaehlt ab der Planung, nicht ab dem ersten Messwert",
+            kopie.Count > 0 && kopie[^1].AddedBytes == 2000,
+            kopie.Count > 0 ? kopie[^1].AddedBytes.ToString() : "keine");
+
+        // Erstdownload: Was das Deployment Tool gleich nach dem Start schreibt,
+        // darf nicht als "schon vorhanden" gelten.
+        var erstmals = Path.Combine(root, "erstmals");
+        var erstPlan = DownloadProgress.Plan(erstmals, zielVersion);
+        Touch(Path.Combine(erstmals, "Office", "Data", zielVersion.ToString(), "sofort.dat"), new string('x', 700));
+        Check("vor dem Start geplant bleibt ein Erstdownload ein Erstdownload",
+            !erstPlan.IsUpdate && erstPlan.Baseline == 0);
 
         Console.WriteLine("\n== Reihenfolge nach Office-Generation ==");
 
@@ -1260,10 +1472,10 @@ internal static class Program
         var msiKopie = Path.Combine(root, "removemsi", "msiKopie.xml");
 
         OfficeConfiguration.WriteWithoutSourcePath(mitRemoveMsi, msiKopie, "Current");
-        Check("ohne Angabe bleibt die Vorlage, wie sie ist", OfficeConfiguration.HasRemoveMsi(msiKopie));
+        Check("ohne Angabe bleibt die Vorlage, wie sie ist", TestXml.HasRemoveMsi(msiKopie));
 
         OfficeConfiguration.WriteWithoutSourcePath(mitRemoveMsi, msiKopie, "Current", removeMsi: false);
-        Check("Behalten nimmt RemoveMSI heraus", !OfficeConfiguration.HasRemoveMsi(msiKopie));
+        Check("Behalten nimmt RemoveMSI heraus", !TestXml.HasRemoveMsi(msiKopie));
 
         OfficeConfiguration.WriteWithSourcePath(mitRemoveMsi, msiKopie, @"C:\quelle", null, "Current", removeMsi: true);
         Check("vorhandenes RemoveMSI wird nicht verdoppelt",
@@ -1277,7 +1489,7 @@ internal static class Program
             </Configuration>
             """);
         OfficeConfiguration.WriteWithSourcePath(ohneRemoveMsi, msiKopie, @"C:\quelle", null, "Current", removeMsi: true);
-        Check("Entfernen ergaenzt RemoveMSI", OfficeConfiguration.HasRemoveMsi(msiKopie));
+        Check("Entfernen ergaenzt RemoveMSI", TestXml.HasRemoveMsi(msiKopie));
         Check("RemoveMSI steht direkt hinter Add",
             XDocument.Load(msiKopie).Root!.Elements().Select(e => e.Name.LocalName)
                 .SequenceEqual(new[] { "Add", "RemoveMSI", "Display" }),
@@ -1285,10 +1497,10 @@ internal static class Program
 
         var planBehalten = InstallRunner.Prepare(student, InstallMode.Online, temp, removeMsi: false);
         Check("Prepare reicht Behalten an die Kopie durch",
-            !OfficeConfiguration.HasRemoveMsi(planBehalten.ConfigurationFile));
+            !TestXml.HasRemoveMsi(planBehalten.ConfigurationFile));
         var planOffline = InstallRunner.Prepare(vl2021, InstallMode.Offline, temp, removeMsi: false);
-        Check("auch offline", !OfficeConfiguration.HasRemoveMsi(planOffline.ConfigurationFile));
-        Check("die Vorlage selbst bleibt unberuehrt", OfficeConfiguration.HasRemoveMsi(mitRemoveMsi));
+        Check("auch offline", !TestXml.HasRemoveMsi(planOffline.ConfigurationFile));
+        Check("die Vorlage selbst bleibt unberuehrt", TestXml.HasRemoveMsi(mitRemoveMsi));
 
         Console.WriteLine("\n== Click-to-Run entfernen ==");
         var entfernen = InstallRunner.PrepareClickToRunRemoval(student, temp);
@@ -1296,7 +1508,7 @@ internal static class Program
 
         Check("eigener Durchlauf mit /configure", entfernen.Arguments.StartsWith("/configure \"", StringComparison.Ordinal),
             entfernen.Arguments);
-        Check("als Entfernen gekennzeichnet", entfernen.IsRemoval && !entfernen.IsDownload);
+        Check("als Entfernen gekennzeichnet", entfernen.IsRemoval && entfernen.Verb != "download");
         Check("benutzt die setup.exe der Basis", entfernen.SetupExecutable == student.SetupExecutable);
         Check("entfernt alle Click-to-Run-Produkte",
             entfernenXml.Elements("Remove").Any(e => (string?)e.Attribute("All") == "TRUE"));

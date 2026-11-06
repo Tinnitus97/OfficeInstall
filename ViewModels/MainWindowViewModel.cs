@@ -21,7 +21,7 @@ namespace OfficeInstall.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private const string VersionString = "1.5.0";
+    private static string VersionString => AppInfo.Version;
 
     private readonly object _logLock = new();
     private readonly StringBuilder _logBuffer = new();
@@ -57,7 +57,9 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     private bool _batchSetup;
     private CancellationTokenSource? _scanCts;
-    private string _packageInfo = "";
+    // Roh gespeichert und erst in AppSubtitle uebersetzt - sonst blieb der
+    // Untertitel beim Sprachwechsel in der alten Sprache stehen.
+    private (string Version, string Date)? _package;
 
     /// <summary>
     /// Online angebotene Version je Installationsbasis. Bewusst hier gehalten
@@ -89,11 +91,36 @@ public partial class MainWindowViewModel : ObservableObject
 
         _logBuffer.Append(InitialLogText());
         LogText = _logBuffer.ToString();
+        ActivityLog.Append($"===== OfficeInstall {VersionString} gestartet in {_rootFolder} =====");
 
-        // Reste eines abgestuerzten oder abgewuergten Durchlaufs entfernen -
-        // aber nur, wenn dieses Programm nicht noch ein zweites Mal laeuft.
-        // Dessen Arbeitsdateien duerfen nicht verschwinden.
-        if (SystemHelpers.IsOnlyInstance()) TempWorkspace.Clear();
+        // Reste abgestuerzter oder abgewuergter Fenster entfernen. Ein
+        // gleichzeitig laufendes zweites Fenster behaelt seinen Ordner.
+        _ = Task.Run(TempWorkspace.ClearStale);
+
+        // Ist der letzte Austausch gescheitert, laeuft hier noch die alte
+        // Fassung. Den Grund melden, statt still beim alten Stand zu bleiben.
+        if (SelfUpdate.TakeFailure() is { } updateFehler)
+        {
+            Log(Tr($"[FEHLER] Das letzte Update ließ sich nicht einspielen: {updateFehler}",
+                   $"[ERROR] The last update could not be applied: {updateFehler}"));
+            Dispatcher.UIThread.Post(async () =>
+            {
+                if (ActiveWindow is { } fenster)
+                    await MessageBox.ShowInfo(fenster,
+                        Tr("Update nicht eingespielt", "Update not applied"),
+                        Tr($"Das letzte Update ließ sich nicht einspielen:\n\n{updateFehler}\n\n" +
+                           "Es läuft weiterhin die bisherige Fassung. Ein neuer Versuch ist oben über " +
+                           "\"Programm aktualisieren\" möglich.",
+                           $"The last update could not be applied:\n\n{updateFehler}\n\n" +
+                           "The previous version is still running. You can try again via " +
+                           "\"Update program\" at the top."));
+            }, DispatcherPriority.Background);
+        }
+
+        // Die heruntergeladene EXE eines Updates wird nach dem Austausch nicht
+        // mehr gebraucht. Im Hintergrund, weil sie Augenblicke nach dem
+        // Neustart noch gesperrt sein kann - dann eben beim naechsten Mal.
+        _ = Task.Run(UpdateService.CleanUp);
 
         // Unabhaengig vom Paketordner - diese Liste steht fest.
         RebuildLegacyEntries();
@@ -350,10 +377,10 @@ public partial class MainWindowViewModel : ObservableObject
     // ------------------------------------------------------------ Beschriftungen
 
     public string WindowTitle    => $"OfficeInstall {VersionString}";
-    public string AppSubtitle    => string.IsNullOrEmpty(_packageInfo)
-        ? Tr("Microsoft Office installieren - online oder aus vorliegenden Dateien",
-             "Install Microsoft Office - online or from local files")
-        : _packageInfo;
+    public string AppSubtitle    => _package is { } paket
+        ? Tr($"Paketstand {paket.Version} vom {paket.Date}", $"Package build {paket.Version} from {paket.Date}")
+        : Tr("Microsoft Office installieren - online oder aus vorliegenden Dateien",
+             "Install Microsoft Office - online or from local files");
 
     public string SectionSource  => Tr("Paketordner & Modus", "Package folder & mode");
     public string SectionProducts=> Tr("Verfügbare Installationen", "Available installations");
@@ -420,6 +447,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void Log(string text)
     {
+        // Auch in die Datei - das Fenster schliesst sich nach der Installation
+        // oft von selbst, dann waere das Protokoll sonst verloren.
+        ActivityLog.Append(text);
+
         string snapshot;
         lock (_logLock)
         {
@@ -465,7 +496,6 @@ public partial class MainWindowViewModel : ObservableObject
         var root = RootFolder;
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
-            ScanStatus = Tr("Paketordner existiert nicht.", "Package folder does not exist.");
             Log(Tr($"[FEHLER] Paketordner nicht gefunden: {root}", $"[ERROR] Package folder not found: {root}"));
             Entries.Clear();
             return;
@@ -481,11 +511,7 @@ public partial class MainWindowViewModel : ObservableObject
             _catalog = await Task.Run(() => OfficeCatalog.Scan(root), cts.Token);
             if (cts.Token.IsCancellationRequested) return;
 
-            var package = OfficeCatalog.ReadPackageVersion(root);
-            _packageInfo = package is null
-                ? ""
-                : Tr($"Paketstand {package.Value.Version} vom {package.Value.Date}",
-                     $"Package build {package.Value.Version} from {package.Value.Date}");
+            _package = OfficeCatalog.ReadPackageVersion(root);
             OnPropertyChanged(nameof(AppSubtitle));
 
             if (_catalog.Entries.Count == 0)
@@ -554,7 +580,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("Scan", ex);
+            ActivityLog.Error("Scan", ex);
             Log(Tr($"[FEHLER] Suche fehlgeschlagen: {ex.Message}", $"[ERROR] Search failed: {ex.Message}"));
         }
         finally
@@ -582,7 +608,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("Scan/CheckOnlineVersions", ex);
+            ActivityLog.Error("Scan/CheckOnlineVersions", ex);
             Log(Tr($"[FEHLER] Abgleich fehlgeschlagen: {ex.Message}",
                    $"[ERROR] Version check failed: {ex.Message}"));
         }
@@ -594,7 +620,7 @@ public partial class MainWindowViewModel : ObservableObject
             try { await AutoSetupIfNeeded(root); }
             catch (Exception ex)
             {
-                Program.WriteCrashLog("Scan/AutoSetup", ex);
+                ActivityLog.Error("Scan/AutoSetup", ex);
                 Log(Tr($"[FEHLER] Einrichtung fehlgeschlagen: {ex.Message}",
                        $"[ERROR] Setup failed: {ex.Message}"));
             }
@@ -644,13 +670,11 @@ public partial class MainWindowViewModel : ObservableObject
             Entries.Add(viewModel);
         }
 
-        // Die reine Trefferzahl stand frueher dauerhaft hier - sie sagt aber
-        // nichts, was die Liste darunter nicht selbst zeigt. Angezeigt wird
-        // deshalb nur noch das Ergebnis einer laufenden Suche.
+        // Nur waehrend einer Suche, und kurz: Das steht im Suchfeld rechts,
+        // der Suchbegriff selbst ist links daneben zu lesen.
         ScanStatus = string.IsNullOrWhiteSpace(SearchText)
             ? ""
-            : Tr($"{visible.Count} von {all.Count} passen zu \"{SearchText}\".",
-                 $"{visible.Count} of {all.Count} match \"{SearchText}\".");
+            : Tr($"{visible.Count} von {all.Count}", $"{visible.Count} of {all.Count}");
 
         UpdateWarning();
         RebuildLegacyEntries();
@@ -981,8 +1005,9 @@ public partial class MainWindowViewModel : ObservableObject
             Log(Tr($"Version {entry.Version} geladen ({OfflineSource.FormatBytes(result.Bytes)}), Prüfsumme stimmt.",
                    $"Version {entry.Version} downloaded ({OfflineSource.FormatBytes(result.Bytes)}), checksum matches."));
 
-            var script = UpdateService.WriteUpdateScript(target, current, Environment.ProcessId);
-            UpdateService.StartUpdateScript(script);
+            // Die neue Fassung tauscht sich selbst ein, sobald diese hier
+            // beendet ist - siehe SelfUpdate.
+            SelfUpdate.StartSwap(target, current, Environment.ProcessId);
 
             Log(Tr("Das Programm wird jetzt beendet und ersetzt.",
                    "The program will now close and be replaced."));
@@ -991,7 +1016,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("UpdateProgram", ex);
+            ActivityLog.Error("UpdateProgram", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
         }
         finally
@@ -1076,7 +1101,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("UpdateConfigs", ex);
+            ActivityLog.Error("UpdateConfigs", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
         }
         finally
@@ -1279,10 +1304,18 @@ public partial class MainWindowViewModel : ObservableObject
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
             };
 
-            return verdaechtig
+            if (verdaechtig
                 .Where(p => !string.IsNullOrWhiteSpace(p))
                 .Select(p => Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar))
-                .Any(p => string.Equals(full, p, StringComparison.OrdinalIgnoreCase));
+                .Any(p => string.Equals(full, p, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            // In %TEMP% zaehlt auch jeder Unterordner: Wer die EXE direkt aus
+            // dem ZIP im Explorer startet, landet in %TEMP%\Temp1_xyz.zip\ -
+            // und dieser Ordner verschwindet beim Schliessen des Archivs.
+            var temp = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar)
+                       + Path.DirectorySeparatorChar;
+            return full.StartsWith(temp, StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }
     }
@@ -1562,11 +1595,11 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 var message = Tr(
                     $"Für {entry.Entry.ChannelFolderName} liegen keine Offline-Dateien vor.\n\n" +
-                    "Entweder den Modus auf \"Online\" oder \"Automatisch\" stellen, oder die Dateien mit\n" +
-                    "setup.exe /download <Konfiguration>\nin den Ordner der Basis herunterladen.",
+                    "Entweder den Modus auf \"Online\" oder \"Automatisch\" stellen, oder die Dateien " +
+                    "vorher mit \"Offline laden\" beim Eintrag herunterladen.",
                     $"There are no offline files for {entry.Entry.ChannelFolderName}.\n\n" +
-                    "Either switch the mode to \"Online\" or \"Automatic\", or download the files using\n" +
-                    "setup.exe /download <configuration>\ninto the folder of the base.");
+                    "Either switch the mode to \"Online\" or \"Automatic\", or first download the files " +
+                    "with \"Download offline\" on the entry.");
                 Log(Tr("[FEHLER] Keine Offline-Dateien vorhanden.", "[ERROR] No offline files present."));
                 if (window is not null)
                     await MessageBox.ShowInfo(window, Tr("Keine Offline-Dateien", "No offline files"), message);
@@ -1738,7 +1771,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("InstallEntryAsync", ex);
+            ActivityLog.Error("InstallEntryAsync", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
         }
         finally
@@ -1769,7 +1802,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("FindOfficeConflicts", ex);
+            ActivityLog.Error("FindOfficeConflicts", ex);
             Log(Tr($"[!] Installiertes Office ließ sich nicht prüfen: {ex.Message}",
                    $"[!] Installed Office could not be checked: {ex.Message}"));
             return OfficeConflictReport.None;
@@ -1891,11 +1924,19 @@ public partial class MainWindowViewModel : ObservableObject
             BusyText = Tr($"Offline-Dateien für {entry.Entry.ChannelFolderName} werden geladen - das kann dauern.",
                           $"Downloading offline files for {entry.Entry.ChannelFolderName} - this may take a while.");
 
+            var beobachtung = await PlanProgress(plan.SourcePath, entry.OnlineVersion);
             using var process = InstallRunner.Start(plan);
             Log(Tr($"Gestartet (PID {process.Id}).", $"Started (PID {process.Id})."));
-            await WaitWithProgress(process, plan.SourcePath, entry.OnlineVersion);
+            await WaitWithProgress(process, beobachtung);
 
-            if (process.ExitCode == 0)
+            // Rueckgabewert 0 heisst nicht zwingend, dass auch etwas ankam -
+            // deshalb wird der Bestand nachgeprueft, bevor aufgeraeumt wird.
+            var unvollstaendig = process.ExitCode == 0
+                ? OfflineSource.VerifyDownload(entry.Entry.Configuration.BaseFolder,
+                                               entry.Entry.ClientEdition, entry.OnlineVersion)
+                : null;
+
+            if (process.ExitCode == 0 && unvollstaendig is null)
             {
                 Log(Tr("Fertig! Die Offline-Dateien wurden geladen.", "Done! The offline files were downloaded."));
 
@@ -1905,6 +1946,24 @@ public partial class MainWindowViewModel : ObservableObject
                 UiEnabled = true;
                 OnlineVersionService.ClearCache();
                 await Scan();   // damit die neue Version sofort in der Liste steht
+                return;
+            }
+
+            if (unvollstaendig is not null)
+            {
+                Log(Tr($"[FEHLER] Das Deployment Tool meldete Erfolg, der Bestand ist aber unvollständig: {unvollstaendig}",
+                       $"[ERROR] The deployment tool reported success, but the files are incomplete: {unvollstaendig}"));
+                if (window is not null)
+                    await MessageBox.ShowInfo(window,
+                        Tr("Download unvollständig", "Download incomplete"),
+                        Tr($"Das Deployment Tool hat sich ohne Fehler beendet, aber es fehlt etwas:\n\n{unvollstaendig}\n\n" +
+                           "Alte Stände wurden deshalb nicht entfernt. Häufige Ursachen: eine unterbrochene " +
+                           "Internetverbindung oder ein Proxy, der den Download verhindert. Einfach noch einmal versuchen - " +
+                           "vorhandene Dateien werden nicht erneut geladen.",
+                           $"The deployment tool finished without error, but something is missing:\n\n{unvollstaendig}\n\n" +
+                           "Old builds were therefore not removed. Common causes: an interrupted internet " +
+                           "connection or a proxy blocking the download. Simply try again - existing files are " +
+                           "not downloaded again."));
                 return;
             }
 
@@ -1922,7 +1981,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("DownloadOfflineAsync", ex);
+            ActivityLog.Error("DownloadOfflineAsync", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
         }
         finally
@@ -1950,6 +2009,16 @@ public partial class MainWindowViewModel : ObservableObject
         Log(Tr("Abbruch angefordert - der gerade laufende Download wird noch zu Ende geführt.",
                "Cancellation requested - the download currently running will still finish."));
     }
+
+    /// <summary>"1 Installationsbasis" / "3 Installationsbasen" - je nach Sprache.</summary>
+    private static string Basen(int anzahl)
+        => anzahl == 1
+            ? Tr("1 Installationsbasis", "1 installation base")
+            : Tr($"{anzahl} Installationsbasen", $"{anzahl} installation bases");
+
+    /// <summary>"1 Produkt" / "4 Produkte" - je nach Sprache.</summary>
+    private static string Produkte(int anzahl)
+        => anzahl == 1 ? Tr("1 Produkt", "1 product") : Tr($"{anzahl} Produkte", $"{anzahl} products");
 
     /// <summary>
     /// Bringt saemtliche Installationsbasen auf den aktuellen Stand - beide
@@ -2007,17 +2076,23 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 var zustand = !g.HasOffline
                     ? Tr("wird komplett geladen", "will be downloaded in full")
-                    : g.Online is not null && g.Local is not null && g.Online > g.Local
-                        ? Tr($"{g.Local} -> {g.Online}", $"{g.Local} -> {g.Online}")
-                        : Tr("aktuell, wird nur geprüft", "up to date, will only be verified");
-                return $"  {g.Name}  ({g.Entries.Count} " + Tr("Produkte", "products") + $", {zustand})";
+                    : g.Online is null
+                        ? Tr("Stand online unbekannt, wird abgeglichen", "online build unknown, will be checked")
+                        : g.Local is not null && g.Online > g.Local
+                            ? $"{g.Local} -> {g.Online}"
+                            : Tr("aktuell, wird nur geprüft", "up to date, will only be verified");
+                return $"  {g.Name}  ({Produkte(g.Entries.Count)}, {zustand})";
             }));
 
             var warnung = neuZuLaden.Count > 0
-                ? Tr($"\nACHTUNG: {neuZuLaden.Count} Basis/Basen haben noch gar keine Dateien - " +
-                     "dort werden mehrere Gigabyte geladen.\n",
-                     $"\nWARNING: {neuZuLaden.Count} base(s) have no files at all - " +
-                     "several gigabytes will be downloaded there.\n")
+                ? Tr(neuZuLaden.Count == 1
+                         ? "\nACHTUNG: Eine Basis hat noch gar keine Dateien - dort werden mehrere Gigabyte geladen.\n"
+                         : $"\nACHTUNG: {neuZuLaden.Count} Basen haben noch gar keine Dateien - " +
+                           "dort werden mehrere Gigabyte geladen.\n",
+                     neuZuLaden.Count == 1
+                         ? "\nWARNING: One base has no files at all - several gigabytes will be downloaded there.\n"
+                         : $"\nWARNING: {neuZuLaden.Count} bases have no files at all - " +
+                           "several gigabytes will be downloaded there.\n")
                 : "";
 
             var aufraeumen = CleanupAfterUpdate
@@ -2028,12 +2103,14 @@ public partial class MainWindowViewModel : ObservableObject
             var confirm = await MessageBox.ShowYesNo(window,
                 Tr("Alle Offline-Bestände aktualisieren oder herunterladen",
                    "Update or download all offline sets"),
-                Tr($"{groups.Count} Installationsbasen, je ein Durchlauf:\n\n{uebersicht}\n" +
-                   (veraltet > 0 ? $"\nBei {veraltet} Basis/Basen ist online ein neuerer Stand bekannt.\n" : "") +
+                Tr($"{Basen(groups.Count)}, je ein Durchlauf:\n\n{uebersicht}\n" +
+                   (veraltet == 1 ? "\nBei einer Basis ist online ein neuerer Stand bekannt.\n"
+                    : veraltet > 1 ? $"\nBei {veraltet} Basen ist online ein neuerer Stand bekannt.\n" : "") +
                    warnung + aufraeumen +
                    "\n\nEs wird nur geladen, was fehlt. Abbrechen ist jederzeit möglich.\n\nJetzt starten?",
-                   $"{groups.Count} installation bases, one run each:\n\n{uebersicht}\n" +
-                   (veraltet > 0 ? $"\nA newer build is known online for {veraltet} base(s).\n" : "") +
+                   $"{Basen(groups.Count)}, one run each:\n\n{uebersicht}\n" +
+                   (veraltet == 1 ? "\nA newer build is known online for one base.\n"
+                    : veraltet > 1 ? $"\nA newer build is known online for {veraltet} bases.\n" : "") +
                    warnung + aufraeumen +
                    "\n\nOnly missing files are downloaded. You can cancel at any point.\n\nStart now?"));
 
@@ -2060,9 +2137,9 @@ public partial class MainWindowViewModel : ObservableObject
 
             Log("");
             Log("=========================================");
-            Log(Tr($"Bearbeite {groups.Count} Installationsbasen ({zuAktualisieren.Count} aktualisieren, " +
+            Log(Tr($"Bearbeite {Basen(groups.Count)} ({zuAktualisieren.Count} aktualisieren, " +
                    $"{neuZuLaden.Count} neu laden)...",
-                   $"Processing {groups.Count} installation bases ({zuAktualisieren.Count} to update, " +
+                   $"Processing {Basen(groups.Count)} ({zuAktualisieren.Count} to update, " +
                    $"{neuZuLaden.Count} to download)..."));
 
             for (var index = 0; index < groups.Count; index++)
@@ -2072,21 +2149,32 @@ public partial class MainWindowViewModel : ObservableObject
                 var group = groups[index];
                 BusyText = Tr($"{index + 1} von {groups.Count}: {group.Name}",
                               $"{index + 1} of {groups.Count}: {group.Name}");
-                Log(Tr($"[{index + 1}/{groups.Count}] {group.Name} - {group.Entries.Count} Produkte",
-                       $"[{index + 1}/{groups.Count}] {group.Name} - {group.Entries.Count} products"));
+                Log($"[{index + 1}/{groups.Count}] {group.Name} - {Produkte(group.Entries.Count)}");
 
                 try
                 {
                     var plan = await Task.Run(() => InstallRunner.PrepareBaseDownload(group.Entries), cts.Token);
 
+                    var beobachtung = await PlanProgress(plan.SourcePath, group.Online);
                     using var process = InstallRunner.Start(plan);
-                    await WaitWithProgress(process, plan.SourcePath, group.Online);
+                    await WaitWithProgress(process, beobachtung);
 
                     if (process.ExitCode != 0)
                     {
                         fehler++;
                         Log(Tr($"      [FEHLER] Rückgabewert {process.ExitCode}.",
                                $"      [ERROR] exit code {process.ExitCode}."));
+                        continue;
+                    }
+
+                    var basis = group.Entries[0];
+                    var unvollstaendig = OfflineSource.VerifyDownload(
+                        basis.Configuration.BaseFolder, basis.ClientEdition, group.Online);
+                    if (unvollstaendig is not null)
+                    {
+                        fehler++;
+                        Log(Tr($"      [FEHLER] Unvollständig: {unvollstaendig}",
+                               $"      [ERROR] Incomplete: {unvollstaendig}"));
                         continue;
                     }
 
@@ -2113,7 +2201,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("UpdateAllOffline", ex);
+            ActivityLog.Error("UpdateAllOffline", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
         }
         finally
@@ -2135,7 +2223,7 @@ public partial class MainWindowViewModel : ObservableObject
         catch (OperationCanceledException) { /* abgeloest - kein Fehler */ }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("UpdateAllOffline/Scan", ex);
+            ActivityLog.Error("UpdateAllOffline/Scan", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
         }
 
@@ -2143,11 +2231,11 @@ public partial class MainWindowViewModel : ObservableObject
         {
             await MessageBox.ShowInfo(fenster,
                 Tr("Abgeschlossen", "Finished"),
-                Tr($"{erfolg} von {groups.Count} Installationsbasen wurden verarbeitet." +
+                Tr($"{erfolg} von {Basen(groups.Count)} wurden verarbeitet." +
                    (fehler > 0 ? $"\n{fehler} davon mit Fehler - Einzelheiten stehen im Protokoll." : "") +
                    (freigegeben > 0 ? $"\nDurch das Entfernen alter Stände wurden {OfflineSource.FormatBytes(freigegeben)} frei." : "") +
                    (abgebrochen ? "\nDer Vorgang wurde vorzeitig abgebrochen." : ""),
-                   $"{erfolg} of {groups.Count} installation bases were processed." +
+                   $"{erfolg} of {Basen(groups.Count)} were processed." +
                    (fehler > 0 ? $"\n{fehler} of them failed - see the log for details." : "") +
                    (freigegeben > 0 ? $"\nRemoving old builds freed {OfflineSource.FormatBytes(freigegeben)}." : "") +
                    (abgebrochen ? "\nThe process was cancelled early." : "")));
@@ -2301,7 +2389,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Program.WriteCrashLog("UpdateDeploymentTool", ex);
+            ActivityLog.Error("UpdateDeploymentTool", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
             if (ActiveWindow is { } win)
                 await MessageBox.ShowInfo(win, Tr("Fehlgeschlagen", "Failed"), ex.Message);
@@ -2401,15 +2489,31 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Legt VOR dem Start des Deployment Tools fest, was beobachtet wird, und
+    /// misst den Ausgangsstand. Der gleiche Kanal unter der anderen Architektur
+    /// dient als Vergleichsgroesse - siehe DownloadProgress.SiblingSourcePath.
+    /// </summary>
+    private static async Task<DownloadProgress.WatchPlan?> PlanProgress(string? sourcePath, Version? targetVersion)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath)) return null;
+        try
+        {
+            return await Task.Run(() => DownloadProgress.Plan(
+                sourcePath, targetVersion, DownloadProgress.SiblingSourcePath(sourcePath)));
+        }
+        catch { return null; }   // dann eben ohne Anzeige
+    }
+
+    /// <summary>
     /// Wartet auf das Deployment Tool und zeigt waehrenddessen den Fortschritt.
     ///
     /// Das Tool meldet beim Herunterladen von sich aus nichts - weder Fenster
     /// noch Ausgabe. Beobachtet wird deshalb der Zielordner; die Begruendung
     /// steht bei <see cref="DownloadProgress"/>.
     /// </summary>
-    private async Task WaitWithProgress(Process process, string? sourcePath, Version? targetVersion)
+    private async Task WaitWithProgress(Process process, DownloadProgress.WatchPlan? plan)
     {
-        if (string.IsNullOrWhiteSpace(sourcePath))
+        if (plan is not { } beobachtung)
         {
             await process.WaitForExitAsync();
             return;
@@ -2433,11 +2537,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
         });
 
-        // Der gleiche Kanal unter der anderen Architektur dient als
-        // Vergleichsgroesse - siehe DownloadProgress.SiblingSourcePath.
-        var beobachter = DownloadProgress.WatchAsync(
-            sourcePath, targetVersion, melder, stop.Token,
-            DownloadProgress.SiblingSourcePath(sourcePath));
+        var beobachter = DownloadProgress.WatchAsync(beobachtung, melder, stop.Token);
 
         try
         {

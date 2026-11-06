@@ -18,13 +18,70 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
   Konfigurationen; der Workflow zieht dabei `package\Versionscheck\Version.txt`
   mit, damit die nächste EXE ihren eingebauten Stand kennt.
 
+- **Protokoll als Datei.** Jede Zeile des Protokolls landet zusätzlich mit
+  Uhrzeit in `%LOCALAPPDATA%\OfficeInstall\Protokoll.txt` — schließt sich das
+  Fenster nach der Installation von selbst, ist es nicht mehr verloren. Ab
+  etwa 1 MB beginnt eine neue Datei, die vorige bleibt als `Protokoll.alt.txt`.
+
+### Sicherheit
+
+- **Programm-Update nur mit Prüfsumme und über https.** Ein Eintrag in
+  `update.json` ohne SHA256 oder mit `http://`-Adresse wird nicht mehr
+  angeboten; `Update-Url.txt` nimmt nur noch `https://` an. Vorher wurde ohne
+  Prüfsumme eingespielt und trotzdem „Prüfsumme stimmt“ gemeldet.
+- **Deployment Tool wird vor dem Ausführen geprüft.** Paket und entpackte
+  `setup.exe` müssen gültig von *Microsoft Corporation* signiert sein.
+  `ODT-Url.txt` nimmt nur noch Adressen unter `https://download.microsoft.com/`
+  an.
+- **Veröffentlichungs-Workflow:** Eingaben gelangen über Umgebungsvariablen in
+  die Skripte statt als Text hineinkopiert zu werden. Die Prüfungen laufen
+  jetzt auch vor jeder Veröffentlichung des Programms.
+
 ### Behoben
 
+- **Selbstaktualisierung bei Umlauten im Benutzernamen.** Das Austausch-Skript
+  war als UTF-8 geschrieben, `cmd.exe` liest aber die OEM-Codepage — aus
+  `Jürgen` wurde `J├╝rgen`, das Update kam nie an und das unsichtbare Fenster
+  hing an `pause`. Jetzt kopiert sich die neue EXE selbst an die Stelle der
+  alten; ein Fehlschlag wird beim nächsten Start gemeldet.
+- **Download „erfolgreich“, aber nichts angekommen.** Der Rückgabewert 0 des
+  Deployment Tools genügt nicht mehr: Danach muss ein nicht leerer
+  Versionsordner samt `v32.cab`/`v64.cab` da sein, nicht älter als online
+  gemeldet. Sonst gilt der Download als fehlgeschlagen, und der alte Stand wird
+  nicht weggeräumt.
+- **Zwei Fenster gleichzeitig.** Beide teilten sich `%TEMP%\OfficeInstall`;
+  das eine räumte dem anderen die Konfiguration unter dem laufenden Deployment
+  Tool weg. Jetzt hat jedes Fenster seinen eigenen Unterordner.
+- **Springende Oberfläche.** Das Suchergebnis steht jetzt kurz („3 von 24“) im
+  Suchfeld statt neben der Modus-Erklärung, die dadurch bei jedem Tastendruck
+  neu umbrach. Fortschrittsbalken und -text verschieben beim Start eines
+  Vorgangs nichts mehr.
+- **Erstdownload als „nachgeladen“ gemeldet.** Der Ausgangsstand für die
+  Fortschrittsanzeige wird jetzt vor dem Start des Deployment Tools gemessen.
+- Untertitel „Paketstand … vom …“ wechselt mit der Sprache; „Paketordner:“
+  wird nicht mehr abgeschnitten.
+- Sammel-Download: „Stand online unbekannt“ statt „aktuell“, wenn offline;
+  Einzahl und Mehrzahl stimmen („1 Installationsbasis“, „1 Produkt“).
+- Fehlende Offline-Dateien: Die Meldung verweist auf **Offline laden** statt
+  auf einen Kommandozeilenaufruf.
+- Abgefangene Fehler schreiben nicht mehr in die Absturzdatei auf dem Desktop,
+  sondern ins Protokoll; die Absturzdatei wächst nicht mehr unbegrenzt.
+- Netzprüfung: Ist der Windows-Prüfendpunkt im Firmennetz gesperrt, wird
+  ersatzweise `https://github.com` gefragt.
+- Automatische Einrichtung auch in Unterordnern von `%TEMP%` unterdrückt (EXE
+  direkt aus dem ZIP gestartet).
 - **Konfigurationen wurden nicht mehr angeboten.** Der Eintrag `configs` in
   `update.json` war seit 1.3.1 leer. Konfigurationen 69 sind wieder eingetragen.
 - **Paketordner im Stammverzeichnis (z. B. `E:\` auf einem USB-Stick).** Endete
   der Paketordner auf einen Trenner, wurde beim Einspielen der Vorlagen keine
   einzige Datei geschrieben.
+
+### Entfernt
+
+- Nicht mehr benutzter Code: das Austausch-Skript, zwei Systemhelfer, ein
+  Aufräumhelfer, eine CDN-Adresse, zwei Farben, ein Sprach-Ereignis ohne
+  Empfänger; vier Lesehilfen, die nur die Prüfungen brauchten, liegen jetzt
+  dort. Die Versionsnummer steht nur noch in der `.csproj`.
 
 ---
 

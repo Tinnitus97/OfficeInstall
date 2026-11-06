@@ -83,8 +83,4 @@ public static class OfficeChannels
         => folderName is null
             ? null
             : All.FirstOrDefault(c => string.Equals(c.FolderName, folderName, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>Basisadresse des Kanals auf dem Microsoft-CDN.</summary>
-    public static string CdnBaseUrl(OfficeChannel channel)
-        => $"https://officecdn.microsoft.com/pr/{channel.CdnGuid}";
 }

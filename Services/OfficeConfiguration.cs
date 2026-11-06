@@ -167,18 +167,6 @@ public sealed class OfficeConfiguration
         catch { return null; }
     }
 
-    /// <summary>Liest den Kanal einer Datei aus.</summary>
-    public static string? ReadChannel(string file)
-    {
-        try
-        {
-            var document = XDocument.Load(file);
-            var add = document.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Add");
-            return (string?)add?.Attribute("Channel");
-        }
-        catch { return null; }
-    }
-
     /// <summary>
     /// Schreibt eine Kopie ohne SourcePath. Zusammen mit einem Arbeitsordner,
     /// in dem keine Office-Quelldateien liegen, erzwingt das die Installation
@@ -235,16 +223,6 @@ public sealed class OfficeConfiguration
         var element = new XElement(document.Root.Name.Namespace + "RemoveMSI");
         if (add is not null) add.AddAfterSelf(element);
         else document.Root.Add(element);
-    }
-
-    /// <summary>true, wenn die Datei &lt;RemoveMSI/&gt; enthaelt - fuer die Kontrolle im Test.</summary>
-    public static bool HasRemoveMsi(string file)
-    {
-        try
-        {
-            return XDocument.Load(file).Root?.Elements().Any(e => e.Name.LocalName == "RemoveMSI") == true;
-        }
-        catch { return false; }
     }
 
     /// <summary>
@@ -326,30 +304,5 @@ public sealed class OfficeConfiguration
 
         new XDocument(new XElement("Configuration", add)).Save(targetFile);
         return count;
-    }
-
-    /// <summary>Zaehlt die Produkte in einer Konfigurationsdatei.</summary>
-    public static int CountProducts(string file)
-    {
-        try
-        {
-            var document = XDocument.Load(file);
-            return document.Root?
-                .Elements().FirstOrDefault(e => e.Name.LocalName == "Add")?
-                .Elements().Count(e => e.Name.LocalName == "Product") ?? 0;
-        }
-        catch { return 0; }
-    }
-
-    /// <summary>Liest den SourcePath einer Datei aus - fuer die Kontrolle im Test.</summary>
-    public static string? ReadSourcePath(string file)
-    {
-        try
-        {
-            var document = XDocument.Load(file);
-            var add = document.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Add");
-            return (string?)add?.Attribute("SourcePath");
-        }
-        catch { return null; }
     }
 }

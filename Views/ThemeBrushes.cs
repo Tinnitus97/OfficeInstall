@@ -21,9 +21,7 @@ internal static class ThemeBrushes
     public static IBrush Base    => Get("BaseBrush", "#1E1E2E");
     public static IBrush Crust   => Get("CrustBrush", "#11111B");
     public static IBrush Surface0=> Get("Surface0Brush", "#313244");
-    public static IBrush Surface1=> Get("Surface1Brush", "#45475A");
     public static IBrush Text    => Get("TextBrush", "#CDD6F4");
-    public static IBrush Subtext => Get("SubtextBrush", "#A6ADC8");
     public static IBrush Blue    => Get("BlueBrush", "#89B4FA");
     public static IBrush Green   => Get("GreenBrush", "#A6E3A1");
     public static IBrush Red     => Get("RedBrush", "#F38BA8");

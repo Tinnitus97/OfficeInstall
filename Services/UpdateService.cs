@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +20,15 @@ public sealed class UpdateEntry
     public string Sha256 { get; init; } = "";
     public string Notes { get; init; } = "";
 
-    public bool IsUsable => !string.IsNullOrWhiteSpace(Version) && !string.IsNullOrWhiteSpace(Url);
+    /// <summary>
+    /// Nur mit https-Adresse UND Pruefsumme brauchbar. Eingespielt wird eine
+    /// EXE, die mit Administratorrechten startet - ohne Pruefsumme oder ueber
+    /// eine unverschluesselte Verbindung liesse sich unterwegs eine andere
+    /// unterschieben.
+    /// </summary>
+    public bool IsUsable => !string.IsNullOrWhiteSpace(Version)
+                            && UpdateService.IsSecureUrl(Url)
+                            && !string.IsNullOrWhiteSpace(Sha256);
 }
 
 /// <summary>Das Ergebnis der Abfrage.</summary>
@@ -82,14 +88,21 @@ public static class UpdateService
             var file = UrlOverridePath(rootFolder);
             if (!File.Exists(file)) return DefaultManifestUrl;
 
+            // Nur https: Ueber diese Adresse kommt am Ende eine EXE, die mit
+            // Administratorrechten startet. Eine http-Zeile wird uebergangen.
             var line = File.ReadAllLines(file)
                 .Select(l => l.Trim())
-                .FirstOrDefault(l => l.StartsWith("http", StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(IsSecureUrl);
 
             return string.IsNullOrWhiteSpace(line) ? DefaultManifestUrl : line;
         }
         catch { return DefaultManifestUrl; }
     }
+
+    /// <summary>true fuer eine gueltige, absolute https-Adresse.</summary>
+    public static bool IsSecureUrl(string? url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+           && string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
 
     // ------------------------------------------------------------ Abfragen
 
@@ -98,7 +111,7 @@ public static class UpdateService
         try
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("OfficeInstall");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
             // Kein zwischengespeicherter Stand - sonst meldet ein Rechner
             // stundenlang die alte Nummer.
             client.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue
@@ -200,13 +213,22 @@ public static class UpdateService
     public static async Task<DownloadResult> DownloadAsync(
         string url, string expectedSha256, string targetFile, CancellationToken ct)
     {
+        // Beides ist Pflicht, nicht nur "wenn vorhanden": Ohne Pruefsumme
+        // gaebe es nichts zu vergleichen, und ueber http liesse sich die
+        // Datei samt passender Angabe unterwegs austauschen.
+        if (!IsSecureUrl(url))
+            return new DownloadResult(false, targetFile, "Geladen wird nur über https.", 0);
+        if (string.IsNullOrWhiteSpace(expectedSha256))
+            return new DownloadResult(false, targetFile,
+                "Keine Prüfsumme hinterlegt - ohne sie wird nichts eingespielt.", 0);
+
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(targetFile))!);
 
             using (var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) })
             {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("OfficeInstall");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
 
                 using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
                 response.EnsureSuccessStatusCode();
@@ -218,15 +240,12 @@ public static class UpdateService
 
             var size = new FileInfo(targetFile).Length;
 
-            if (!string.IsNullOrWhiteSpace(expectedSha256))
+            var actual = ComputeSha256(targetFile);
+            if (!string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase))
             {
-                var actual = ComputeSha256(targetFile);
-                if (!string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase))
-                {
-                    TryDelete(targetFile);
-                    return new DownloadResult(false, targetFile,
-                        $"Prüfsumme stimmt nicht (erwartet {Short(expectedSha256)}, erhalten {Short(actual)})", size);
-                }
+                TryDelete(targetFile);
+                return new DownloadResult(false, targetFile,
+                    $"Prüfsumme stimmt nicht (erwartet {Short(expectedSha256)}, erhalten {Short(actual)})", size);
             }
 
             return new DownloadResult(true, targetFile, null, size);
@@ -368,70 +387,6 @@ public static class UpdateService
 
         // x64/PerpetualVL2021/datei.xml -> genau drei Teile, keine tiefere Ebene
         return isConfig && normalized.Split('/').Length == 3;
-    }
-
-    // ------------------------------------------------------------ Programm austauschen
-
-    /// <summary>
-    /// Tauscht die laufende EXE gegen die heruntergeladene aus.
-    ///
-    /// Eine laufende EXE kann sich nicht selbst ueberschreiben. Deshalb wird
-    /// ein kleines Batch-Skript geschrieben, das wartet, bis dieser Vorgang
-    /// beendet ist, dann die Datei ersetzt und das Programm neu startet.
-    ///
-    /// Das Skript liegt in einem EIGENEN Ordner (%TEMP%\OfficeInstall-Update).
-    /// Der Arbeitsordner %TEMP%\OfficeInstall wird beim Beenden geleert - genau
-    /// waehrend das Skript noch laeuft.
-    /// </summary>
-    public static string WriteUpdateScript(string newExe, string currentExe, int processId)
-    {
-        Directory.CreateDirectory(WorkFolder);
-        var script = Path.Combine(WorkFolder, "austausch.cmd");
-
-        var text = $"""
-            @echo off
-            rem Wartet auf das Ende von OfficeInstall und ersetzt dann die Datei.
-            setlocal
-            set "NEU={newExe}"
-            set "ZIEL={currentExe}"
-
-            for /l %%i in (1,1,30) do (
-              tasklist /fi "PID eq {processId}" 2>nul | find "{processId}" >nul || goto ersetzen
-              timeout /t 1 /nobreak >nul
-            )
-
-            :ersetzen
-            move /y "%NEU%" "%ZIEL%" >nul
-            if errorlevel 1 (
-              echo.
-              echo Die Datei konnte nicht ersetzt werden.
-              echo Neue Fassung liegt hier: %NEU%
-              echo Ziel: %ZIEL%
-              echo.
-              echo Moegliche Gruende: fehlende Schreibrechte, oder das Programm
-              echo laeuft an einem anderen Arbeitsplatz aus demselben Ordner.
-              echo.
-              pause
-              exit /b 1
-            )
-
-            start "" "%ZIEL%"
-            del "%~f0" >nul 2>&1
-            """;
-
-        File.WriteAllText(script, text, Encoding.UTF8);
-        return script;
-    }
-
-    /// <summary>Startet das Austauschskript. Danach muss das Programm sich beenden.</summary>
-    public static void StartUpdateScript(string script)
-    {
-        Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{script}\"")
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WorkingDirectory = WorkFolder
-        });
     }
 
     /// <summary>Raeumt den eigenen Arbeitsordner auf.</summary>

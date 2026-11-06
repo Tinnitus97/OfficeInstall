@@ -85,8 +85,8 @@
                         <TextBlock Classes="section" Text="{Binding SectionSource}"/>
 
                         <!-- Ordner + Schaltflächen in einer Zeile -->
-                        <Grid ColumnDefinitions="72,*,34,Auto,Auto" Margin="0,0,0,5">
-                            <TextBlock Classes="fieldLabel" Text="{Binding LabelFolder}"/>
+                        <Grid ColumnDefinitions="Auto,*,34,Auto,Auto" Margin="0,0,0,5">
+                            <TextBlock Classes="fieldLabel" Text="{Binding LabelFolder}" Margin="0,0,8,0"/>
                             <TextBox Grid.Column="1" Classes="path" Text="{Binding RootFolder}"
                                      ToolTip.Tip="{Binding RootFolder}"/>
                             <Button Grid.Column="2" Content="…" Margin="4,0,0,0" Classes="secondary"
@@ -131,22 +131,18 @@
                             </Border>
                         </Grid>
 
-                        <!-- Modus-Erklärung, Suchergebnis und die Aufräum-Option in EINER Zeile.
+                        <!-- Modus-Erklärung und die Aufräum-Option in EINER Zeile.
                              Die Erklärung darf umbrechen - sie ist der einzige längere Text
                              hier und würde sonst mitten im Satz abgeschnitten. Das
-                             Suchergebnis daneben bleibt einzeilig und erscheint nur,
-                             solange etwas im Suchfeld steht. -->
-                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="2,5,0,0">
+                             Suchergebnis stand frueher ebenfalls hier und liess die
+                             Erklaerung bei jedem Tastendruck neu umbrechen - es sitzt
+                             jetzt im Suchfeld. -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="2,5,0,0">
                             <TextBlock Grid.Column="0" Text="{Binding ModeHint}"
                                        FontSize="10" TextWrapping="Wrap" LineHeight="13"
                                        VerticalAlignment="Center" Margin="0,0,8,0"
                                        Foreground="{DynamicResource SubtextBrush}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding ScanStatus}"
-                                       FontSize="10" TextWrapping="NoWrap"
-                                       TextTrimming="CharacterEllipsis"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"
-                                       Foreground="{DynamicResource SubtextBrush}"/>
-                            <CheckBox Grid.Column="2" Classes="opt" VerticalAlignment="Center"
+                            <CheckBox Grid.Column="1" Classes="opt" VerticalAlignment="Center"
                                       Content="{Binding OptCleanup}"
                                       ToolTip.Tip="{Binding OptCleanupHint}"
                                       IsChecked="{Binding CleanupAfterUpdate}"
@@ -156,17 +152,16 @@
                         <!-- Beim Herunterladen zeigt der Balken einen echten Anteil,
                              sobald es eine Vergleichsgroesse gibt (ProgressKnown).
                              Sonst laeuft er unbestimmt - das Deployment Tool
-                             meldet von sich aus keinen Fortschritt. -->
-                        <ProgressBar Height="3" CornerRadius="2"
-                                     Margin="2,4,2,0" IsVisible="{Binding IsBusy}"
-                                     Minimum="0" Maximum="100"
-                                     Value="{Binding ProgressValue}"
-                                     IsIndeterminate="{Binding !ProgressKnown}"/>
-
-                        <TextBlock Text="{Binding ProgressText}" FontSize="10"
-                                   Margin="2,3,2,0" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource SubtextBrush}"
-                                   IsVisible="{Binding ProgressText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                             meldet von sich aus keinen Fortschritt.
+                             Der Platz bleibt immer reserviert, damit die Knoepfe
+                             darunter beim Start eines Vorgangs nicht verrutschen. -->
+                        <Panel Height="3" Margin="2,4,2,0">
+                            <ProgressBar Height="3" MinHeight="3" CornerRadius="2"
+                                         IsVisible="{Binding IsBusy}"
+                                         Minimum="0" Maximum="100"
+                                         Value="{Binding ProgressValue}"
+                                         IsIndeterminate="{Binding !ProgressKnown}"/>
+                        </Panel>
 
                         <!-- Deployment Tool und Sammel-Aktualisierung -->
                         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,6,0,0">
@@ -238,11 +233,16 @@
                         </Grid>
 
                         <!-- Suchfeld -->
-                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,5">
                             <TextBox Grid.Column="0" Classes="search"
                                      Text="{Binding SearchText}"
                                      PlaceholderText="{Binding SearchHint}"/>
-                            <Button Grid.Column="1" Classes="secondary" Width="28" Margin="4,0,0,0"
+                            <!-- Treffer der laufenden Suche, z.B. "3 von 24" -->
+                            <TextBlock Grid.Column="1" Text="{Binding ScanStatus}"
+                                       FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0"
+                                       Foreground="{DynamicResource SubtextBrush}"
+                                       IsVisible="{Binding ScanStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            <Button Grid.Column="2" Classes="secondary" Width="28" Margin="4,0,0,0"
                                     Content="✕" ToolTip.Tip="{Binding BtnClearSearch}"
                                     Command="{Binding ClearSearchCommand}"/>
                         </Grid>
@@ -447,15 +447,23 @@
                     </Expander>
                 </Border>
 
-                <!-- Fusszeile -->
-                <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                <!-- Fusszeile. Die Mindesthoehe reicht fuer Statuszeile UND
+                     Fortschritt - sonst hoebe deren Erscheinen die Liste an. -->
+                <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,8,0,0" MinHeight="40">
                     <Border Grid.Column="0" IsVisible="{Binding IsBusy}" Padding="8,4" CornerRadius="5"
                             Margin="0,0,8,0" VerticalAlignment="Center"
                             Background="{DynamicResource Surface0Brush}">
-                        <TextBlock Text="{Binding BusyText}" FontSize="10.5" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextBrush}"/>
+                        <StackPanel>
+                            <TextBlock Text="{Binding BusyText}" FontSize="10.5" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextBrush}"/>
+                            <!-- Fortschritt des Downloads: hier unten verschiebt er nichts. -->
+                            <TextBlock Text="{Binding ProgressText}" FontSize="10"
+                                       Margin="0,1,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SubtextBrush}"
+                                       IsVisible="{Binding ProgressText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
                     </Border>
-                    <Button Grid.Column="1" Classes="secondary exit" Width="100"
+                    <Button Grid.Column="1" Classes="secondary exit" Width="100" VerticalAlignment="Center"
                             Content="{Binding BtnExit}" Command="{Binding ExitCommand}"/>
                 </Grid>
             </Grid>

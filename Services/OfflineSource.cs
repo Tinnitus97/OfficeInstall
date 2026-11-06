@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace OfficeInstall.Services;
 
@@ -78,6 +77,36 @@ public sealed class OfflineSource
             // Kein Zugriff, kaputtes Verzeichnis: dann eben keine Offline-Quelle.
             return NotAvailable(baseFolder);
         }
+    }
+
+    /// <summary>
+    /// Prueft nach einem Download, ob der Bestand wirklich brauchbar ist.
+    /// Rueckgabe null, wenn alles da ist, sonst der Grund.
+    ///
+    /// Der Rueckgabewert 0 des Deployment Tools allein genuegt nicht: Bei einem
+    /// abgebrochenen Netz, einem Proxy, der leere Antworten liefert, oder einer
+    /// falschen Konfiguration endet es mitunter "erfolgreich", ohne etwas
+    /// geladen zu haben. Wuerde danach aufgeraeumt, gingen sogar die alten,
+    /// noch brauchbaren Staende verloren.
+    /// </summary>
+    /// <param name="expected">Online gemeldete Version, falls bekannt.</param>
+    public static string? VerifyDownload(string baseFolder, int clientEdition, Version? expected)
+    {
+        var source = Detect(baseFolder, clientEdition);
+        if (!source.Available || source.LatestVersion is not { } latest)
+            return "Im Ordner Office\\Data liegt danach kein Versionsordner.";
+
+        if (!source.HasMatchingCab)
+            return $"Die Beschreibungsdatei {(clientEdition == 32 ? "v32.cab" : "v64.cab")} fehlt.";
+
+        if (expected is not null && latest < expected)
+            return $"Vorhanden ist Version {latest}, erwartet war {expected}.";
+
+        var newest = Path.Combine(baseFolder, "Office", "Data", latest.ToString());
+        if (MeasureSize(newest) == 0)
+            return $"Der Versionsordner {latest} ist leer.";
+
+        return null;
     }
 
     private static long MeasureSize(string folder)

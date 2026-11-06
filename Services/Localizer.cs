@@ -1,36 +1,20 @@
-using System;
-
 namespace OfficeInstall.Services;
 
 public enum AppLang { De, En }
 
 /// <summary>
 /// Zentrale Sprachverwaltung. Haelt die aktuelle Sprache und liefert ueber
-/// Tr(de, en) den passenden Text. Aenderungen melden sich per Event, damit
-/// die UI ihre Beschriftungen aktualisieren kann.
+/// Tr(de, en) den passenden Text. Die Oberflaeche frischt ihre Beschriftungen
+/// beim Sprachwechsel selbst auf (MainWindowViewModel.OnIsEnglishChanged).
 /// </summary>
 public sealed class Localizer
 {
     public static Localizer I { get; } = new();
 
-    private AppLang _lang = AppLang.De;
-
-    public AppLang Lang
-    {
-        get => _lang;
-        set
-        {
-            if (_lang == value) return;
-            _lang = value;
-            LanguageChanged?.Invoke();
-        }
-    }
-
-    /// <summary>Ereignis, das bei jedem Sprachwechsel ausgeloest wird.</summary>
-    public event Action? LanguageChanged;
+    public AppLang Lang { get; set; } = AppLang.De;
 
     /// <summary>Waehlt je nach aktueller Sprache den deutschen oder englischen Text.</summary>
-    public string Tr(string de, string en) => _lang == AppLang.En ? en : de;
+    public string Tr(string de, string en) => Lang == AppLang.En ? en : de;
 }
 
 /// <summary>Bequemer statischer Zugriff: Loc.Tr("...", "...").</summary>

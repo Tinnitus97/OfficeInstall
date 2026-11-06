@@ -39,6 +39,10 @@
     <Compile Include="../../Services/LegacyOfficeDownloads.cs" />
     <Compile Include="../../Services/TempWorkspace.cs" />
     <Compile Include="../../Services/UpdateService.cs" />
+    <Compile Include="../../Services/SelfUpdate.cs" />
+    <Compile Include="../../Services/AppInfo.cs" />
+    <Compile Include="../../Services/ActivityLog.cs" />
+    <Compile Include="../../Services/Authenticode.cs" />
   </ItemGroup>
 
   <!-- Dieselben Vorlagen wie in der EXE (OfficeInstall.csproj) - so prueft der

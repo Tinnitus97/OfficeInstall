@@ -42,8 +42,27 @@ permissions:
   contents: write
 
 jobs:
+  # ================================================================= Prüfungen
+  # Nichts wird veröffentlicht, was die Prüfungen nicht besteht - dieselben
+  # wie in build.yml, auf Linux in Sekunden durch.
+  pruefungen:
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref_name, 'v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.art == 'Programm')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Prüfungen ausführen
+        run: dotnet run --project tests/OfficeTests -c Release
+
   # ==================================================================== Programm
   programm:
+    needs: pruefungen
     if: >-
       (github.event_name == 'push' && startsWith(github.ref_name, 'v')) ||
       (github.event_name == 'workflow_dispatch' && inputs.art == 'Programm')
@@ -58,14 +77,21 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Eingabe und Etikett kommen ueber env: und NICHT als ${{ }} in das
+      # Skript. Sonst wuerde eine Eingabe wie  1'; Remove-Item ...  als
+      # Befehl ausgefuehrt, bevor die Pruefung unten greift.
       - name: Version und Etikett bestimmen
         id: version
         shell: pwsh
+        env:
+          EREIGNIS: ${{ github.event_name }}
+          NUMMER: ${{ inputs.nummer }}
+          ETIKETT: ${{ github.ref_name }}
         run: |
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            $version = '${{ inputs.nummer }}'.Trim().TrimStart('v')
+          if ($env:EREIGNIS -eq 'workflow_dispatch') {
+            $version = "$env:NUMMER".Trim().TrimStart('v')
           } else {
-            $version = '${{ github.ref_name }}'.TrimStart('v')
+            $version = "$env:ETIKETT".TrimStart('v')
           }
 
           if ($version -notmatch '^\d+\.\d+\.\d+$') {
@@ -159,11 +185,15 @@ jobs:
       - name: Konfigurationsdateien prüfen
         run: python tools/validate-configs.py package
 
+      # Eingabe ueber env: statt ${{ }} im Skript - siehe oben beim Programm.
       - name: Stand bestimmen
         id: stand
+        env:
+          EREIGNIS: ${{ github.event_name }}
+          EINGABE: ${{ inputs.nummer }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            NUMMER="${{ inputs.nummer }}"
+          if [ "$EREIGNIS" = "workflow_dispatch" ]; then
+            NUMMER="$EINGABE"
           else
             NUMMER="${GITHUB_REF_NAME#configs-}"
           fi

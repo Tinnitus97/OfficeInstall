@@ -45,8 +45,6 @@ public sealed class InstallPlan
     /// </summary>
     public string Verb { get; init; } = "configure";
 
-    public bool IsDownload => string.Equals(Verb, "download", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>true, wenn der Aufruf Office entfernt statt installiert.</summary>
     public bool IsRemoval { get; init; }
 
@@ -349,20 +347,5 @@ public static class InstallRunner
 
         return Process.Start(startInfo)
                ?? throw new InvalidOperationException("Der Installationsvorgang konnte nicht gestartet werden.");
-    }
-
-    /// <summary>
-    /// Raeumt die erzeugten Kopien auf. Ohne Angabe wird der gemeinsame
-    /// Arbeitsordner entfernt - siehe <see cref="TempWorkspace"/>.
-    /// </summary>
-    public static void CleanUp(string? tempRoot = null)
-    {
-        if (tempRoot is null) { TempWorkspace.Clear(); return; }
-
-        try
-        {
-            if (Directory.Exists(tempRoot)) OfflineSource.ForceDeleteDirectory(tempRoot);
-        }
-        catch { /* wird beim naechsten Mal ueberschrieben */ }
     }
 }
