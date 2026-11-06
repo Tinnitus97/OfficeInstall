@@ -2,6 +2,32 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [1.5.0] – 2026-11-06
+
+### Hinzugefügt
+
+- **Nur die EXE genügt.** Die Konfigurationsvorlagen aus `package\` stecken
+  jetzt in der EXE selbst. Beim ersten Start richtet sich der Ordner von allein
+  ein: Vorlagen auspacken (ohne Internet), Deployment Tool von Microsoft holen.
+  Ohne Internet bleibt das Deployment Tool als offener Schritt stehen.
+
+  Nicht von selbst in Downloads, auf dem Desktop, in Dokumente und `%TEMP%` —
+  dort bleibt die Einrichtungshilfe stehen, **Alles Nötige einrichten** genügt.
+
+  Neue Vorlagen kommen weiterhin über die Veröffentlichung der
+  Konfigurationen; der Workflow zieht dabei `package\Versionscheck\Version.txt`
+  mit, damit die nächste EXE ihren eingebauten Stand kennt.
+
+### Behoben
+
+- **Konfigurationen wurden nicht mehr angeboten.** Der Eintrag `configs` in
+  `update.json` war seit 1.3.1 leer. Konfigurationen 69 sind wieder eingetragen.
+- **Paketordner im Stammverzeichnis (z. B. `E:\` auf einem USB-Stick).** Endete
+  der Paketordner auf einen Trenner, wurde beim Einspielen der Vorlagen keine
+  einzige Datei geschrieben.
+
+---
+
 ## [1.4.0] – 2026-10-17
 
 ### Hinzugefügt
