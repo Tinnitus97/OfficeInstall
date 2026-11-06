@@ -152,7 +152,13 @@ public static class DeploymentToolService
         return targets;
     }
 
-    /// <summary>Liest eine fest vorgegebene Adresse aus Versionscheck\ODT-Url.txt.</summary>
+    /// <summary>
+    /// Liest eine fest vorgegebene Adresse aus Versionscheck\ODT-Url.txt.
+    /// Angenommen wird nur eine Adresse beim Download Center von Microsoft -
+    /// die Datei liegt im Paketordner, und wer dort schreiben kann, soll damit
+    /// nicht eine beliebige EXE zum Starten mit Administratorrechten
+    /// unterschieben koennen.
+    /// </summary>
     public static string? ReadUrlOverride(string rootFolder)
     {
         try
@@ -160,10 +166,17 @@ public static class DeploymentToolService
             var file = UrlOverridePath(rootFolder);
             if (!File.Exists(file)) return null;
             var url = File.ReadAllText(file).Trim();
-            return url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ? url : null;
+            return IsMicrosoftDownloadUrl(url) ? url : null;
         }
         catch { return null; }
     }
+
+    /// <summary>true fuer https://download.microsoft.com/...</summary>
+    public static bool IsMicrosoftDownloadUrl(string? url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+           && uri.Scheme == Uri.UriSchemeHttps
+           && uri.IsDefaultPort
+           && string.Equals(uri.Host, "download.microsoft.com", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Fragt beim Download Center nach der aktuell angebotenen Fassung.
@@ -182,7 +195,7 @@ public static class DeploymentToolService
         try
         {
             using var http = new HttpClient { Timeout = Timeout };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("OfficeInstall/1.3");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
             var page = await http.GetStringAsync(DownloadPageUrl, ct);
             return ExtractRelease(page);
         }
@@ -206,10 +219,19 @@ public static class DeploymentToolService
 
         using (var http = new HttpClient { Timeout = Timeout })
         {
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("OfficeInstall/1.3");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
             await using var stream = await http.GetStreamAsync(release.Url, ct);
             await using var file = File.Create(packageFile);
             await stream.CopyToAsync(file, ct);
+        }
+
+        // Erst pruefen, dann starten: Das Paket laeuft gleich mit
+        // Administratorrechten.
+        var packageProblem = Authenticode.VerifyMicrosoft(packageFile);
+        if (packageProblem is not null)
+        {
+            TryDelete(packageFile);
+            throw new InvalidOperationException("Das geladene Paket wird nicht ausgeführt: " + packageProblem);
         }
 
         var extractFolder = Path.Combine(workFolder, "extract");
@@ -236,7 +258,18 @@ public static class DeploymentToolService
         var setup = Directory.GetFiles(extractFolder, "setup.exe", SearchOption.AllDirectories).FirstOrDefault()
                     ?? throw new FileNotFoundException("Im entpackten Paket war keine setup.exe enthalten.");
 
+        // Dito fuer die setup.exe selbst - sie wird ins Paket kopiert und
+        // startet dort bei jeder Installation.
+        var setupProblem = Authenticode.VerifyMicrosoft(setup);
+        if (setupProblem is not null)
+            throw new InvalidOperationException("Die entpackte setup.exe wird nicht übernommen: " + setupProblem);
+
         return setup;
+    }
+
+    private static void TryDelete(string file)
+    {
+        try { File.Delete(file); } catch { /* bleibt im Arbeitsordner liegen */ }
     }
 
     /// <summary>

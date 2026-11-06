@@ -190,9 +190,11 @@ public static class DownloadProgress
 
     /// <summary>
     /// Ergebnis der Vorueberlegung: Was wird beobachtet, woran gemessen, und
-    /// handelt es sich um eine Aktualisierung?
+    /// handelt es sich um eine Aktualisierung? <paramref name="Baseline"/> ist
+    /// die Menge, die VOR dem Start im beobachteten Ordner lag - alles darueber
+    /// kam in diesem Lauf hinzu.
     /// </summary>
-    public readonly record struct WatchPlan(string Folder, long Reference, bool IsUpdate);
+    public readonly record struct WatchPlan(string Folder, long Reference, bool IsUpdate, long Baseline = 0);
 
     /// <summary>
     /// Der gleiche Kanal unter der anderen Architektur - also x32 statt x64
@@ -267,45 +269,42 @@ public static class DownloadProgress
         // Erstdownload: Der Nenner kam aus dem Nachbarordner, und die Anzeige
         // meldete "1,7 GB von ca. 1,5 GB - 99 %", noch bevor irgendetwas
         // geschehen war.
-        var zielSchonGefuellt = MeasureFolder(ordner) > 0;
+        var vorher = MeasureFolder(ordner);
+        var zielSchonGefuellt = vorher > 0;
 
         // Fall 2: Es ist schon etwas da - kein Nenner, keine Prozentangabe.
-        if (andere.Count > 0 || zielSchonGefuellt) return new WatchPlan(ordner, 0, true);
+        if (andere.Count > 0 || zielSchonGefuellt) return new WatchPlan(ordner, 0, true, vorher);
 
         // Fall 1: Vergleich aus dem Nachbarordner der anderen Architektur.
         var referenz = siblingSourcePath is null
             ? 0
             : ExistingVersions(siblingSourcePath).Select(v => v.Bytes).DefaultIfEmpty(0).Max();
 
-        return new WatchPlan(ordner, referenz, false);
+        return new WatchPlan(ordner, referenz, false, vorher);
     }
 
     /// <summary>
     /// Beobachtet den Ordner, bis abgebrochen wird, und meldet regelmaessig den
     /// Stand. Laeuft, bis das Token gesetzt wird - der Aufrufer beendet also,
     /// sobald das Deployment Tool fertig ist.
+    ///
+    /// Der Plan muss VOR dem Start des Deployment Tools erstellt werden
+    /// (<see cref="Plan"/>). Frueher wurde der Ausgangsstand erst danach
+    /// gemessen; was das Tool in der ersten Sekunde schrieb, galt dann als
+    /// "schon vorhanden" - ein Erstdownload erschien als Aktualisierung
+    /// ("nachgeladen" statt "geladen") und ohne Prozentangabe.
     /// </summary>
     public static async Task WatchAsync(
-        string sourcePath,
-        Version? targetVersion,
+        WatchPlan plan,
         IProgress<DownloadProgressReport> progress,
-        CancellationToken ct,
-        string? siblingSourcePath = null)
+        CancellationToken ct)
     {
-        var plan = await Task.Run(() => Plan(sourcePath, targetVersion, siblingSourcePath), ct)
-                             .ConfigureAwait(false);
-
         var ordner = plan.Folder;
         var referenz = plan.Reference;
+        var anfang = plan.Baseline;
 
         var start = DateTime.UtcNow;
         var verlauf = new Queue<(DateTime Zeit, long Bytes)>();
-
-        // Ausgangsstand: Alles darueber ist in diesem Lauf dazugekommen.
-        long anfang;
-        try { anfang = await Task.Run(() => MeasureFolder(ordner), ct).ConfigureAwait(false); }
-        catch (OperationCanceledException) { return; }
-        catch { anfang = 0; }
 
         while (!ct.IsCancellationRequested)
         {

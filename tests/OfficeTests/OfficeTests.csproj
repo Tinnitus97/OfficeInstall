@@ -34,10 +34,23 @@
     <Compile Include="../../Services/ConnectivityService.cs" />
     <Compile Include="../../Services/InstallRunner.cs" />
     <Compile Include="../../Services/InstalledOffice.cs" />
+    <Compile Include="../../Services/EmbeddedTemplates.cs" />
     <Compile Include="../../Services/DeploymentToolService.cs" />
     <Compile Include="../../Services/LegacyOfficeDownloads.cs" />
     <Compile Include="../../Services/TempWorkspace.cs" />
     <Compile Include="../../Services/UpdateService.cs" />
+    <Compile Include="../../Services/SelfUpdate.cs" />
+    <Compile Include="../../Services/AppInfo.cs" />
+    <Compile Include="../../Services/ActivityLog.cs" />
+    <Compile Include="../../Services/Authenticode.cs" />
+  </ItemGroup>
+
+  <!-- Dieselben Vorlagen wie in der EXE (OfficeInstall.csproj) - so prueft der
+       Test genau das, was ausgeliefert wird. -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../package/**/*.xml;../../package/**/Version.txt">
+      <LogicalName>Vorlagen/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

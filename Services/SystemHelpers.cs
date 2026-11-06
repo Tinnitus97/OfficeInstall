@@ -66,38 +66,4 @@ public static class SystemHelpers
         }
         catch { /* ignore */ }
         return "de"; // Rueckfall: Deutsch
-    }
-
-    /// <summary>
-    /// Prueft, ob dieses Programm gerade nur einmal laeuft.
-    ///
-    /// Wird vor dem Aufraeumen des Arbeitsordners gefragt: Laeuft daneben eine
-    /// zweite Sitzung, koennten dort gerade Arbeitsdateien in Benutzung sein.
-    /// Im Zweifel wird nicht aufgeraeumt.
-    /// </summary>
-    public static bool IsOnlyInstance()
-    {
-        try
-        {
-            using var self = System.Diagnostics.Process.GetCurrentProcess();
-            return System.Diagnostics.Process.GetProcessesByName(self.ProcessName).Length <= 1;
-        }
-        catch { return false; }
-    }
-
-    /// <summary>
-    /// Prueft, ob der Prozess mit Administratorrechten laeuft. Ueber das
-    /// app.manifest sollte das immer der Fall sein - die Anzeige dient als
-    /// Kontrolle, falls die EXE z.B. per "runas /trustlevel" gestartet wurde.
-    /// </summary>
-    public static bool IsElevated()
-    {
-        try
-        {
-            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
-            var principal = new System.Security.Principal.WindowsPrincipal(identity);
-            return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
-        }
-        catch { return false; }
-    }
-}
+    }}

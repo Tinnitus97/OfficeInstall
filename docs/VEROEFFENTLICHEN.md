@@ -27,6 +27,7 @@ package/                      die Konfigurationsdateien - die Quelle der Wahrhei
   x32/PerpetualVL2019/*.xml
   …
   x64/PerpetualVL2024/*.xml
+  Versionscheck/Version.txt   Paketstand der Vorlagen ("69|16.08.2026")
 
 tools/validate-configs.py     Prüfung der XML-Dateien
 tools/write-update-json.py    schreibt update.json fort
@@ -44,8 +45,8 @@ deshalb ausdrücklich.
 
 ## Ein neues Programm veröffentlichen
 
-1. `<Version>` in der `.csproj` und `VersionString` in
-   `ViewModels/MainWindowViewModel.cs` auf dieselbe Nummer setzen.
+1. `<Version>` in der `.csproj` setzen. Mehr nicht — Fenstertitel,
+   Update-Vergleich und Kennung für Webanfragen lesen die Nummer daraus.
 2. `CHANGELOG.md` ergänzen.
 3. Committen und pushen (GitHub Desktop: *Commit to main* → *Push origin*).
 4. Veröffentlichen — **einer** der drei Wege:
@@ -96,7 +97,14 @@ git push origin configs-70
 
 Der Workflow prüft erneut, packt `x32/`, `x64/` und ein frisch erzeugtes
 `Versionscheck/Version.txt` (Inhalt: `70|16.08.2026`) zu `configs.zip` und
-schreibt `update.json` fort.
+schreibt `update.json` fort. Im selben Commit zieht er
+`package/Versionscheck/Version.txt` auf den neuen Stand.
+
+> **Die Vorlagen stecken auch in der EXE.** Beim Bauen wird `package/` samt
+> `Version.txt` eingebettet; beim ersten Start packt das Programm sie aus. Neue
+> Konfigurationen erreichen frisch heruntergeladene EXEs deshalb erst mit dem
+> nächsten Programm-Release — bestehende Installationen bekommen sie wie
+> gewohnt über `update.json` angeboten.
 
 ---
 

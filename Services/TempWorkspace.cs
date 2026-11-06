@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 
 namespace OfficeInstall.Services;
 
 /// <summary>
-/// Der Arbeitsordner unter %TEMP%\OfficeInstall.
+/// Der Arbeitsordner unter %TEMP%\OfficeInstall\&lt;Prozessnummer&gt;.
 ///
 /// Dort landen die Kopien der Konfigurationsdateien, bei der
 /// Online-Installation zusaetzlich eine Kopie der setup.exe und beim
@@ -15,11 +17,22 @@ namespace OfficeInstall.Services;
 /// dort sichtbar Unrat an. Deshalb wird hier zentral aufgeraeumt: nach jedem
 /// abgeschlossenen Vorgang, beim Beenden und vorsorglich auch beim Start
 /// (falls das Programm beim letzten Mal abgestuerzt ist).
+///
+/// JEDES FENSTER HAT SEINEN EIGENEN ORDNER:
+/// Frueher teilten sich zwei gleichzeitig geoeffnete Fenster einen Ordner. Das
+/// eine raeumte nach seinem Vorgang auf - und loeschte dem anderen die
+/// Konfigurationsdatei unter dem laufenden Deployment Tool weg. Jetzt
+/// arbeitet jedes Fenster in einem Unterordner mit seiner Prozessnummer und
+/// raeumt nur diesen auf. Beim Start verschwinden zusaetzlich die Ordner
+/// von Fenstern, die nicht mehr laufen (<see cref="ClearStale"/>).
 /// </summary>
 public static class TempWorkspace
 {
-    /// <summary>Vollstaendiger Pfad des Arbeitsordners.</summary>
-    public static string Root => Path.Combine(Path.GetTempPath(), "OfficeInstall");
+    /// <summary>Gemeinsamer Oberordner aller Fenster.</summary>
+    public static string BaseRoot => Path.Combine(Path.GetTempPath(), "OfficeInstall");
+
+    /// <summary>Arbeitsordner dieses Fensters.</summary>
+    public static string Root => Path.Combine(BaseRoot, Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
 
     /// <summary>Unterordner fuer das Deployment Tool.</summary>
     public static string DeploymentFolder => Path.Combine(Root, "odt");
@@ -61,6 +74,80 @@ public static class TempWorkspace
         catch (Exception ex)
         {
             return new Result(false, 0, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Entfernt, was andere, nicht mehr laufende Fenster hinterlassen haben:
+    /// Ordner mit der Nummer eines beendeten Prozesses sowie alles, was noch
+    /// aus der Zeit vor den getrennten Ordnern direkt im Oberordner liegt.
+    /// Der eigene Ordner und die Ordner laufender Fenster bleiben.
+    /// </summary>
+    public static Result ClearStale()
+    {
+        long freed = 0;
+        var removed = false;
+        string? error = null;
+
+        try
+        {
+            if (!Directory.Exists(BaseRoot)) return new Result(false, 0, null);
+
+            foreach (var entry in Directory.EnumerateFileSystemEntries(BaseRoot))
+            {
+                var name = Path.GetFileName(entry);
+                if (int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out var pid)
+                    && Directory.Exists(entry)
+                    && (pid == Environment.ProcessId || IsOurProcessRunning(pid)))
+                    continue;
+
+                try
+                {
+                    if (Directory.Exists(entry))
+                    {
+                        var size = MeasureSize(entry);
+                        OfflineSource.ForceDeleteDirectory(entry);
+                        freed += size;
+                    }
+                    else
+                    {
+                        var size = new FileInfo(entry).Length;
+                        File.SetAttributes(entry, FileAttributes.Normal);
+                        File.Delete(entry);
+                        freed += size;
+                    }
+                    removed = true;
+                }
+                catch (Exception ex)
+                {
+                    error ??= $"{name}: {ex.Message}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            error ??= ex.Message;
+        }
+
+        return new Result(removed, freed, error);
+    }
+
+    /// <summary>
+    /// Laeuft unter dieser Nummer noch ein Fenster dieses Programms? Der Name
+    /// wird mitgeprueft, weil Windows Prozessnummern wiederverwendet.
+    /// </summary>
+    private static bool IsOurProcessRunning(int pid)
+    {
+        try
+        {
+            using var self = Process.GetCurrentProcess();
+            using var other = Process.GetProcessById(pid);
+            return !other.HasExited
+                   && string.Equals(other.ProcessName, self.ProcessName, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;   // gibt es nicht mehr
         }
     }
 

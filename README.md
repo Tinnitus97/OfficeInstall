@@ -4,7 +4,7 @@
 
 **Microsoft Office installieren — online oder aus vorliegenden Offline-Dateien, mit Warnung bei veraltetem Stand.**
 
-![Version](https://img.shields.io/badge/Version-1.2.1-blue)
+![Version](https://img.shields.io/badge/Version-1.5.0-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 
@@ -16,6 +16,20 @@ Die native Ablösung für die `start.bat` des OfficeInstall-Pakets. Gleiche Aufg
 gleiche Konfigurationsdateien — aber als kompilierte Windows-Anwendung mit
 derselben Technik und Optik wie das *Windows DaSi Tool*, der *Skript-Launcher*
 und die *Inventarisierung*.
+
+### Neu in 1.5.0
+
+- **Nur die EXE genügt:** Die Vorlagen stecken in der EXE, das Deployment Tool
+  holt sie beim ersten Start selbst — siehe [Erster Start](#erster-start-nur-die-exe-genügt).
+- **Sichereres Update:** Programm-Updates nur mit Prüfsumme über https, das
+  Deployment Tool muss von Microsoft signiert sein, und der Austausch der EXE
+  klappt jetzt auch bei Umlauten im Benutzernamen.
+- **Downloads werden nachgeprüft**, statt dem Rückgabewert blind zu glauben.
+- **Protokoll als Datei** unter `%LOCALAPPDATA%\OfficeInstall\Protokoll.txt`.
+- Zwei gleichzeitig geöffnete Fenster stören sich nicht mehr, die Oberfläche
+  springt nicht mehr.
+
+Alle Einzelheiten stehen im [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -88,16 +102,22 @@ Modi genügt es deshalb nicht, einfach die vorhandene XML zu starten:
   **und festgeschriebener Version** erzeugt. Damit steht fest, aus welchem
   Ordner und welcher Stand installiert wird.
 - **Online** — die Kopie wird ohne `SourcePath` in einen leeren Arbeitsordner
-  unter `%TEMP%\OfficeInstall` gelegt, zusammen mit einer Kopie der
+  unter `%TEMP%\OfficeInstall\<Prozessnummer>` gelegt, zusammen mit einer Kopie der
   `setup.exe`. Da dort keine Quelldateien liegen, lädt das Tool aus dem Internet.
 
 Die Originaldateien im Paketordner werden dabei **nicht verändert**.
 
-Der Arbeitsordner `%TEMP%\OfficeInstall` wird **nach jedem Vorgang und beim
-Beenden wieder entfernt** — und vorsorglich auch beim Start, falls das Programm
-beim letzten Mal abgestürzt ist. Wird das Fenster geschlossen, während noch ein
-Vorgang läuft, bleibt er stehen: Dort liegt dann die Konfigurationsdatei, mit
-der `setup.exe` gerade arbeitet.
+Jedes Fenster hat seinen **eigenen** Arbeitsordner
+`%TEMP%\OfficeInstall\<Prozessnummer>`. Er wird **nach jedem Vorgang und beim
+Beenden wieder entfernt**. Beim Start verschwinden zusätzlich die Ordner von
+Fenstern, die nicht mehr laufen (etwa nach einem Absturz) — die eines zweiten,
+gleichzeitig geöffneten Fensters bleiben unangetastet. Früher teilten sich
+beide einen Ordner, und das eine räumte dem anderen die Konfiguration unter dem
+laufenden Deployment Tool weg.
+
+Wird das Fenster geschlossen, während noch ein Vorgang läuft, bleibt der Ordner
+stehen: Dort liegt dann die Konfigurationsdatei, mit der `setup.exe` gerade
+arbeitet.
 
 ### Warum `SourcePath` allein nicht genügt
 
@@ -139,14 +159,49 @@ mit Dateinamen, damit sie sich dort berichtigen lässt.
 
 ---
 
-## Erster Start: Erste Schritte
+## Erster Start: nur die EXE genügt
 
-Frisch heruntergeladen liegt neben der EXE nichts — keine Konfigurationsdateien,
-kein Deployment Tool. Statt einer leeren Liste erscheint dann eine kurze
-Anleitung mit genau den Schaltflächen, die es braucht:
+Wer nur `OfficeInstall.exe` hat — selbst gebaut oder heruntergeladen —, muss
+nichts weiter besorgen. Beim ersten Start richtet sich das Programm selbst ein:
 
-| | Schritt | Was passiert |
+| | Was | Woher |
 | --- | --- | --- |
+| **1** | Konfigurationsvorlagen (`x32\`, `x64\`, Paketstand) | **in der EXE eingebaut** — wird sofort ausgepackt, ohne Internet |
+| **2** | Office Deployment Tool (`setup.exe`) | direkt vom Microsoft Download Center |
+| **3** | Offline-Bestand *(kann warten)* | mehrere Gigabyte, nur für Installationen ohne Internet — nie automatisch |
+
+Danach steht die Produktliste da. Was passiert ist, steht im Protokoll; Fenster
+gibt es dabei keine.
+
+Ohne Internet werden die Vorlagen trotzdem ausgepackt; das Deployment Tool
+bleibt dann als offener Schritt in der Einrichtungshilfe stehen und lässt sich
+mit **Tool laden** nachholen, sobald wieder Verbindung besteht.
+
+### Woher die eingebauten Vorlagen kommen
+
+Beim Bauen wandert der Inhalt von `package\` aus dem Repository in die EXE —
+alle XML-Dateien unter `x32\` und `x64\` sowie `package\Versionscheck\Version.txt`
+mit dem Paketstand. Ausgepackt wird über denselben abgesicherten Weg wie beim
+Einspielen von `configs.zip`: nur XML-Dateien unter `x32\`/`x64\` und die
+Versionsdatei, nichts außerhalb des Paketordners, der Offline-Bestand bleibt
+unberührt.
+
+Neuere Vorlagen kommen weiterhin über die Veröffentlichung der Konfigurationen:
+Das Programm vergleicht den Paketstand und bietet sie oben im Fenster an. Beim
+Veröffentlichen neuer Konfigurationen zieht der Workflow `Version.txt` in
+`package\` mit, damit die nächste EXE den richtigen Stand eingebaut hat.
+
+### Nicht von selbst: Downloads, Desktop, Dokumente, `%TEMP%`
+
+Liegt die EXE direkt in einem dieser Ordner — oder irgendwo **unter** `%TEMP%`,
+etwa weil sie direkt aus dem ZIP im Explorer gestartet wurde —, startet die
+Einrichtung **nicht** von selbst: Dort landeten `x32`, `x64`, `Versionscheck`
+und `setup.exe` lose zwischen allem anderen, oder in einem Ordner, der beim
+Schließen des Archivs verschwindet. Dann bleibt die Einrichtungshilfe mit einem Hinweis
+stehen; **Alles Nötige einrichten** erledigt es mit einem Klick. Besser: die
+EXE in einen eigenen Ordner legen.
+
+--- | --- | --- |
 | **1** | Konfigurationsdateien | Holt die Vorlagen aus der Veröffentlichung — wenige Kilobyte |
 | **2** | Office Deployment Tool | Holt `setup.exe` vom Microsoft Download Center |
 | **3** | Offline-Bestand *(kann warten)* | Mehrere Gigabyte, nur für Installationen ohne Internet |
@@ -190,7 +245,7 @@ bereitgestellt und kennt diese Grenze nicht.
 
 Eine abweichende Adresse lässt sich in `Versionscheck\Update-Url.txt`
 hinterlegen (eine Zeile, vollständige `https://…`-Adresse) — etwa für ein
-internes Spiegelverzeichnis.
+internes Spiegelverzeichnis. Eine `http://`-Zeile wird übergangen.
 
 ### Was beim Einspielen geschützt ist
 
@@ -200,19 +255,29 @@ internes Spiegelverzeichnis.
 - **Gelöscht wird nichts.** Der Offline-Bestand (`Office\Data`, mehrere
   Gigabyte) wird nicht angefasst.
 - Vor dem Einspielen wird die **SHA256-Summe** gegen die Angabe in `update.json`
-  geprüft. Stimmt sie nicht, wird die Datei verworfen.
+  geprüft. Stimmt sie nicht, wird die Datei verworfen. Die Summe ist
+  **Pflicht**: Ein Eintrag ohne sie oder mit einer `http://`-Adresse gilt als
+  nicht vorhanden — eingespielt wird ja eine EXE, die mit Administratorrechten
+  startet.
 
 ### Warum die EXE sich nicht selbst überschreibt
 
-Eine laufende EXE kann das unter Windows nicht. Deshalb schreibt das Programm
-ein kleines Skript, das auf sein Ende wartet, die Datei ersetzt und neu startet.
-Es liegt in `%TEMP%\OfficeInstall-Update` — bewusst **nicht** im Arbeitsordner
-`%TEMP%\OfficeInstall`, denn der wird beim Beenden geleert, also genau
-währenddessen.
+Eine laufende EXE kann das unter Windows nicht. Deshalb übernimmt es die
+**neue** Fassung: Die alte lädt sie nach `%TEMP%\OfficeInstall-Update`, startet
+sie mit `--austausch <Ziel> <Prozessnummer>` und beendet sich. Die neue wartet,
+bis die alte weg ist, kopiert sich an deren Stelle (mit mehreren Versuchen,
+falls Windows oder ein Virenscanner die Datei noch kurz festhält) und startet
+das Programm am gewohnten Ort neu — ohne Fenster dazwischen und ohne zweite
+UAC-Abfrage.
+
+Früher erledigte das ein Batch-Skript. Das scheiterte an jedem Benutzernamen
+mit Umlaut: `cmd.exe` liest Batchdateien in der OEM-Codepage, aus
+`C:\Users\Jürgen` wurde `C:\Users\J├╝rgen`, und weil das Skript unsichtbar lief,
+hing es still an `pause`.
 
 Schlägt das Ersetzen fehl — fehlende Schreibrechte, oder das Programm läuft an
-einem anderen Arbeitsplatz aus demselben Ordner —, bleibt ein Fenster mit dem
-Grund und dem Pfad zur neuen Fassung stehen.
+einem anderen Arbeitsplatz aus demselben Ordner —, startet die alte Fassung
+wieder und meldet den Grund.
 
 ---
 
@@ -300,8 +365,15 @@ wenn etwas schiefgeht.
 >
 > Sollte Microsoft den Aufbau der Seite ändern, lässt sich die Adresse dauerhaft
 > in `Versionscheck\ODT-Url.txt` hinterlegen (eine Zeile, die vollständige
-> `https://…/officedeploymenttool_*.exe`-Adresse). Schlägt beides fehl, bietet
-> das Programm an, die Downloadseite im Browser zu öffnen.
+> `https://download.microsoft.com/…/officedeploymenttool_*.exe`-Adresse —
+> andere Server werden nicht angenommen). Schlägt beides fehl, bietet das
+> Programm an, die Downloadseite im Browser zu öffnen.
+
+**Signaturprüfung.** Bevor das geladene Paket entpackt wird und bevor die
+entpackte `setup.exe` ins Paket kopiert wird, muss jede der beiden Dateien
+gültig digital signiert sein, und zwar von *Microsoft Corporation* — wie unter
+*Eigenschaften → Digitale Signaturen*. Sonst wird nichts ausgeführt und nichts
+ersetzt.
 
 ---
 
@@ -329,6 +401,14 @@ der Liste.
 Der Vorgang läuft ohne eigenes Fenster und kann bei einem frischen Bestand
 dauern; solange zeigt der Launcher einen Fortschrittsbalken und protokolliert
 das Ergebnis.
+
+**Nachprüfung.** Der Rückgabewert 0 des Deployment Tools allein gilt nicht als
+Erfolg — bei einer abgebrochenen Verbindung oder einem Proxy endet es mitunter
+„erfolgreich“, ohne etwas geladen zu haben. Danach muss in `Office\Data` ein
+nicht leerer Versionsordner liegen, dazu die passende `v32.cab`/`v64.cab`, und
+die Version darf nicht älter sein als die online gemeldete. Fehlt etwas, wird
+der Download als fehlgeschlagen gemeldet und **nicht aufgeräumt** — der alte,
+brauchbare Stand bleibt also erhalten.
 
 ### Woher der Fortschritt kommt
 
@@ -391,6 +471,10 @@ Die Rückfrage zeigt vorher je Basis, was passiert:
   x32\PerpetualVL2021   (2 Produkte, wird komplett geladen)
 ```
 
+Ist der Rechner offline oder fehlt die Auskunft von Microsoft, steht dort
+*Stand online unbekannt, wird abgeglichen* — ob es etwas Neueres gibt, weiß
+dann erst das Deployment Tool selbst.
+
 Steht dabei eine Basis ganz ohne Dateien in der Liste, wird ausdrücklich
 gewarnt — dort kommen mehrere Gigabyte zusammen. Abbrechen ist jederzeit
 möglich; der gerade laufende Download wird noch zu Ende geführt.
@@ -414,7 +498,8 @@ Der freigewordene Platz steht im Protokoll. Abschaltbar über die Option
 
 Beim Start prüft der Launcher zuerst mit einer kurzen Anfrage, ob überhaupt
 eine Internetverbindung besteht — gegen denselben Endpunkt, den auch Windows
-für seine Netzwerkerkennung benutzt. Ist der Rechner offline, steht **eine**
+für seine Netzwerkerkennung benutzt. Ist der in einem Firmennetz gesperrt,
+wird ersatzweise `https://github.com` gefragt. Ist der Rechner offline, steht **eine**
 Zeile im Protokoll und der Abgleich entfällt; es wird nicht für jede
 Installationsbasis eine eigene Fehlermeldung erzeugt.
 
@@ -510,6 +595,10 @@ Option steht bei jedem Start auf **An** und lässt sich abschalten.
 Schlägt die Installation fehl, bleibt das Fenster in jedem Fall offen — dann
 wird das Protokoll gebraucht.
 
+Das Protokoll geht dabei nicht verloren: Jede Zeile landet zusätzlich mit
+Uhrzeit in `%LOCALAPPDATA%\OfficeInstall\Protokoll.txt` (ab etwa 1 MB wird die
+Datei zu `Protokoll.alt.txt`, und eine neue beginnt).
+
 ---
 
 ## Systemanforderungen
@@ -518,20 +607,24 @@ wird das Protokoll gebraucht.
 | --- | --- |
 | **Betriebssystem** | Windows 10 oder Windows 11 |
 | **Berechtigungen** | Administratorrechte — die UAC-Abfrage erfolgt automatisch beim Start (ersetzt den `Get_Admin`-Block der alten `start.bat`) |
-| **setup.exe** | Das Office Deployment Tool muss im Ordner der Installationsbasis liegen (ersatzweise im Architektur- oder Paketordner) |
+| **setup.exe** | Das Office Deployment Tool holt OfficeInstall beim ersten Start selbst von Microsoft (Internet nötig); es darf auch schon im Ordner der Installationsbasis, im Architektur- oder im Paketordner liegen |
+| **Internet** | Für Online-Installation, Deployment Tool und Updates. Offline-Installation und die eingebauten Vorlagen kommen ohne aus |
 | **.NET** | Nicht erforderlich — die Laufzeit ist in der EXE enthalten |
 
 ---
 
 ## Nutzung
 
-1. `OfficeInstall.exe` in den Ordner legen, in dem vorher die
-   `start.bat` lag — also neben `x32` und `x64`.
-2. EXE starten und die UAC-Abfrage mit **Ja** bestätigen. Der Paketordner wird
-   sofort durchsucht.
-3. **64 Bit** oder **32 Bit** wählen und den **Modus** festlegen.
-4. Bei der gewünschten Zeile auf **Installieren** klicken und die Rückfrage
-   bestätigen. Der Fortschritt erscheint anschließend im Fenster von Microsoft;
+1. `OfficeInstall.exe` in einen eigenen Ordner legen — oder in den Ordner, in
+   dem vorher die `start.bat` lag, also neben `x32` und `x64`.
+2. EXE starten und die UAC-Abfrage mit **Ja** bestätigen. Fehlt noch etwas
+   (Vorlagen, Deployment Tool), richtet sich der Ordner von selbst ein; danach
+   wird er durchsucht.
+3. **64 Bit** oder **32 Bit** wählen und den **Modus** festlegen. Oben in der
+   Kopfzeile bei Bedarf **Nicht kompatibles Office automatisch entfernen** und
+   **Nach erfolgreicher Installation schließen** einstellen.
+4. Bei der gewünschten Zeile auf **Installieren** klicken — es geht ohne weitere
+   Rückfrage los. Den Fortschritt zeigt das Installationsfenster von Microsoft;
    das Ergebnis steht danach im Protokoll.
 
 ### Offline-Dateien anlegen oder erneuern
@@ -557,7 +650,8 @@ erkannt.
 | **UI-Framework** | [Avalonia](https://avaloniaui.net/) 12.1 |
 | **Zielplattform** | .NET 10, `win-x64`, self-contained |
 | **Installation** | `setup.exe /configure <Konfiguration>` des Office Deployment Tools |
-| **Fehlerbehandlung** | Unerwartete Fehler landen in `%USERPROFILE%\Desktop\OfficeInstall_Absturz.log` |
+| **Protokoll** | `%LOCALAPPDATA%\OfficeInstall\Protokoll.txt` — alles aus dem Protokollfenster, dazu abgefangene Fehler mit Aufrufstapel |
+| **Abstürze** | Nur echte Abstürze landen in `%USERPROFILE%\Desktop\OfficeInstall_Absturz.log` (beginnt ab 1 MB neu) |
 
 ### Aufbau
 
@@ -572,9 +666,15 @@ Services/OnlineVersionService.cs  Versionsübersicht von Microsoft auswerten
 Services/ConnectivityService.cs   kurze Netzprüfung vor jedem Onlinezugriff
 Services/InstallRunner.cs         Modus auflösen, Aufruf vorbereiten und starten
 Services/InstalledOffice.cs       vorhandenes Office finden, Konflikte bestimmen
-Services/TempWorkspace.cs         Arbeitsordner unter %TEMP% anlegen und leeren
+Services/EmbeddedTemplates.cs     eingebaute Vorlagen auflisten und auspacken
+Services/TempWorkspace.cs         Arbeitsordner je Fenster unter %TEMP% anlegen und leeren
 Services/UpdateService.cs         update.json abfragen, Programm und Konfigurationen einspielen
+Services/SelfUpdate.cs            die neue EXE kopiert sich an die Stelle der alten
 Services/DeploymentToolService.cs setup.exe finden, holen, entpacken und verteilen
+Services/Authenticode.cs          Microsoft-Signatur einer geladenen Datei prüfen
+Services/DownloadProgress.cs      Fortschritt beim Herunterladen aus dem Zielordner ablesen
+Services/ActivityLog.cs           Protokoll als Datei unter %LOCALAPPDATA%
+Services/AppInfo.cs               Versionsnummer aus der .csproj, Kennung für Webanfragen
 ViewModels/                       Zustand und Ablauf
 Views/                            Fenster und Meldungen
 ```
@@ -607,9 +707,10 @@ Anwendung, die beliebigen heruntergeladenen Code ausführt, ist ein Einfallstor
 und wird von Virenscannern zu Recht angefasst.
 
 Der Paketstand aus `Versionscheck\Version.txt` wird weiterhin gelesen und in der
-Kopfzeile angezeigt. Wer eine Aktualisierungsmeldung möchte, kann sie wie im
-Windows DaSi Tool nachrüsten: eine Textdatei mit der aktuellen Versionsnummer im
-Netz, ein Vergleich, ein Hinweisband — ohne Ausführung von Fremdcode.
+Kopfzeile angezeigt. An die Stelle des alten Mechanismus ist die
+[Selbstaktualisierung](#selbstaktualisierung) getreten: Sie lädt nur die
+veröffentlichte EXE bzw. `configs.zip`, prüft die SHA256-Summe und führt keinen
+fremden Code aus.
 
 `aria2c.exe` wird nicht mehr benötigt.
 
