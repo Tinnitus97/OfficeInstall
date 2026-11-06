@@ -1317,6 +1317,74 @@ internal static class Program
         catch (InvalidOperationException) { abgelehnt = true; }
         Check("ohne setup.exe wird nichts vorbereitet", abgelehnt);
 
+        Console.WriteLine("\n== Eingebaute Vorlagen ==");
+        var eigene = typeof(Program).Assembly;
+        var eingebaut = EmbeddedTemplates.List(eigene);
+
+        Check("die Vorlagen sind eingebaut", EmbeddedTemplates.IsAvailable(eigene));
+        Check("alle 28 Vorlagen aus package sind dabei",
+            EmbeddedTemplates.Count(eigene) == 28, EmbeddedTemplates.Count(eigene).ToString());
+        Check("der Pfad im Paket bleibt erhalten",
+            eingebaut.Any(v => v.PackagePath == "x64/PerpetualVL2021/configuration_Standard_2021.xml"),
+            string.Join(", ", eingebaut.Take(3).Select(v => v.PackagePath)));
+        Check("der Paketstand wird gelesen",
+            EmbeddedTemplates.ReadVersion(eigene) is { Version: "69", Date: "16.08.2026" },
+            EmbeddedTemplates.ReadVersion(eigene)?.ToString() ?? "null");
+
+        var erstesMal = Path.Combine(root, "nur-die-exe");
+        Directory.CreateDirectory(erstesMal);
+        var ausgepackt = EmbeddedTemplates.Extract(eigene, erstesMal);
+        Check("Auspacken gelingt: 28 Vorlagen und die Versionsdatei",
+            ausgepackt.Success && ausgepackt.Written == 29 && ausgepackt.Skipped == 0,
+            $"{ausgepackt.Written} geschrieben, {ausgepackt.Skipped} uebergangen, {ausgepackt.Error}");
+
+        var nachAuspacken = OfficeCatalog.Scan(erstesMal);
+        Check("danach findet der Katalog alle Vorlagen",
+            nachAuspacken.Entries.Count == 28, nachAuspacken.Entries.Count.ToString());
+        Check("keine davon ist kaputt", nachAuspacken.Entries.All(e => !e.Configuration.IsBroken));
+        Check("beide Architekturen sind vertreten",
+            nachAuspacken.ForArchitecture(64).Count() == 14 && nachAuspacken.ForArchitecture(32).Count() == 14);
+        Check("der Paketstand steht danach im Ordner",
+            OfficeCatalog.ReadPackageVersion(erstesMal) is { Version: "69" });
+        Check("eine setup.exe bringt die EXE nicht mit",
+            !File.Exists(Path.Combine(erstesMal, "setup.exe")));
+
+        // Der Paketordner endet selbst auf einen Trenner - so kommt er aus
+        // AppContext.BaseDirectory, und so sieht das Stammverzeichnis eines
+        // USB-Sticks aus ("E:\"). Frueher wurde dann keine Datei geschrieben.
+        var mitTrenner = Path.Combine(root, "mit-trenner") + Path.DirectorySeparatorChar;
+        Directory.CreateDirectory(mitTrenner);
+        var trennerErgebnis = EmbeddedTemplates.Extract(eigene, mitTrenner);
+        Check("Paketordner mit Trenner am Ende: alles wird geschrieben",
+            trennerErgebnis.Success && trennerErgebnis.Written == 29,
+            $"{trennerErgebnis.Written} geschrieben, {trennerErgebnis.Error}");
+        Check("und landet im richtigen Ordner",
+            OfficeCatalog.Scan(mitTrenner).Entries.Count == 28);
+
+        var vorhandenerBestand = Path.Combine(erstesMal, "x64", "Current", "Office", "Data", "v64.cab");
+        Touch(vorhandenerBestand, "bestand");
+        EmbeddedTemplates.Extract(eigene, erstesMal);
+        Check("erneutes Auspacken laesst den Offline-Bestand stehen", File.Exists(vorhandenerBestand));
+
+        Console.WriteLine("\n== Vorlagen schreiben: nur Erlaubtes ==");
+        var schutzOrdner = Path.Combine(root, "schutz");
+        Directory.CreateDirectory(schutzOrdner);
+        Func<Stream> xmlInhalt = () => new MemoryStream(System.Text.Encoding.UTF8.GetBytes("<Configuration/>"));
+        var gemischt = UpdateService.ApplyEntries(new (string, Func<Stream>)[]
+        {
+            ("x64/Current/gut.xml", xmlInhalt),
+            ("x64\\Current\\rueckstrich.xml", xmlInhalt),
+            ("x64/../../ausserhalb.xml", xmlInhalt),
+            ("setup.exe", xmlInhalt),
+            ("x64/Current/tiefer/zu.xml", xmlInhalt),
+        }, schutzOrdner);
+        Check("Erlaubtes wird geschrieben, auch mit Rueckstrichen",
+            gemischt.Written == 2 && File.Exists(Path.Combine(schutzOrdner, "x64", "Current", "rueckstrich.xml")),
+            $"{gemischt.Written} geschrieben");
+        Check("alles andere wird uebergangen", gemischt.Skipped == 3, gemischt.Skipped.ToString());
+        Check("nichts landet ausserhalb des Paketordners",
+            !File.Exists(Path.Combine(root, "ausserhalb.xml")) && !File.Exists(Path.Combine(schutzOrdner, "setup.exe")));
+
         Console.WriteLine($"\nErgebnis: {_passed} bestanden, {_failed} fehlgeschlagen.");
 
         try { Directory.Delete(root, true); } catch { }

@@ -59,6 +59,23 @@
   </ItemGroup>
 
   <!--
+    Die Konfigurationsvorlagen aus package\ wandern in die EXE. Damit ist sie
+    fuer sich allein vollstaendig: Wer nur OfficeInstall.exe hat, bekommt beim
+    ersten Start die Vorlagen ausgepackt - ohne Internet und ohne dass zu den
+    Konfigurationen eine Veroeffentlichung hinterlegt sein muss.
+
+    Der Ressourcenname bildet den Pfad im Paket nach ("Vorlagen/x64/Current/
+    datei.xml", "Vorlagen/Versionscheck/Version.txt"); ausgelesen wird das in
+    Services/EmbeddedTemplates.cs. Version.txt traegt den Paketstand und wird
+    beim Veroeffentlichen der Konfigurationen mitgezogen (release.yml).
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="package/**/*.xml;package/**/Version.txt">
+      <LogicalName>Vorlagen/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!--
     Liegt diese Projektdatei im Wurzelverzeichnis des Repositories, sammelt das
     SDK von sich aus JEDE .cs-Datei darunter ein - also auch das Testprojekt
     unter tests\. Das ergibt zwei Einstiegspunkte (Fehler CS0017) und laesst

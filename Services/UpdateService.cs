@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -275,40 +276,74 @@ public static class UpdateService
     /// </summary>
     public static ConfigApplyResult ApplyConfigs(string zipFile, string rootFolder)
     {
+        try
+        {
+            using var archive = ZipFile.OpenRead(zipFile);
+            var entries = archive.Entries
+                .Where(e => !(e.FullName.EndsWith('/') || e.Length == 0 && e.Name.Length == 0))
+                .Select(e => (e.FullName, (Func<Stream>)e.Open));
+            return ApplyEntries(entries, rootFolder);
+        }
+        catch (Exception ex)
+        {
+            return new ConfigApplyResult { Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Schreibt Vorlagen in den Paketordner - der gemeinsame Weg fuer
+    /// configs.zip und fuer die in die EXE eingebauten Vorlagen.
+    ///
+    /// Uebernommen wird nur, was <see cref="IsAllowed"/> zulaesst, und nur
+    /// innerhalb des Paketordners. Damit gilt fuer beide Quellen derselbe
+    /// Schutz: keine EXE, nichts ausserhalb, nichts geloescht.
+    /// </summary>
+    public static ConfigApplyResult ApplyEntries(IEnumerable<(string Path, Func<Stream> Open)> entries,
+                                                 string rootFolder)
+    {
         var result = new ConfigApplyResult();
 
         try
         {
             var root = Path.GetFullPath(rootFolder);
-            using var archive = ZipFile.OpenRead(zipFile);
 
-            foreach (var entry in archive.Entries)
+            // Mit genau einem Trenner am Ende. Ohne diese Angleichung schlug
+            // die Pruefung unten fehl, sobald der Paketordner selbst schon
+            // auf einen Trenner endet - etwa das Stammverzeichnis eines
+            // USB-Sticks ("E:\") oder ein Pfad mit "\" am Ende. Dann wurde
+            // aus "E:\" + "\" ein "E:\\", und keine einzige Datei passte.
+            var rootPrefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
+
+            foreach (var (name, open) in entries)
             {
-                if (entry.FullName.EndsWith('/') || entry.Length == 0 && entry.Name.Length == 0) continue;
-
-                if (!IsAllowed(entry.FullName))
+                if (!IsAllowed(name))
                 {
                     result.Skipped++;
                     continue;
                 }
 
-                var target = Path.GetFullPath(Path.Combine(root, entry.FullName.Replace('/', Path.DirectorySeparatorChar)));
+                var target = Path.GetFullPath(Path.Combine(root, name.Replace('\\', '/').TrimStart('/')
+                                                                     .Replace('/', Path.DirectorySeparatorChar)));
 
                 // Schutz vor Eintraegen wie "..\..\windows\system32\..." -
                 // das Ziel muss im Paketordner liegen.
-                if (!target.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                if (!target.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
                 {
                     result.Skipped++;
                     continue;
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                entry.ExtractToFile(target, overwrite: true);
+                using (var source = open())
+                using (var file = File.Create(target))
+                {
+                    source.CopyTo(file);
+                }
                 result.Written++;
             }
 
             if (result.Written == 0)
-                result.Error = "Das Archiv enthielt keine brauchbaren Konfigurationsdateien.";
+                result.Error = "Es fanden sich keine brauchbaren Konfigurationsdateien.";
         }
         catch (Exception ex)
         {

@@ -222,7 +222,15 @@ jobs:
             --repo '${{ github.repository }}' \
             --tag  '${{ steps.stand.outputs.tag }}'
 
-          git add update.json
+          # Den Paketstand auch in package\ fortschreiben: Er wird beim Bauen
+          # der EXE zusammen mit den Vorlagen eingebettet (OfficeInstall.csproj).
+          # So kennt die naechste EXE den Stand, den sie mitbringt, und bietet
+          # nicht dieselben Vorlagen noch einmal als "neu" an.
+          mkdir -p package/Versionscheck
+          printf '%s|%s' '${{ steps.stand.outputs.nummer }}' '${{ steps.stand.outputs.datum }}' \
+            > package/Versionscheck/Version.txt
+
+          git add update.json package/Versionscheck/Version.txt
           git diff --cached --quiet && exit 0
           git commit -m "update.json: Konfigurationen ${{ steps.stand.outputs.nummer }} [skip ci]"
           git push origin main

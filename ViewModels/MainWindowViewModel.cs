@@ -490,10 +490,8 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (_catalog.Entries.Count == 0)
             {
-                Log(Tr("Noch keine Konfigurationsdateien in diesem Ordner - die nötigen Schritte " +
-                       "stehen im Fenster unter \"Erste Schritte\".",
-                       "No configuration files in this folder yet - the necessary steps are shown " +
-                       "under \"Getting started\"."));
+                Log(Tr("Noch keine Konfigurationsdateien in diesem Ordner.",
+                       "No configuration files in this folder yet."));
             }
             else
             {
@@ -587,6 +585,19 @@ public partial class MainWindowViewModel : ObservableObject
             Program.WriteCrashLog("Scan/CheckOnlineVersions", ex);
             Log(Tr($"[FEHLER] Abgleich fehlgeschlagen: {ex.Message}",
                    $"[ERROR] Version check failed: {ex.Message}"));
+        }
+
+        // Nur die EXE und sonst nichts? Dann richtet sie sich selbst ein.
+        // Erst hier, nach dem Abgleich: Dann ist bekannt, ob Internet da ist.
+        if (!cts.Token.IsCancellationRequested)
+        {
+            try { await AutoSetupIfNeeded(root); }
+            catch (Exception ex)
+            {
+                Program.WriteCrashLog("Scan/AutoSetup", ex);
+                Log(Tr($"[FEHLER] Einrichtung fehlgeschlagen: {ex.Message}",
+                       $"[ERROR] Setup failed: {ex.Message}"));
+            }
         }
     }
 
@@ -1108,6 +1119,18 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>true, wenn zu den Konfigurationen eine Veroeffentlichung hinterlegt ist.</summary>
     public bool ConfigsDownloadPossible => _manifest?.Configs.IsUsable == true;
 
+    private static System.Reflection.Assembly OwnAssembly => typeof(MainWindowViewModel).Assembly;
+
+    /// <summary>
+    /// true, wenn die EXE die Vorlagen selbst mitbringt (siehe
+    /// <see cref="EmbeddedTemplates"/>). Dann klappt Schritt 1 immer - ohne
+    /// Internet und ohne hinterlegte Veroeffentlichung.
+    /// </summary>
+    public bool TemplatesBuiltIn => EmbeddedTemplates.IsAvailable(OwnAssembly);
+
+    /// <summary>Kann Schritt 1 ohne Zutun gelingen?</summary>
+    private bool TemplatesObtainable => TemplatesBuiltIn || ConfigsDownloadPossible;
+
     public string SetupTitle => Tr("Erste Schritte", "Getting started");
 
     public string SetupIntro => !HasConfigs && !HasOdt
@@ -1127,6 +1150,13 @@ public partial class MainWindowViewModel : ObservableObject
     public string Step1Hint => Step1Done
         ? Tr($"{_catalog.Entries.Count} Vorlagen vorhanden.",
              $"{_catalog.Entries.Count} templates present.")
+        : TemplatesBuiltIn
+            ? Tr($"{EmbeddedTemplates.Count(OwnAssembly)} Vorlagen stecken in OfficeInstall selbst" +
+                 (EmbeddedTemplates.ReadVersion(OwnAssembly) is { } eingebaut ? $" (Stand {eingebaut.Version})" : "") +
+                 " - sie werden direkt ausgepackt, ohne Internet.",
+                 $"{EmbeddedTemplates.Count(OwnAssembly)} templates are built into OfficeInstall" +
+                 (EmbeddedTemplates.ReadVersion(OwnAssembly) is { } builtIn ? $" (build {builtIn.Version})" : "") +
+                 " - they are unpacked right away, without internet.")
         : ConfigsDownloadPossible
             ? Tr($"Vorlagen für Office und Microsoft 365 - Stand {_manifest!.Configs.Version}, " +
                  "wenige Kilobyte.",
@@ -1136,9 +1166,11 @@ public partial class MainWindowViewModel : ObservableObject
                  "No release available yet - the templates can be placed next to the EXE by hand " +
                  "(folders x32 and x64).");
 
-    public string Step1Button => ConfigsDownloadPossible
-        ? Tr("Vorlagen laden", "Get templates")
-        : Tr("Seite öffnen", "Open page");
+    public string Step1Button => TemplatesBuiltIn
+        ? Tr("Auspacken", "Unpack")
+        : ConfigsDownloadPossible
+            ? Tr("Vorlagen laden", "Get templates")
+            : Tr("Seite öffnen", "Open page");
 
     // Bewusst auch ohne hinterlegte Veroeffentlichung bedienbar: Dann fuehrt
     // die Schaltflaeche zur Uebersicht, statt grau und ohne Erklaerung
@@ -1146,12 +1178,19 @@ public partial class MainWindowViewModel : ObservableObject
     public bool Step1Enabled => UiEnabled && !Step1Done;
 
     /// <summary>
-    /// Holt die Vorlagen - oder oeffnet die Uebersicht, wenn dazu noch nichts
-    /// veroeffentlicht wurde.
+    /// Packt die eingebauten Vorlagen aus. Bringt die EXE keine mit, werden
+    /// sie aus der Veroeffentlichung geholt - oder es oeffnet sich die
+    /// Uebersicht, wenn dazu noch nichts veroeffentlicht wurde.
     /// </summary>
     [RelayCommand]
     private async Task Step1()
     {
+        if (TemplatesBuiltIn)
+        {
+            await UnpackBuiltInTemplates();
+            return;
+        }
+
         if (ConfigsDownloadPossible)
         {
             await UpdateConfigs();
@@ -1208,7 +1247,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     // Nur anbieten, wenn es auch von allein klappen kann.
     public bool SetupAllEnabled =>
-        UiEnabled && ((!Step1Done && ConfigsDownloadPossible) || !Step2Done);
+        UiEnabled && ((!Step1Done && TemplatesObtainable) || !Step2Done);
 
     /// <summary>
     /// Warnung, wenn die EXE an einem Ort liegt, der offensichtlich nur
@@ -1272,15 +1311,66 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task SetupAll()
     {
         if (!UiEnabled || _batchSetup) return;
+        await RunSetup(automatic: false);
+    }
 
+    /// <summary>
+    /// Ordner, in denen die automatische Einrichtung in diesem Lauf schon
+    /// versucht wurde. Pro Ordner genau einmal: Schlaegt etwas fehl, soll
+    /// nicht jede weitere Suche es erneut versuchen.
+    /// </summary>
+    private readonly HashSet<string> _autoSetupTried = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Erster Start mit nichts als der EXE: Vorlagen auspacken und das
+    /// Deployment Tool holen - ohne dass jemand "Erste Schritte" verstehen
+    /// und durchklicken muss.
+    ///
+    /// Nicht in Downloads, auf dem Desktop, in Dokumente oder %TEMP%: Dort
+    /// landeten x32, x64, Versionscheck und setup.exe lose zwischen allem
+    /// anderen. Dann bleibt die Einrichtungshilfe mit ihrem Hinweis stehen,
+    /// und ein Klick auf "Alles Nötige einrichten" erledigt es.
+    /// </summary>
+    private async Task AutoSetupIfNeeded(string root)
+    {
+        if (!_scanned || (HasConfigs && HasOdt)) return;
+        if (!string.Equals(root, RootFolder, StringComparison.OrdinalIgnoreCase)) return;
+        if (!_autoSetupTried.Add(Path.GetFullPath(root))) return;
+
+        if (IsTemporaryFolder(root))
+        {
+            Log(Tr("Die Einrichtung startet hier nicht von selbst - dieser Ordner ist nur zum Zwischenlagern. " +
+                   "Am besten die EXE in einen eigenen Ordner legen; sonst \"Alles Nötige einrichten\" klicken.",
+                   "Setup does not start by itself here - this folder is only for temporary storage. " +
+                   "Best move the EXE into a folder of its own; otherwise click \"Set up everything needed\"."));
+            return;
+        }
+
+        if (!UiEnabled || _batchSetup) return;
+        await RunSetup(automatic: true);
+    }
+
+    /// <summary>
+    /// Die Einrichtung selbst - von Hand ueber "Alles Nötige einrichten" oder
+    /// automatisch beim ersten Start.
+    ///
+    /// Automatisch wird ohne Internet kein Fenster geoeffnet: Das Deployment
+    /// Tool bleibt dann einfach als offener Schritt in der Einrichtungshilfe
+    /// stehen, bis wieder Verbindung besteht.
+    /// </summary>
+    private async Task RunSetup(bool automatic)
+    {
         try
         {
             _batchSetup = true;
 
             Log("");
             Log("=========================================");
-            Log(Tr("Einrichtung: die fehlenden Schritte werden nacheinander erledigt.",
-                   "Setup: the missing steps are done one after another."));
+            Log(automatic
+                ? Tr("Erste Einrichtung: OfficeInstall richtet den Ordner selbst ein.",
+                     "First-time setup: OfficeInstall sets up the folder by itself.")
+                : Tr("Einrichtung: die fehlenden Schritte werden nacheinander erledigt.",
+                     "Setup: the missing steps are done one after another."));
 
             // ---- Schritt 1: Vorlagen ----
             if (Step1Done)
@@ -1288,15 +1378,20 @@ public partial class MainWindowViewModel : ObservableObject
                 Log(Tr("  Schritt 1 übersprungen - die Vorlagen sind bereits vorhanden.",
                        "  Step 1 skipped - the templates are already present."));
             }
-            else if (!ConfigsDownloadPossible)
+            else if (TemplatesBuiltIn)
             {
-                Log(Tr("  [!] Schritt 1 nicht möglich - zu den Konfigurationsdateien ist noch " +
-                       "keine Veröffentlichung hinterlegt.",
-                       "  [!] Step 1 not possible - no release is available for the configuration files."));
+                await UnpackBuiltInTemplates();
+            }
+            else if (ConfigsDownloadPossible)
+            {
+                await UpdateConfigs();
             }
             else
             {
-                await UpdateConfigs();
+                Log(Tr("  [!] Schritt 1 nicht möglich - diese EXE bringt keine Vorlagen mit, und zu den " +
+                       "Konfigurationsdateien ist keine Veröffentlichung hinterlegt.",
+                       "  [!] Step 1 not possible - this EXE has no built-in templates and no release is " +
+                       "available for the configuration files."));
             }
 
             // ---- Schritt 2: Deployment Tool ----
@@ -1306,6 +1401,14 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 Log(Tr($"  Schritt 2 übersprungen - setup.exe {OdtLocalVersion} ist bereits vorhanden.",
                        $"  Step 2 skipped - setup.exe {OdtLocalVersion} is already present."));
+            }
+            else if (automatic && !await ConnectivityService.IsOnlineAsync())
+            {
+                IsOffline = true;
+                Log(Tr("  [!] Kein Internet - das Deployment Tool kommt, sobald wieder Verbindung besteht " +
+                       "(\"Tool laden\").",
+                       "  [!] No internet - the deployment tool follows once a connection is available " +
+                       "(\"Get the tool\")."));
             }
             else
             {
@@ -1334,6 +1437,38 @@ public partial class MainWindowViewModel : ObservableObject
             UiEnabled = true;
             RefreshSetupState();
         }
+    }
+
+    /// <summary>
+    /// Packt die in die EXE eingebauten Vorlagen in den Paketordner aus und
+    /// sucht danach neu. Braucht kein Internet und fragt nicht nach: Es wird
+    /// nur geschrieben, was im Ordner noch fehlt bzw. aus der EXE stammt -
+    /// der Offline-Bestand bleibt unberuehrt.
+    /// </summary>
+    private async Task UnpackBuiltInTemplates()
+    {
+        var root = RootFolder;
+        var stand = EmbeddedTemplates.ReadVersion(OwnAssembly);
+
+        var result = await Task.Run(() => EmbeddedTemplates.Extract(OwnAssembly, root));
+
+        if (!result.Success)
+        {
+            Log(Tr($"[FEHLER] Vorlagen ließen sich nicht auspacken: {result.Error}",
+                   $"[ERROR] The templates could not be unpacked: {result.Error}"));
+            if (ActiveWindow is { } window)
+                await MessageBox.ShowInfo(window, Tr("Auspacken fehlgeschlagen", "Unpacking failed"),
+                    Tr($"Die Vorlagen ließen sich nicht nach\n{root}\nschreiben.\n\n{result.Error}",
+                       $"The templates could not be written to\n{root}\n\n{result.Error}"));
+            return;
+        }
+
+        Log(Tr($"  Vorlagen{(stand is { } s1 ? $" (Stand {s1.Version})" : "")} ausgepackt: " +
+               $"{result.Written} Datei(en) nach {root}.",
+               $"  Templates{(stand is { } s2 ? $" (build {s2.Version})" : "")} unpacked: " +
+               $"{result.Written} file(s) to {root}."));
+
+        await Scan();
     }
 
     /// <summary>Hinweis anstelle einer leeren Liste, wenn die Suche nichts findet.</summary>

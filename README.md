@@ -139,14 +139,47 @@ mit Dateinamen, damit sie sich dort berichtigen lässt.
 
 ---
 
-## Erster Start: Erste Schritte
+## Erster Start: nur die EXE genügt
 
-Frisch heruntergeladen liegt neben der EXE nichts — keine Konfigurationsdateien,
-kein Deployment Tool. Statt einer leeren Liste erscheint dann eine kurze
-Anleitung mit genau den Schaltflächen, die es braucht:
+Wer nur `OfficeInstall.exe` hat — selbst gebaut oder heruntergeladen —, muss
+nichts weiter besorgen. Beim ersten Start richtet sich das Programm selbst ein:
 
-| | Schritt | Was passiert |
+| | Was | Woher |
 | --- | --- | --- |
+| **1** | Konfigurationsvorlagen (`x32\`, `x64\`, Paketstand) | **in der EXE eingebaut** — wird sofort ausgepackt, ohne Internet |
+| **2** | Office Deployment Tool (`setup.exe`) | direkt vom Microsoft Download Center |
+| **3** | Offline-Bestand *(kann warten)* | mehrere Gigabyte, nur für Installationen ohne Internet — nie automatisch |
+
+Danach steht die Produktliste da. Was passiert ist, steht im Protokoll; Fenster
+gibt es dabei keine.
+
+Ohne Internet werden die Vorlagen trotzdem ausgepackt; das Deployment Tool
+bleibt dann als offener Schritt in der Einrichtungshilfe stehen und lässt sich
+mit **Tool laden** nachholen, sobald wieder Verbindung besteht.
+
+### Woher die eingebauten Vorlagen kommen
+
+Beim Bauen wandert der Inhalt von `package\` aus dem Repository in die EXE —
+alle XML-Dateien unter `x32\` und `x64\` sowie `package\Versionscheck\Version.txt`
+mit dem Paketstand. Ausgepackt wird über denselben abgesicherten Weg wie beim
+Einspielen von `configs.zip`: nur XML-Dateien unter `x32\`/`x64\` und die
+Versionsdatei, nichts außerhalb des Paketordners, der Offline-Bestand bleibt
+unberührt.
+
+Neuere Vorlagen kommen weiterhin über die Veröffentlichung der Konfigurationen:
+Das Programm vergleicht den Paketstand und bietet sie oben im Fenster an. Beim
+Veröffentlichen neuer Konfigurationen zieht der Workflow `Version.txt` in
+`package\` mit, damit die nächste EXE den richtigen Stand eingebaut hat.
+
+### Nicht von selbst: Downloads, Desktop, Dokumente, `%TEMP%`
+
+Liegt die EXE direkt in einem dieser Ordner, startet die Einrichtung **nicht**
+von selbst — dort landeten `x32`, `x64`, `Versionscheck` und `setup.exe` lose
+zwischen allem anderen. Dann bleibt die Einrichtungshilfe mit einem Hinweis
+stehen; **Alles Nötige einrichten** erledigt es mit einem Klick. Besser: die
+EXE in einen eigenen Ordner legen.
+
+--- | --- | --- |
 | **1** | Konfigurationsdateien | Holt die Vorlagen aus der Veröffentlichung — wenige Kilobyte |
 | **2** | Office Deployment Tool | Holt `setup.exe` vom Microsoft Download Center |
 | **3** | Offline-Bestand *(kann warten)* | Mehrere Gigabyte, nur für Installationen ohne Internet |
@@ -572,6 +605,7 @@ Services/OnlineVersionService.cs  Versionsübersicht von Microsoft auswerten
 Services/ConnectivityService.cs   kurze Netzprüfung vor jedem Onlinezugriff
 Services/InstallRunner.cs         Modus auflösen, Aufruf vorbereiten und starten
 Services/InstalledOffice.cs       vorhandenes Office finden, Konflikte bestimmen
+Services/EmbeddedTemplates.cs     eingebaute Vorlagen auflisten und auspacken
 Services/TempWorkspace.cs         Arbeitsordner unter %TEMP% anlegen und leeren
 Services/UpdateService.cs         update.json abfragen, Programm und Konfigurationen einspielen
 Services/DeploymentToolService.cs setup.exe finden, holen, entpacken und verteilen
