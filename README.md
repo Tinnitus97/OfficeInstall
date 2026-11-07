@@ -17,6 +17,15 @@ gleiche Konfigurationsdateien — aber als kompilierte Windows-Anwendung mit
 derselben Technik und Optik wie das *Windows DaSi Tool*, der *Skript-Launcher*
 und die *Inventarisierung*.
 
+![Hauptfenster: Paketordner, Installationsbasen mit Offline-Stand und Protokoll](docs/bilder/hauptfenster.png)
+
+<details>
+<summary>Helle Darstellung</summary>
+
+![Hauptfenster in heller Darstellung](docs/bilder/hauptfenster-hell.png)
+
+</details>
+
 ### Neu in 1.5.0
 
 - **Nur die EXE genügt:** Die Vorlagen stecken in der EXE, das Deployment Tool
@@ -176,6 +185,8 @@ gibt es dabei keine.
 Ohne Internet werden die Vorlagen trotzdem ausgepackt; das Deployment Tool
 bleibt dann als offener Schritt in der Einrichtungshilfe stehen und lässt sich
 mit **Tool laden** nachholen, sobald wieder Verbindung besteht.
+
+![Erster Start mit nur der EXE: Vorlagen sind ausgepackt, das Deployment Tool fehlt noch, weil keine Internetverbindung besteht](docs/bilder/erster-start.png)
 
 ### Woher die eingebauten Vorlagen kommen
 
@@ -412,6 +423,8 @@ brauchbare Stand bleibt also erhalten.
 
 ### Woher der Fortschritt kommt
 
+![Offline-Bestand wird aktualisiert: Fortschritt in der Fußzeile](docs/bilder/download.png)
+
 `setup.exe /download` meldet **nichts** — kein Fenster, keine Ausgabe auf der
 Konsole, kein Rückkanal. Vom Deployment Tool ist also keine Prozentangabe zu
 bekommen, egal wie man es aufruft.
@@ -548,6 +561,8 @@ Architektur. Ein Microsoft 365 in 32 Bit verhindert deshalb jedes Office in
 Volumenlizenz aus *PerpetualVL2021*. *Current*, *Monthly Enterprise*,
 *Semi-Annual* und die Vorschaukanäle bilden dagegen eine Familie — die lassen
 sich ineinander umstellen und gelten als passend.
+
+![Rückfrage bei nicht kompatiblem Office: Entfernen, Behalten oder Abbrechen](docs/bilder/konflikt.png)
 
 ### Der Schalter
 
