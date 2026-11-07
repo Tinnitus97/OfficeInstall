@@ -2,7 +2,23 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
-## [1.5.0] – 2026-11-06
+## [Unveröffentlicht]
+
+### Behoben
+
+- Die Schaltfläche **Offline aktualisieren** war zu schmal, das letzte Wort
+  wurde abgeschnitten.
+- Im Protokoll stand der Ort der `setup.exe` mit einem überzähligen Punkt
+  (`.setup.exe`, `.x64\Current\setup.exe`) statt `.\setup.exe`.
+
+### Dokumentation
+
+- README mit aktuellen Bildschirmfotos (Hauptfenster hell und dunkel, erster
+  Start, Fortschritt beim Download, Rückfrage bei nicht kompatiblem Office).
+
+---
+
+## [1.5.0] – 2026-11-07
 
 ### Hinzugefügt
 

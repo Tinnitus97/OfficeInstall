@@ -372,7 +372,7 @@
                                                             Content="{Binding InstallLabel}"
                                                             Command="{Binding InstallCommand}"
                                                             IsEnabled="{Binding CanInstall}"/>
-                                                    <Button Classes="secondary" Width="108" Margin="0"
+                                                    <Button Classes="secondary" Width="136" Margin="0"
                                                             Content="{Binding OfflineLabel}"
                                                             Command="{Binding DownloadOfflineCommand}"
                                                             IsEnabled="{Binding CanInstall}"/>

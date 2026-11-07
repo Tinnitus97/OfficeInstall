@@ -762,10 +762,12 @@ public partial class MainWindowViewModel : ObservableObject
         {
             // Nur den Teil des Pfades zeigen, der nicht ohnehin schon in der
             // Kopfzeile steht - die vollstaendige Angabe sprengt die Spalte.
+            // Frueher "." + Rest - bei einem Paketordner mit Trenner am Ende
+            // ergab das ".setup.exe" bzw. ".x64\Current\setup.exe".
             var shown = setup!;
-            var root = Path.GetFullPath(RootFolder);
-            if (shown.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-                shown = "." + shown[root.Length..];
+            var relative = Path.GetRelativePath(Path.GetFullPath(RootFolder), shown);
+            if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+                shown = "." + Path.DirectorySeparatorChar + relative;
 
             Log($"  {"Deployment Tool".PadRight(_logColumn)}  {OdtLocalVersion} · {shown}");
         }
