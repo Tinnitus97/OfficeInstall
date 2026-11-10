@@ -34,6 +34,9 @@ public static class TempWorkspace
     /// <summary>Arbeitsordner dieses Fensters.</summary>
     public static string Root => Path.Combine(BaseRoot, Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
 
+    /// <summary>So lange bleiben Ordner beendeter Fenster vorsorglich stehen.</summary>
+    public static TimeSpan StaleAfter { get; set; } = TimeSpan.FromHours(12);
+
     /// <summary>Unterordner fuer das Deployment Tool.</summary>
     public static string DeploymentFolder => Path.Combine(Root, "odt");
 
@@ -82,9 +85,16 @@ public static class TempWorkspace
     /// Ordner mit der Nummer eines beendeten Prozesses sowie alles, was noch
     /// aus der Zeit vor den getrennten Ordnern direkt im Oberordner liegt.
     /// Der eigene Ordner und die Ordner laufender Fenster bleiben.
+    ///
+    /// Ordner beendeter Fenster bleiben ausserdem <paramref name="minimumAge"/>
+    /// lang stehen (Vorgabe <see cref="StaleAfter"/>): Wurde ein Fenster
+    /// waehrend eines Vorgangs geschlossen, arbeitet das Deployment Tool im
+    /// Hintergrund weiter - mit der Konfiguration aus genau diesem Ordner.
     /// </summary>
-    public static Result ClearStale()
+    public static Result ClearStale(TimeSpan? minimumAge = null)
     {
+        var youngest = DateTime.UtcNow - (minimumAge ?? StaleAfter);
+
         long freed = 0;
         var removed = false;
         string? error = null;
@@ -100,6 +110,12 @@ public static class TempWorkspace
                     && Directory.Exists(entry)
                     && (pid == Environment.ProcessId || IsOurProcessRunning(pid)))
                     continue;
+
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(entry) > youngest) continue;
+                }
+                catch { /* Alter unbekannt: dann wie bisher behandeln */ }
 
                 try
                 {
@@ -156,7 +172,7 @@ public static class TempWorkspace
         long total = 0;
         try
         {
-            foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+            foreach (var file in OfflineSource.EnumerateFilesNoLinks(folder))
             {
                 try { total += new FileInfo(file).Length; } catch { /* einzelne Datei */ }
             }

@@ -14,6 +14,9 @@ on:
       - 'tools/validate-configs.py'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   pruefen:
     runs-on: ubuntu-latest

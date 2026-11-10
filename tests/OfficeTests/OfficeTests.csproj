@@ -40,6 +40,7 @@
     <Compile Include="../../Services/TempWorkspace.cs" />
     <Compile Include="../../Services/UpdateService.cs" />
     <Compile Include="../../Services/SelfUpdate.cs" />
+    <Compile Include="../../Services/Browser.cs" />
     <Compile Include="../../Services/AppInfo.cs" />
     <Compile Include="../../Services/ActivityLog.cs" />
     <Compile Include="../../Services/Authenticode.cs" />

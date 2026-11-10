@@ -61,6 +61,47 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool _closeConfirmed;
+    private bool _askingToClose;
+
+    /// <summary>
+    /// Laeuft noch das Deployment Tool, wird vor dem Schliessen gefragt. Ohne
+    /// Rueckfrage lief ein Download unsichtbar im Hintergrund weiter - weder zu
+    /// verfolgen noch abzubrechen.
+    /// </summary>
+    protected override async void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+
+        if (_closeConfirmed || e.Cancel) return;
+        if (DataContext is not ViewModels.MainWindowViewModel vm) return;
+        if (vm.CloseWithoutAsking || !vm.IsOperationRunning) return;
+
+        // Vor dem ersten await - danach waere es fuer das Abbrechen zu spaet.
+        e.Cancel = true;
+        if (_askingToClose) return;
+
+        _askingToClose = true;
+        try
+        {
+            // Enter und Esc lassen das Fenster offen - geschlossen wird nur
+            // mit einem ausdruecklichen Klick.
+            var choice = await MessageBox.ShowChoice(this, vm.CloseWhileBusyTitle, vm.CloseWhileBusyText,
+                new MessageBox.Choice(vm.CloseWhileBusyStay, Primary: true),
+                new MessageBox.Choice(vm.CloseWhileBusyLeave, Danger: true));
+
+            if (choice == 1)
+            {
+                _closeConfirmed = true;
+                Close();
+            }
+        }
+        finally
+        {
+            _askingToClose = false;
+        }
+    }
+
     /// <summary>
     /// Beim Schliessen den Arbeitsordner unter %TEMP% leeren. Das gilt fuer
     /// jede Art zu beenden - Schaltflaeche, Kreuz in der Titelleiste oder

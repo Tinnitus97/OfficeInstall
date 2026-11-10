@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace OfficeInstall.Services;
 
@@ -22,8 +23,18 @@ public sealed class OfflineSource
     /// <summary>Ordner, der an SourcePath uebergeben wird (enthaelt "Office").</summary>
     public string SourcePath { get; init; } = "";
 
-    /// <summary>Gefundene Versionsordner, absteigend sortiert.</summary>
+    /// <summary>Vollstaendige Versionsordner, absteigend sortiert.</summary>
     public IReadOnlyList<Version> Versions { get; init; } = Array.Empty<Version>();
+
+    /// <summary>
+    /// Versionsordner, die ein noch laufender oder gescheiterter Download
+    /// hinterlassen hat - sie werden nicht zum Installieren benutzt.
+    /// Siehe <see cref="BeginDownload"/>.
+    /// </summary>
+    public IReadOnlyList<Version> IncompleteVersions { get; init; } = Array.Empty<Version>();
+
+    /// <summary>true, wenn ein Download begonnen und nicht bestaetigt abgeschlossen wurde.</summary>
+    public bool DownloadPending { get; init; }
 
     /// <summary>Neueste vor Ort vorliegende Version.</summary>
     public Version? LatestVersion => Versions.Count > 0 ? Versions[0] : null;
@@ -31,8 +42,100 @@ public sealed class OfflineSource
     /// <summary>true, wenn die zur Architektur passende Cab-Datei vorhanden ist.</summary>
     public bool HasMatchingCab { get; init; }
 
-    /// <summary>Groesse der Quelldateien in Byte (0, wenn nicht ermittelbar).</summary>
+    /// <summary>
+    /// Groesse des neuesten vollstaendigen Stands in Byte (0, wenn nicht
+    /// ermittelbar). Frueher die Groesse des ganzen Ordners Office\Data - lag
+    /// dort noch ein alter Stand, stand neben der Versionsnummer das Doppelte.
+    /// </summary>
     public long SizeInBytes { get; init; }
+
+    /// <summary>
+    /// Merkzettel in Office\Data, solange ein Download nicht bestaetigt fertig
+    /// ist. Darin stehen die Versionen, die VOR dem Download vollstaendig da
+    /// waren - nur die gelten bis dahin als brauchbar.
+    /// </summary>
+    public const string DownloadMarkerName = "download-unvollstaendig.txt";
+
+    private static string DataFolderOf(string baseFolder) => Path.Combine(baseFolder, "Office", "Data");
+
+    private static string CabName(int clientEdition) => clientEdition == 32 ? "v32.cab" : "v64.cab";
+
+    /// <summary>Alle Versionsordner unter Office\Data, neueste zuerst.</summary>
+    private static List<Version> ReadVersionFolders(string dataFolder)
+    {
+        var versions = new List<Version>();
+        foreach (var directory in Directory.GetDirectories(dataFolder))
+        {
+            if (Version.TryParse(Path.GetFileName(directory), out var version)) versions.Add(version);
+        }
+        versions.Sort();
+        versions.Reverse();
+        return versions;
+    }
+
+    /// <summary>Die im Merkzettel als vollstaendig genannten Versionen, oder null ohne Merkzettel.</summary>
+    private static HashSet<Version>? ReadMarker(string dataFolder)
+    {
+        var marker = Path.Combine(dataFolder, DownloadMarkerName);
+        if (!File.Exists(marker)) return null;
+
+        var complete = new HashSet<Version>();
+        try
+        {
+            foreach (var line in File.ReadAllLines(marker))
+            {
+                if (Version.TryParse(line.Trim(), out var version)) complete.Add(version);
+            }
+        }
+        catch { /* unlesbar: dann gilt bis zum naechsten Download nichts als vollstaendig */ }
+        return complete;
+    }
+
+    /// <summary>
+    /// Vor dem Start eines Downloads aufrufen.
+    ///
+    /// WARUM: Das Deployment Tool legt den Ordner der neuen Version gleich zu
+    /// Beginn an. Bricht der Download ab (Netz weg, Fehler, Fenster
+    /// geschlossen), bleibt ein halb gefuellter Ordner mit der hoechsten
+    /// Versionsnummer liegen - und galt bisher als "aktueller Stand": gruen
+    /// in der Liste, und die Offline-Installation nahm genau ihn.
+    ///
+    /// Der Merkzettel haelt fest, was vorher vollstaendig war. Alles, was
+    /// danach hinzukommt, zaehlt erst, wenn <see cref="CompleteDownload"/> den
+    /// Zettel nach bestandener Nachpruefung entfernt.
+    ///
+    /// Liegt schon ein Zettel da (frueherer Abbruch), bleibt seine Liste
+    /// gueltig - die halben Ordner von damals duerfen jetzt nicht als
+    /// vollstaendig eingetragen werden.
+    ///
+    /// Rueckgabe true, wenn der Zettel jetzt neu angelegt wurde. Startet der
+    /// Download danach gar nicht erst, nimmt der Aufrufer ihn damit wieder weg
+    /// (<see cref="CompleteDownload"/>) - einen aelteren Zettel aber nicht.
+    /// </summary>
+    public static bool BeginDownload(string baseFolder)
+    {
+        var dataFolder = DataFolderOf(baseFolder);
+        Directory.CreateDirectory(dataFolder);
+
+        var existing = ReadVersionFolders(dataFolder);
+        var known = ReadMarker(dataFolder);
+        var complete = known is null ? existing : existing.Where(known.Contains).ToList();
+
+        File.WriteAllLines(Path.Combine(dataFolder, DownloadMarkerName),
+                           complete.Select(v => v.ToString()));
+        return known is null;
+    }
+
+    /// <summary>Nach bestandener Nachpruefung aufrufen: Der neue Stand gilt jetzt.</summary>
+    public static void CompleteDownload(string baseFolder)
+    {
+        try
+        {
+            var marker = Path.Combine(DataFolderOf(baseFolder), DownloadMarkerName);
+            if (File.Exists(marker)) ForceDeleteFile(marker);
+        }
+        catch { /* bleibt er liegen, gilt der neue Stand eben erst nach dem naechsten Download */ }
+    }
 
     public static OfflineSource NotAvailable(string baseFolder) => new() { SourcePath = baseFolder };
 
@@ -48,28 +151,33 @@ public sealed class OfflineSource
             if (string.IsNullOrWhiteSpace(baseFolder) || !Directory.Exists(baseFolder))
                 return NotAvailable(baseFolder);
 
-            var dataFolder = Path.Combine(baseFolder, "Office", "Data");
+            var dataFolder = DataFolderOf(baseFolder);
             if (!Directory.Exists(dataFolder)) return NotAvailable(baseFolder);
 
-            var versions = new List<Version>();
-            foreach (var directory in Directory.GetDirectories(dataFolder))
-            {
-                if (Version.TryParse(Path.GetFileName(directory), out var version)) versions.Add(version);
-            }
-            versions.Sort();
-            versions.Reverse();
+            var all = ReadVersionFolders(dataFolder);
+            var marker = ReadMarker(dataFolder);
+            if (all.Count == 0 && marker is null) return NotAvailable(baseFolder);
 
-            if (versions.Count == 0) return NotAvailable(baseFolder);
+            // Mit Merkzettel zaehlt nur, was vor dem Download schon da war.
+            var complete = marker is null ? all : all.Where(marker.Contains).ToList();
+            var incomplete = marker is null ? new List<Version>() : all.Where(v => !marker.Contains(v)).ToList();
 
-            var expectedCab = clientEdition == 32 ? "v32.cab" : "v64.cab";
+            var hasCab = File.Exists(Path.Combine(dataFolder, CabName(clientEdition)));
 
             return new OfflineSource
             {
-                Available = true,
+                // Ohne die Beschreibungsdatei kann das Deployment Tool aus dem
+                // Ordner nicht installieren - dann lieber online als ein
+                // Fehlschlag mitten in der Installation.
+                Available = complete.Count > 0 && hasCab,
                 SourcePath = Path.GetFullPath(baseFolder),
-                Versions = versions,
-                HasMatchingCab = File.Exists(Path.Combine(dataFolder, expectedCab)),
-                SizeInBytes = MeasureSize(dataFolder)
+                Versions = complete,
+                IncompleteVersions = incomplete,
+                DownloadPending = marker is not null,
+                HasMatchingCab = hasCab,
+                SizeInBytes = complete.Count > 0
+                    ? MeasureSize(Path.Combine(dataFolder, complete[0].ToString()))
+                    : 0
             };
         }
         catch
@@ -92,21 +200,88 @@ public sealed class OfflineSource
     /// <param name="expected">Online gemeldete Version, falls bekannt.</param>
     public static string? VerifyDownload(string baseFolder, int clientEdition, Version? expected)
     {
-        var source = Detect(baseFolder, clientEdition);
-        if (!source.Available || source.LatestVersion is not { } latest)
+        // Bewusst am Merkzettel vorbei: Geprueft wird, was jetzt im Ordner
+        // liegt - der Zettel wird ja erst nach dieser Pruefung entfernt.
+        var dataFolder = DataFolderOf(baseFolder);
+        List<Version> all;
+        try
+        {
+            all = Directory.Exists(dataFolder) ? ReadVersionFolders(dataFolder) : new List<Version>();
+        }
+        catch (Exception ex)
+        {
+            return $"Der Ordner Office\\Data ließ sich nicht lesen: {ex.Message}";
+        }
+
+        if (all.Count == 0)
             return "Im Ordner Office\\Data liegt danach kein Versionsordner.";
 
-        if (!source.HasMatchingCab)
-            return $"Die Beschreibungsdatei {(clientEdition == 32 ? "v32.cab" : "v64.cab")} fehlt.";
+        if (!File.Exists(Path.Combine(dataFolder, CabName(clientEdition))))
+            return $"Die Beschreibungsdatei {CabName(clientEdition)} fehlt.";
 
+        var latest = all[0];
         if (expected is not null && latest < expected)
             return $"Vorhanden ist Version {latest}, erwartet war {expected}.";
 
-        var newest = Path.Combine(baseFolder, "Office", "Data", latest.ToString());
-        if (MeasureSize(newest) == 0)
+        if (MeasureSize(Path.Combine(dataFolder, latest.ToString())) == 0)
             return $"Der Versionsordner {latest} ist leer.";
 
         return null;
+    }
+
+    /// <summary>
+    /// Alle Dateien unterhalb eines Ordners - ohne Verknuepfungen auf andere
+    /// Ordner zu folgen (Junctions, symbolische Links).
+    ///
+    /// Das Programm laeuft mit Administratorrechten und raeumt in Ordnern auf,
+    /// die auch ohne diese Rechte beschreibbar sind (%TEMP%). Wer dort eine
+    /// Verknuepfung nach C:\Windows ablegt, soll damit weder das Messen noch
+    /// das Zuruecksetzen von Dateiattributen dorthin umlenken koennen.
+    /// </summary>
+    internal static IEnumerable<string> EnumerateFilesNoLinks(string folder)
+    {
+        foreach (var directory in EnumerateDirectoriesNoLinks(folder, includeSelf: true))
+        {
+            string[] files;
+            try { files = Directory.GetFiles(directory); }
+            catch { continue; }
+
+            foreach (var file in files) yield return file;
+        }
+    }
+
+    /// <summary>Alle Unterordner, ohne in Verknuepfungen hinabzusteigen (die Verknuepfung selbst wird genannt).</summary>
+    internal static IEnumerable<string> EnumerateDirectoriesNoLinks(string folder, bool includeSelf = false)
+    {
+        if (includeSelf) yield return folder;
+
+        var pending = new Stack<string>();
+        pending.Push(folder);
+
+        while (pending.Count > 0)
+        {
+            string[] children;
+            try { children = Directory.GetDirectories(pending.Pop()); }
+            catch { continue; }
+
+            foreach (var child in children)
+            {
+                bool isLink;
+                try { isLink = (File.GetAttributes(child) & FileAttributes.ReparsePoint) != 0; }
+                catch { continue; }
+
+                if (isLink)
+                {
+                    // Die Verknuepfung selbst gehoert zum Ordner (und wird mit
+                    // ihm geloescht), ihr Ziel nicht.
+                    if (!includeSelf) yield return child;
+                    continue;
+                }
+
+                yield return child;
+                pending.Push(child);
+            }
+        }
     }
 
     private static long MeasureSize(string folder)
@@ -114,7 +289,7 @@ public sealed class OfflineSource
         long total = 0;
         try
         {
-            foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+            foreach (var file in EnumerateFilesNoLinks(folder))
             {
                 try { total += new FileInfo(file).Length; } catch { /* einzelne Datei nicht lesbar */ }
             }
@@ -300,10 +475,11 @@ public sealed class OfflineSource
         {
             if (!Directory.Exists(directory)) return;
 
-            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+            // Ohne Verknuepfungen zu folgen - siehe EnumerateFilesNoLinks.
+            foreach (var file in EnumerateFilesNoLinks(directory))
                 ClearFileAttributes(file);
 
-            foreach (var sub in Directory.EnumerateDirectories(directory, "*", SearchOption.AllDirectories))
+            foreach (var sub in EnumerateDirectoriesNoLinks(directory))
                 ClearDirectoryAttributes(sub);
 
             ClearDirectoryAttributes(directory);

@@ -2,14 +2,69 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
-## [Unveröffentlicht]
+## [1.5.1] – 2026-11-10
+
+Ergebnis eines zweiten Funktionstests und Audits von 1.5.0.
 
 ### Behoben
 
+- **Ein abgebrochener Download galt als „aktueller Stand“.** Das Deployment
+  Tool legt den Ordner der neuen Version sofort an; brach der Download ab,
+  stand er grün in der Liste, und die Offline-Installation nahm genau diesen
+  halben Stand. Jetzt hält ein Merkzettel in `Office\Data` fest, was vor dem
+  Download vollständig war — nur das gilt, bis die Nachprüfung bestanden ist.
+  Die Zeile zeigt *Download unvollständig* und bietet **Offline fortsetzen** an.
+- **Bestand ohne `v32.cab`/`v64.cab` galt als brauchbar.** Er wird jetzt
+  übergangen; im Modus *Automatisch* wird dann online installiert.
+- **„Fertig!“ allein wegen Rückgabewert 0.** Nach der Installation wird in der
+  Registry nachgesehen, ob das Produkt eingetragen ist; sonst bleibt das
+  Fenster offen und meldet *Installation nicht bestätigt*. Nach dem Entfernen
+  wird geprüft, ob das alte Office wirklich weg ist.
+- **Fenster schloss sich mitten in einem Vorgang ohne Rückfrage** — der
+  Download lief unsichtbar weiter. Jetzt wird gefragt; *Offen lassen* ist die
+  Vorgabe. Ordner beendeter Fenster werden erst nach zwölf Stunden weggeräumt,
+  weil das Deployment Tool daraus noch arbeiten kann.
+- Nach einem fehlgeschlagenen Download wird die Liste neu eingelesen.
+- Neben der Version steht die Größe dieses Stands, nicht mehr die des ganzen
+  Ordners (alter plus neuer Stand).
+- „Updates verfügbar: …“ über der Liste wechselt mit der Sprache.
+- Sammellauf: Das Ergebnis nennt erfolgreich, fehlgeschlagen und nicht mehr
+  begonnen getrennt.
+- Fortschritt beginnt mit „0 MB“ statt „?“; bei leerem Ordner entfällt die
+  Zeile „alles aktuell (0 Bestände)“.
+- Fehler beim Laden des Deployment Tools: Die Meldung sagt, was misslungen ist
+  und wie es weitergeht, statt nur den Systemtext zu zeigen. Scheitert der
+  Start der neuen Fassung beim Programm-Update, erscheint jetzt eine Meldung.
+- Dialoge lassen sich mit Enter und Esc bedienen (Enter nie für eine
+  zerstörerische Antwort); lange Beschriftungen passen in die Schaltflächen.
+- „Medium (.img)“ war abgeschnitten; bei aufgeklappten älteren Fassungen
+  bleibt mehr von der Produktliste sichtbar.
 - Die Schaltfläche **Offline aktualisieren** war zu schmal, das letzte Wort
   wurde abgeschnitten.
 - Im Protokoll stand der Ort der `setup.exe` mit einem überzähligen Punkt
   (`.setup.exe`, `.x64\Current\setup.exe`) statt `.\setup.exe`.
+
+### Sicherheit
+
+- **`setup.exe` wird vor jedem Start geprüft.** Sie startet mit
+  Administratorrechten, liegt aber im Paketordner oder als Kopie unter
+  `%TEMP%`. Vor jedem Start muss sie gültig von *Microsoft Corporation*
+  signiert sein und bleibt von der Prüfung bis nach dem Start gesperrt. Sonst
+  erscheint eine Rückfrage mit dem Grund; *Abbrechen* ist die Vorgabe.
+- **Programm-Update:** Die Prüfsumme der neuen EXE wird unmittelbar vor dem
+  Start ein zweites Mal verglichen, die Datei bleibt bis dahin gesperrt.
+- **Browser ohne Administratorrechte.** „Was ist neu?“, die Downloadseite und
+  die älteren Fassungen öffneten den Browser bisher aus dem Adminprozess. Jetzt
+  geht der Aufruf über die Shell des Benutzers, und geöffnet werden nur noch
+  `https`-Adressen (die Adresse hinter „Was ist neu?“ stammt aus `update.json`).
+- Beim Aufräumen und Messen wird Ordnerverknüpfungen (Junctions) nicht mehr
+  gefolgt.
+- Workflows: Bauen und Prüfen laufen nur mit Leserechten; Schreibrechte haben
+  allein die beiden Veröffentlichungsaufgaben, die nie gleichzeitig laufen.
+
+### Geändert
+
+- Avalonia 12.1.6 (bisher 12.1.4).
 
 ### Dokumentation
 

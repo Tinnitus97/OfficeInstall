@@ -47,6 +47,8 @@ deshalb ausdrücklich.
 
 1. `<Version>` in der `.csproj` setzen. Mehr nicht — Fenstertitel,
    Update-Vergleich und Kennung für Webanfragen lesen die Nummer daraus.
+   Der Ordnung halber dieselbe Nummer in `app.manifest` (`assemblyIdentity
+   version`) nachziehen — sie wird nirgends ausgewertet.
 2. `CHANGELOG.md` ergänzen.
 3. Committen und pushen (GitHub Desktop: *Commit to main* → *Push origin*).
 4. Veröffentlichen — **einer** der drei Wege:

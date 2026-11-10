@@ -65,6 +65,8 @@ public static class MessageBox
             Background = ThemeBrushes.Base
         };
 
+        Button? focusTarget = null;
+
         for (var i = 0; i < choices.Length; i++)
         {
             var index = i;
@@ -81,6 +83,15 @@ public static class MessageBox
             };
 
             var button = MakeButton(choice.Label, bg, fg);
+
+            // Tastatur: Enter loest die Hauptantwort aus - aber nie eine
+            // zerstoererische. Esc entspricht der ersten, harmlosen Antwort
+            // (Nein, Abbrechen) beziehungsweise dem einzigen OK.
+            button.IsDefault = choice.Primary && !choice.Danger;
+            button.IsCancel = !choice.Danger && (choices.Length == 1 || i == 0);
+
+            // Den Tastaturfokus bekommt die Hauptantwort, sonst die harmlose.
+            if (button.IsDefault || (focusTarget is null && button.IsCancel)) focusTarget = button;
             button.Click += (_, _) => { tcs.TrySetResult(index); dialog.Close(); };
             buttons.Children.Add(button);
         }
@@ -93,6 +104,14 @@ public static class MessageBox
 
         dialog.Closed += (_, _) => tcs.TrySetResult(-1);
 
+        // Ohne ausdruecklichen Fokus gingen Enter und Esc ins Leere, solange
+        // niemand in den Dialog geklickt hatte.
+        dialog.Opened += (_, _) =>
+        {
+            dialog.Activate();
+            focusTarget?.Focus();
+        };
+
         await dialog.ShowDialog(owner);
         return await tcs.Task;
     }
@@ -100,7 +119,10 @@ public static class MessageBox
     private static Button MakeButton(string content, IBrush bg, IBrush fg) => new()
     {
         Content = content,
-        Width = 90,
+        // Mindestbreite statt fester Breite: "Trotzdem schließen" passte in
+        // 90 Pixel nicht hinein.
+        MinWidth = 90,
+        Padding = new Thickness(14, 0),
         Height = 32,
         Background = bg,
         Foreground = fg,

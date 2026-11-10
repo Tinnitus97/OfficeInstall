@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 namespace OfficeInstall.Services;
@@ -194,24 +193,5 @@ public static class LegacyOfficeReleases
 
         return search.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                      .All(term => haystack.Contains(term, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Oeffnet eine Adresse im Standardbrowser. Bewusst ueber die Windows-Shell
-    /// (UseShellExecute) - damit gilt genau die Zuordnung, die der Benutzer
-    /// eingestellt hat, und der Browser bestimmt auch das Zielverzeichnis.
-    /// Im Paketordner wird nichts abgelegt.
-    /// </summary>
-    public static bool OpenInBrowser(string url)
-    {
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

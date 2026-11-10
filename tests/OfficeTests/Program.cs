@@ -52,6 +52,8 @@ internal static class Program
 
         public static string? ReadSourcePath(string file) => (string?)Add(file)?.Attribute("SourcePath");
 
+        public static string? ReadVersion(string file) => (string?)Add(file)?.Attribute("Version");
+
         public static int CountProducts(string file)
             => Add(file)?.Elements().Count(e => e.Name.LocalName == "Product") ?? 0;
 
@@ -152,7 +154,7 @@ internal static class Program
         Check("passende Cab-Datei erkannt", vl2021.Offline.HasMatchingCab);
         Check("SourcePath zeigt auf den Basis-Ordner",
             vl2021.Offline.SourcePath == Path.Combine(root, "x64", "PerpetualVL2021"), vl2021.Offline.SourcePath);
-        Check("Groesse der Quelldateien wird ermittelt", vl2021.Offline.SizeInBytes > 3000,
+        Check("Groesse des vorliegenden Stands wird ermittelt", vl2021.Offline.SizeInBytes >= 2000,
             vl2021.Offline.SizeInBytes.ToString());
         Check("ohne Office\\Data keine Offline-Quelle", !student.Offline.Available);
 
@@ -185,6 +187,113 @@ internal static class Program
             OfflineSource.VerifyDownload(pruefOrdner, 64, new Version("16.0.3.0"))?.Contains("erwartet") == true);
         Check("32-Bit-Bestand verlangt v32.cab",
             OfflineSource.VerifyDownload(pruefOrdner, 32, null)?.Contains("v32.cab") == true);
+
+        Console.WriteLine("\n== Unfertiger Download zaehlt nicht ==");
+        var merkOrdner = Path.Combine(root, "merkzettel");
+        var merkDaten = Path.Combine(merkOrdner, "Office", "Data");
+        Touch(Path.Combine(merkDaten, "16.0.1.1", "stream.x64.x-none.dat"), new string('x', 3000));
+        Touch(Path.Combine(merkDaten, "v64.cab"));
+
+        Check("ohne passende Cab-Datei gilt der Bestand nicht als brauchbar",
+            !OfflineSource.Detect(merkOrdner, 32).Available
+            && OfflineSource.Detect(merkOrdner, 32).Versions.Count == 1);
+        Check("mit Cab-Datei ist er brauchbar", OfflineSource.Detect(merkOrdner, 64).Available);
+
+        // Download beginnt: Das Deployment Tool legt den neuen Ordner sofort an.
+        Check("der Merkzettel wird beim ersten Mal neu angelegt", OfflineSource.BeginDownload(merkOrdner));
+        Touch(Path.Combine(merkDaten, "16.0.2.2", "stream.x64.x-none.dat"), new string('x', 500));
+
+        var waehrend = OfflineSource.Detect(merkOrdner, 64);
+        Check("waehrend des Downloads gilt weiter der alte Stand",
+            waehrend.Available && waehrend.LatestVersion?.ToString() == "16.0.1.1", waehrend.LatestVersion?.ToString());
+        Check("der halbe neue Ordner wird als unfertig gefuehrt",
+            waehrend.DownloadPending && waehrend.IncompleteVersions.Count == 1
+            && waehrend.IncompleteVersions[0].ToString() == "16.0.2.2");
+        Check("die Groesse meint den brauchbaren Stand, nicht den ganzen Ordner",
+            waehrend.SizeInBytes == 3000, waehrend.SizeInBytes.ToString());
+        Check("die Nachpruefung sieht den neuen Ordner trotzdem",
+            OfflineSource.VerifyDownload(merkOrdner, 64, new Version("16.0.2.2")) is null);
+
+        // Zweiter Anlauf nach einem Abbruch: Der halbe Ordner darf jetzt nicht
+        // als "vorher vollstaendig" eingetragen werden.
+        Check("beim zweiten Anlauf liegt er schon da", !OfflineSource.BeginDownload(merkOrdner));
+        Check("ein zweiter Anlauf macht den halben Ordner nicht vollstaendig",
+            OfflineSource.Detect(merkOrdner, 64).LatestVersion?.ToString() == "16.0.1.1"
+            && File.ReadAllText(Path.Combine(merkDaten, OfflineSource.DownloadMarkerName)).Trim() == "16.0.1.1");
+
+        OfflineSource.CompleteDownload(merkOrdner);
+        var danach = OfflineSource.Detect(merkOrdner, 64);
+        Check("nach bestaetigtem Abschluss gilt der neue Stand",
+            danach.LatestVersion?.ToString() == "16.0.2.2" && !danach.DownloadPending
+            && danach.IncompleteVersions.Count == 0, danach.LatestVersion?.ToString());
+        OfflineSource.CompleteDownload(merkOrdner);
+        Check("doppeltes Abschliessen schadet nicht", OfflineSource.Detect(merkOrdner, 64).Available);
+
+        var aufraeumenMitZettel = OfflineSource.CleanupOldVersions(merkOrdner, new Version("16.0.2.2"));
+        Check("Aufraeumen danach entfernt den alten Stand", aufraeumenMitZettel.RemovedVersions.Contains("16.0.1.1"));
+
+        // Erstdownload, der abbricht: Es war vorher nichts da.
+        var erstOrdner = Path.Combine(root, "merkzettel-neu");
+        OfflineSource.BeginDownload(erstOrdner);
+        Touch(Path.Combine(erstOrdner, "Office", "Data", "16.0.3.3", "teil.dat"), "x");
+        Touch(Path.Combine(erstOrdner, "Office", "Data", "v64.cab"));
+        var erstAbbruch = OfflineSource.Detect(erstOrdner, 64);
+        Check("abgebrochener Erstdownload gilt nicht als Offline-Bestand",
+            !erstAbbruch.Available && erstAbbruch.DownloadPending && erstAbbruch.LatestVersion is null
+            && erstAbbruch.IncompleteVersions.Count == 1);
+        Check("im Automatik-Modus wird dann online installiert",
+            InstallRunner.ResolveMode(InstallMode.Automatic, erstAbbruch) == InstallMode.Online);
+
+        Console.WriteLine("\n== Verknuepfungen wird nicht gefolgt ==");
+        var linkZiel = Path.Combine(root, "link-ziel");
+        var linkOrdner = Path.Combine(root, "link-quelle");
+        var linkGeschuetzt = Path.Combine(linkZiel, "wichtig.dat");
+        Touch(linkGeschuetzt, new string('x', 5000));
+        File.SetAttributes(linkGeschuetzt, FileAttributes.ReadOnly);
+        Touch(Path.Combine(linkOrdner, "eigen.dat"), new string('x', 100));
+        Directory.CreateSymbolicLink(Path.Combine(linkOrdner, "abkuerzung"), linkZiel);
+
+        Check("Dateien hinter einer Ordnerverknuepfung werden nicht aufgezaehlt",
+            OfflineSource.EnumerateFilesNoLinks(linkOrdner).Select(Path.GetFileName).SequenceEqual(new[] { "eigen.dat" }),
+            string.Join(",", OfflineSource.EnumerateFilesNoLinks(linkOrdner).Select(Path.GetFileName)));
+        Check("und nicht mitgemessen", DownloadProgress.MeasureFolder(linkOrdner) == 100,
+            DownloadProgress.MeasureFolder(linkOrdner).ToString());
+        OfflineSource.ForceDeleteDirectory(linkOrdner);
+        Check("Loeschen entfernt die Verknuepfung, nicht ihr Ziel",
+            !Directory.Exists(linkOrdner) && File.Exists(linkGeschuetzt));
+        Check("und laesst die Attribute dort unangetastet",
+            (File.GetAttributes(linkGeschuetzt) & FileAttributes.ReadOnly) != 0);
+        File.SetAttributes(linkGeschuetzt, FileAttributes.Normal);
+
+        Console.WriteLine("\n== Browser nur ueber https und ohne Adminrechte ==");
+        Check("https ist erlaubt", Browser.IsAllowed("https://github.com/Tinnitus97/OfficeInstall/releases"));
+        Check("http ist nicht erlaubt", Browser.BuildStartInfo("http://example.invalid/", true) is null);
+        Check("ein Programmpfad ist keine Adresse", Browser.BuildStartInfo(@"C:\Windows\System32\cmd.exe", true) is null);
+        Check("file:// ist nicht erlaubt", Browser.BuildStartInfo("file:///C:/boese.exe", true) is null);
+        Check("leer ist nicht erlaubt", Browser.BuildStartInfo(null, true) is null && !Browser.Open(""));
+        var ueberExplorer = Browser.BuildStartInfo(
+            "https://c2rsetup.officeapps.live.com/c2r/download.aspx?ProductreleaseID=HomeBusinessRetail&platform=X64", true)!;
+        Check("unter Windows geht der Aufruf ueber explorer.exe",
+            ueberExplorer.FileName.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)
+            && !ueberExplorer.UseShellExecute, ueberExplorer.FileName);
+        Check("die Adresse wird als ein einzelnes Argument uebergeben",
+            ueberExplorer.ArgumentList.Count == 1 && ueberExplorer.ArgumentList[0].Contains("&platform=X64"));
+        Check("eine Adresse mit Komma geht den Weg ueber die Shell",
+            Browser.BuildStartInfo("https://example.invalid/a,b", true)!.UseShellExecute);
+        Check("ausserhalb von Windows ebenfalls",
+            Browser.BuildStartInfo("https://example.invalid/", false)!.UseShellExecute);
+
+        Console.WriteLine("\n== Start der setup.exe ==");
+        var sperrDatei = Path.Combine(root, "sperre.exe");
+        File.WriteAllText(sperrDatei, "x");
+        using (var sperre = InstallRunner.LockForStart(sperrDatei))
+        {
+            Check("vorhandene Datei laesst sich fuer den Start sperren", sperre is not null && sperre.CanRead);
+        }
+        Check("fehlende Datei ergibt keine Sperre statt einer Ausnahme",
+            InstallRunner.LockForStart(Path.Combine(root, "gibt-es-nicht.exe")) is null);
+        Check("ausserhalb von Windows gibt es kein Urteil zur Signatur",
+            OperatingSystem.IsWindows() || Authenticode.VerifyMicrosoft(sperrDatei) is null);
 
         Console.WriteLine("\n== Versionsvergleich ==");
         var lokal = new Version("16.0.17928.20216");
@@ -227,8 +336,8 @@ internal static class Program
             offlinePlan.PinnedVersion?.ToString() == "16.0.17928.20216",
             offlinePlan.PinnedVersion?.ToString());
         Check("Version steht auch in der erzeugten XML",
-            OfficeConfiguration.ReadVersion(offlinePlan.ConfigurationFile) == "16.0.17928.20216",
-            OfficeConfiguration.ReadVersion(offlinePlan.ConfigurationFile));
+            TestXml.ReadVersion(offlinePlan.ConfigurationFile) == "16.0.17928.20216",
+            TestXml.ReadVersion(offlinePlan.ConfigurationFile));
         Check("Kanal der Vorlage bleibt unangetastet",
             TestXml.ReadChannel(offlinePlan.ConfigurationFile) == "PerpetualVL2021",
             TestXml.ReadChannel(offlinePlan.ConfigurationFile));
@@ -237,8 +346,8 @@ internal static class Program
         Check("Online-Plan setzt keinen SourcePath", onlinePlan.SourcePath is null);
         Check("Online-Plan schreibt keine Version fest", onlinePlan.PinnedVersion is null);
         Check("Online-XML enthaelt keine Version",
-            OfficeConfiguration.ReadVersion(onlinePlan.ConfigurationFile) is null,
-            OfficeConfiguration.ReadVersion(onlinePlan.ConfigurationFile));
+            TestXml.ReadVersion(onlinePlan.ConfigurationFile) is null,
+            TestXml.ReadVersion(onlinePlan.ConfigurationFile));
         Check("Online-XML enthaelt keinen SourcePath",
             TestXml.ReadSourcePath(onlinePlan.ConfigurationFile) is null);
         Check("Online laeuft in einem eigenen Arbeitsordner",
@@ -282,8 +391,8 @@ internal static class Program
         // eine festgeschriebene Version wuerde das verhindern.
         Check("Download schreibt keine Version fest",
             downloadPlan.PinnedVersion is null
-            && OfficeConfiguration.ReadVersion(downloadPlan.ConfigurationFile) is null,
-            OfficeConfiguration.ReadVersion(downloadPlan.ConfigurationFile));
+            && TestXml.ReadVersion(downloadPlan.ConfigurationFile) is null,
+            TestXml.ReadVersion(downloadPlan.ConfigurationFile));
         Check("Download-XML liegt getrennt von der Installations-XML",
             Path.GetFileName(downloadPlan.ConfigurationFile).StartsWith("download_", StringComparison.Ordinal),
             Path.GetFileName(downloadPlan.ConfigurationFile));
@@ -320,7 +429,7 @@ internal static class Program
                 == Path.Combine(root, "x64", "Current"));
         Check("gemeinsame Datei benutzt /download", basisPlan.Verb == "download");
         Check("gemeinsame Download-Datei schreibt keine Version fest",
-            OfficeConfiguration.ReadVersion(basisPlan.ConfigurationFile) is null);
+            TestXml.ReadVersion(basisPlan.ConfigurationFile) is null);
 
         Console.WriteLine("\n== Version festschreiben ==");
         // Vorlage ohne Channel-Attribut: dann muss der Kanal ergaenzt werden,
@@ -332,14 +441,14 @@ internal static class Program
         Check("Kanal wird ergaenzt, wenn er fehlt",
             TestXml.ReadChannel(festgelegt) == "Current", TestXml.ReadChannel(festgelegt));
         Check("Version wird geschrieben",
-            OfficeConfiguration.ReadVersion(festgelegt) == "16.0.17928.20216");
+            TestXml.ReadVersion(festgelegt) == "16.0.17928.20216");
         Check("SourcePath wird geschrieben",
             TestXml.ReadSourcePath(festgelegt) == @"C:\Office\Current");
 
         var ohneVersion = Path.Combine(root, "temp", "ohne_version.xml");
         OfficeConfiguration.WriteWithSourcePath(ohneKanal, ohneVersion, @"C:\Office\Current");
         Check("ohne Angabe bleibt die Datei ohne Version",
-            OfficeConfiguration.ReadVersion(ohneVersion) is null);
+            TestXml.ReadVersion(ohneVersion) is null);
         Check("ohne Angabe wird auch kein Kanal erfunden",
             TestXml.ReadChannel(ohneVersion) is null);
 
@@ -388,8 +497,8 @@ internal static class Program
             TestXml.ReadChannel(schiefPlan.ConfigurationFile) == "PerpetualVL2019",
             TestXml.ReadChannel(schiefPlan.ConfigurationFile));
         Check("die vorliegende Version wird festgeschrieben",
-            OfficeConfiguration.ReadVersion(schiefPlan.ConfigurationFile) == "16.0.10417.20197",
-            OfficeConfiguration.ReadVersion(schiefPlan.ConfigurationFile));
+            TestXml.ReadVersion(schiefPlan.ConfigurationFile) == "16.0.10417.20197",
+            TestXml.ReadVersion(schiefPlan.ConfigurationFile));
 
         var schiefOnline = InstallRunner.Prepare(schiefEintrag, InstallMode.Online, Path.Combine(schief, "temp"));
         Check("auch online wird der Kanal berichtigt",
@@ -403,7 +512,7 @@ internal static class Program
             TestXml.ReadChannel(schiefDownload.ConfigurationFile) == "PerpetualVL2019",
             TestXml.ReadChannel(schiefDownload.ConfigurationFile));
         Check("der Download schreibt weiterhin keine Version fest",
-            OfficeConfiguration.ReadVersion(schiefDownload.ConfigurationFile) is null);
+            TestXml.ReadVersion(schiefDownload.ConfigurationFile) is null);
 
         // Passt alles zusammen, wird nichts gemeldet.
         var sauber = InstallRunner.Prepare(vl2021, InstallMode.Offline, temp);
@@ -583,6 +692,20 @@ internal static class Program
             !DeploymentToolService.IsMicrosoftDownloadUrl("https://download.microsoft.com.example.invalid/a.exe"));
         Check("Benutzerangabe als Tarnung wird nicht als Microsoft erkannt",
             !DeploymentToolService.IsMicrosoftDownloadUrl("https://download.microsoft.com@example.invalid/a.exe"));
+        var c2rBestand = new OfficeInventory
+        {
+            ClickToRun = InstalledOffice.ClickToRunFromValues("ProPlus2024Volume,VisioPro2024Volume", "x64", "16.0.1.1", null, null)
+        };
+        Check("installiertes Produkt wird bestaetigt",
+            InstalledOffice.HasClickToRunProduct(c2rBestand, "proplus2024volume"));
+        Check("nicht installiertes Produkt wird nicht bestaetigt",
+            !InstalledOffice.HasClickToRunProduct(c2rBestand, "O365ProPlusRetail")
+            && !InstalledOffice.HasClickToRunProduct(OfficeInventory.Empty, "ProPlus2024Volume")
+            && !InstalledOffice.HasClickToRunProduct(c2rBestand, null));
+        Check("ohne Windows gibt es kein Urteil zur Installation",
+            OperatingSystem.IsWindows()
+            || (InstalledOffice.VerifyInstalled("ProPlus2024Volume") is null && InstalledOffice.VerifyClickToRunRemoved() is null));
+
         Check("Unterzeichner wird aus dem Zertifikatsnamen gelesen",
             Authenticode.OrganizationOf("CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US")
                 == Authenticode.MicrosoftSigner);
@@ -820,7 +943,7 @@ internal static class Program
             var fremdLaufend = Path.Combine(TempWorkspace.BaseRoot, anderesProgramm.Id.ToString());
             Touch(Path.Combine(fremdLaufend, "a.xml"));
 
-            var reste = TempWorkspace.ClearStale();
+            var reste = TempWorkspace.ClearStale(TimeSpan.Zero);
             Check("Reste beendeter Fenster werden entfernt",
                 reste.Removed && reste.Error is null && !Directory.Exists(fremdBeendet), reste.Error);
             Check("Reste aus der Zeit vor den getrennten Ordnern werden entfernt",
@@ -831,6 +954,16 @@ internal static class Program
                 !Directory.Exists(fremdLaufend));
             anderesProgramm.Kill();
         }
+
+        // Frisch hinterlassene Ordner bleiben vorsorglich stehen: Wurde das
+        // Fenster waehrend eines Vorgangs geschlossen, arbeitet das Deployment
+        // Tool noch mit der Konfiguration daraus.
+        var frischerRest = Path.Combine(TempWorkspace.BaseRoot, "2147483001");
+        Touch(Path.Combine(frischerRest, "download_alle.xml"));
+        TempWorkspace.ClearStale();
+        Check("frische Reste beendeter Fenster bleiben zunaechst stehen", Directory.Exists(frischerRest));
+        TempWorkspace.ClearStale(TimeSpan.Zero);
+        Check("und verschwinden, wenn sie alt genug sind", !Directory.Exists(frischerRest));
         TempWorkspace.Clear();
         Check("Aufraeumen des eigenen Ordners laesst den Oberordner stehen",
             !TempWorkspace.Exists && Directory.Exists(TempWorkspace.BaseRoot));
@@ -1016,6 +1149,25 @@ internal static class Program
                 $"{nachWarten} nach {uhr.ElapsedMilliseconds} ms");
         }
 
+        // Start erst nach erneuter Pruefsumme - eine nach dem Download
+        // ausgetauschte Datei darf nicht mit Administratorrechten starten.
+        var getauscht = Path.Combine(tauschOrdner, "getauscht.exe");
+        File.WriteAllText(getauscht, "#!/bin/sh\ntouch \"$(dirname \"$0\")/gestartet\"\n");
+        var richtigeSumme = UpdateService.ComputeSha256(getauscht);
+        var tauschAbgelehnt = false;
+        try { SelfUpdate.StartSwapVerified(getauscht, new string('0', 64), alteExe, 0); }
+        catch (InvalidOperationException) { tauschAbgelehnt = true; }
+        Check("veraenderte Datei wird vor dem Start tauschAbgelehnt",
+            tauschAbgelehnt && !File.Exists(Path.Combine(tauschOrdner, "gestartet")));
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(getauscht, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            SelfUpdate.StartSwapVerified(getauscht, richtigeSumme.ToUpperInvariant(), alteExe, 0);
+            for (var i = 0; i < 40 && !File.Exists(Path.Combine(tauschOrdner, "gestartet")); i++)
+                System.Threading.Thread.Sleep(50);
+            Check("unveraenderte Datei wird gestartet", File.Exists(Path.Combine(tauschOrdner, "gestartet")));
+        }
+
         try { File.Delete(SelfUpdate.FailureFile); } catch { }
         Check("ohne Fehlerdatei gibt es nichts zu melden", SelfUpdate.TakeFailure() is null);
         Directory.CreateDirectory(UpdateService.WorkFolder);
@@ -1077,6 +1229,10 @@ internal static class Program
         {
             Bytes = 1400, ReferenceBytes = planUpdate.Reference, IsUpdate = true, BytesPerSecond = 100
         };
+        Check("zu Beginn steht 0 MB da, kein Fragezeichen",
+            DownloadProgress.Describe(new DownloadProgressReport { Bytes = 0, ReferenceBytes = 3_000_000_000 })
+                .StartsWith("0 MB", StringComparison.Ordinal),
+            DownloadProgress.Describe(new DownloadProgressReport { Bytes = 0, ReferenceBytes = 3_000_000_000 }));
         Check("also auch keine Prozentangabe", berichtUpdate.Percent is null);
         Check("und keine Restzeit", berichtUpdate.Remaining is null);
         Check("ohne Zuwachs meldet der Text die Gegenprobe",

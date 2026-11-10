@@ -95,7 +95,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         // Reste abgestuerzter oder abgewuergter Fenster entfernen. Ein
         // gleichzeitig laufendes zweites Fenster behaelt seinen Ordner.
-        _ = Task.Run(TempWorkspace.ClearStale);
+        _ = Task.Run(() => TempWorkspace.ClearStale());
 
         // Ist der letzte Austausch gescheitert, laeuft hier noch die alte
         // Fassung. Den Grund melden, statt still beim alten Stand zu bleiben.
@@ -357,6 +357,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (SelectedLanguageIndex != (value ? 1 : 0)) SelectedLanguageIndex = value ? 1 : 0;
 
         OnPropertyChanged(string.Empty);
+        UpdateWarning();   // der Hinweis ueber der Liste ist ein gespeicherter Text
         foreach (var entry in Entries) entry.RefreshTexts();
         foreach (var entry in LegacyEntries) entry.RefreshTexts();
 
@@ -541,9 +542,16 @@ public partial class MainWindowViewModel : ObservableObject
                     // Protokollspalte passen, ohne umzubrechen - sonst wirkt
                     // ein sauberer Durchlauf doppelt so lang, wie er ist.
                     var offline = group.First().Offline;
+                    var unfertig = offline.DownloadPending
+                        ? Tr("Download unvollständig", "download incomplete")
+                        : null;
                     var offlineNote = offline.Available
-                        ? $"{offline.LatestVersion} · {OfflineSource.FormatBytes(offline.SizeInBytes)}"
-                        : Tr("offline nichts vorhanden", "nothing offline");
+                        ? $"{offline.LatestVersion} · {OfflineSource.FormatBytes(offline.SizeInBytes)}" +
+                          (unfertig is null ? "" : $" · {unfertig}")
+                        : unfertig
+                          ?? (offline.Versions.Count > 0 && !offline.HasMatchingCab
+                              ? Tr("offline unvollständig (Cab-Datei fehlt)", "offline incomplete (cab file missing)")
+                              : Tr("offline nichts vorhanden", "nothing offline"));
                     Log($"  {group.Key.PadRight(_logColumn)}  {group.Count()} XML · {offlineNote}");
                 }
             }
@@ -731,7 +739,7 @@ public partial class MainWindowViewModel : ObservableObject
                $"{entry.Title}: opening {what} in the browser."));
         Log($"  {url}");
 
-        if (LegacyOfficeReleases.OpenInBrowser(url))
+        if (Browser.Open(url))
         {
             Log(Tr("  Der Download läuft im Browser - die Datei landet in dessen Zielordner, " +
                    "nicht im Paketordner.",
@@ -848,7 +856,9 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
 
-            if (reported == 0)
+            // Ohne Bestaende gibt es nichts zu vergleichen - "alles aktuell
+            // (0 Bestaende)" waere eine Zeile ohne Aussage.
+            if (reported == 0 && checkedCount > 0)
             {
                 Log(Tr($"Abgleich mit Microsoft: alles aktuell ({checkedCount} Bestände).",
                        $"Comparison with Microsoft: everything up to date ({checkedCount} sets)."));
@@ -1009,17 +1019,26 @@ public partial class MainWindowViewModel : ObservableObject
 
             // Die neue Fassung tauscht sich selbst ein, sobald diese hier
             // beendet ist - siehe SelfUpdate.
-            SelfUpdate.StartSwap(target, current, Environment.ProcessId);
+            SelfUpdate.StartSwapVerified(target, entry.Sha256, current, Environment.ProcessId);
 
             Log(Tr("Das Programm wird jetzt beendet und ersetzt.",
                    "The program will now close and be replaced."));
 
+            // Der Austausch wartet auf das Ende dieses Fensters - hier darf
+            // die Rueckfrage "es laeuft noch ein Vorgang" nicht dazwischenkommen.
+            CloseWithoutAsking = true;
             window?.Close();
         }
         catch (Exception ex)
         {
             ActivityLog.Error("UpdateProgram", ex);
             Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
+            if (window is not null)
+                await MessageBox.ShowInfo(window, Tr("Update fehlgeschlagen", "Update failed"),
+                    Tr($"Die neue Fassung ließ sich nicht starten:\n\n{ex.Message}\n\n" +
+                       "Es läuft weiterhin die bisherige Fassung.",
+                       $"The new version could not be started:\n\n{ex.Message}\n\n" +
+                       "The previous version keeps running."));
         }
         finally
         {
@@ -1119,7 +1138,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void OpenUpdateNotes()
     {
         var url = ProgramUpdateAvailable ? _manifest?.Program.Notes : _manifest?.Configs.Notes;
-        if (!string.IsNullOrWhiteSpace(url)) LegacyOfficeReleases.OpenInBrowser(url);
+        if (!string.IsNullOrWhiteSpace(url)) Browser.Open(url);
     }
 
     // ------------------------------------------------------------ Einrichtungshilfe
@@ -1227,7 +1246,7 @@ public partial class MainWindowViewModel : ObservableObject
         Log(Tr("Zu den Konfigurationsdateien ist noch keine Veröffentlichung hinterlegt - " +
                "die Übersicht wird im Browser geöffnet.",
                "No release is available for the configuration files - opening the overview in the browser."));
-        LegacyOfficeReleases.OpenInBrowser(UpdateService.ReleasesPageUrl);
+        Browser.Open(UpdateService.ReleasesPageUrl);
     }
 
     // ---- Schritt 2: Deployment Tool ----
@@ -1745,18 +1764,41 @@ public partial class MainWindowViewModel : ObservableObject
             BusyText = Tr($"{entry.Title} wird installiert - der Fortschritt erscheint im Fenster von Microsoft.",
                           $"Installing {entry.Title} - progress is shown in the Microsoft window.");
 
-            using var process = InstallRunner.Start(plan);
+            using var process = await StartSetupAsync(plan, window);
+            if (process is null) return;
+
             Log(Tr($"Gestartet (PID {process.Id}). Warte auf das Ende der Installation...",
                    $"Started (PID {process.Id}). Waiting for the installation to finish..."));
 
             await process.WaitForExitAsync();
 
             var code = process.ExitCode;
-            if (code == 0)
+
+            // Rueckgabewert 0 allein genuegt nicht - siehe InstalledOffice.VerifyInstalled.
+            var nichtBestaetigt = code == 0
+                ? await Task.Run(() => InstalledOffice.VerifyInstalled(entry.Entry.Configuration.ProductId))
+                : null;
+
+            if (code == 0 && nichtBestaetigt is null)
             {
                 Log(Tr("Fertig! Die Installation wurde ohne Fehler beendet.",
                        "Done! The installation finished without errors."));
                 closeWhenDone = CloseAfterInstall;
+            }
+            else if (code == 0)
+            {
+                Log(Tr($"[!] Das Deployment Tool meldete Erfolg, aber: {nichtBestaetigt}",
+                       $"[!] The deployment tool reported success, but: {nichtBestaetigt}"));
+                if (window is not null)
+                    await MessageBox.ShowInfo(window,
+                        Tr("Installation nicht bestätigt", "Installation not confirmed"),
+                        Tr($"Das Deployment Tool hat sich ohne Fehler beendet, aber:\n\n{nichtBestaetigt}\n\n" +
+                           "Wurde die Installation im Fenster von Microsoft abgebrochen oder dort ein Fehler " +
+                           "angezeigt? Dann bitte noch einmal versuchen. Einzelheiten stehen in den " +
+                           "Protokolldateien unter %TEMP%.",
+                           $"The deployment tool finished without error, but:\n\n{nichtBestaetigt}\n\n" +
+                           "Was the installation cancelled in the Microsoft window, or did it show an error? " +
+                           "Then please try again. Details are in the log files under %TEMP%."));
             }
             else
             {
@@ -1828,24 +1870,31 @@ public partial class MainWindowViewModel : ObservableObject
         Log(Tr("Entferne Click-to-Run ...", "Removing Click-to-Run ..."));
         Log(Tr($"Aufruf: {plan.CommandLine}", $"Command: {plan.CommandLine}"));
 
-        using var process = InstallRunner.Start(plan);
+        using var process = await StartSetupAsync(plan, window);
+        if (process is null) return false;
+
         await process.WaitForExitAsync();
 
-        if (process.ExitCode == 0)
+        // Auch hier zaehlt nicht nur der Rueckgabewert: Ist das alte Office
+        // noch eingetragen, scheiterte die Installation danach genau daran.
+        var rest = process.ExitCode == 0 ? await Task.Run(InstalledOffice.VerifyClickToRunRemoved) : null;
+
+        if (process.ExitCode == 0 && rest is null)
         {
             Log(Tr("Click-to-Run entfernt.", "Click-to-Run removed."));
             return true;
         }
 
-        Log(Tr($"[FEHLER] Das Entfernen endete mit Rückgabewert {process.ExitCode} - es wird nicht installiert.",
-               $"[ERROR] Removal exited with code {process.ExitCode} - nothing will be installed."));
+        var grund = rest ?? Tr($"Rückgabewert {process.ExitCode}", $"exit code {process.ExitCode}");
+        Log(Tr($"[FEHLER] Das Entfernen ist nicht gelungen ({grund}) - es wird nicht installiert.",
+               $"[ERROR] Removal did not succeed ({grund}) - nothing will be installed."));
         if (window is not null)
             await MessageBox.ShowInfo(window,
                 Tr("Entfernen fehlgeschlagen", "Removal failed"),
-                Tr($"Das vorhandene Office ließ sich nicht entfernen (Rückgabewert {process.ExitCode}).\n\n" +
+                Tr($"Das vorhandene Office ließ sich nicht entfernen:\n{grund}\n\n" +
                    "Die Installation wurde deshalb nicht gestartet. Einzelheiten stehen in den " +
                    "Protokolldateien unter %TEMP%.",
-                   $"The existing Office could not be removed (exit code {process.ExitCode}).\n\n" +
+                   $"The existing Office could not be removed:\n{grund}\n\n" +
                    "The installation was therefore not started. Details are in the log files under %TEMP%."));
         return false;
     }
@@ -1927,7 +1976,10 @@ public partial class MainWindowViewModel : ObservableObject
                           $"Downloading offline files for {entry.Entry.ChannelFolderName} - this may take a while.");
 
             var beobachtung = await PlanProgress(plan.SourcePath, entry.OnlineVersion);
-            using var process = InstallRunner.Start(plan);
+
+            using var process = await StartDownloadAsync(plan, entry.Entry.Configuration.BaseFolder, window);
+            if (process is null) return;
+
             Log(Tr($"Gestartet (PID {process.Id}).", $"Started (PID {process.Id})."));
             await WaitWithProgress(process, beobachtung);
 
@@ -1940,6 +1992,7 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (process.ExitCode == 0 && unvollstaendig is null)
             {
+                OfflineSource.CompleteDownload(entry.Entry.Configuration.BaseFolder);
                 Log(Tr("Fertig! Die Offline-Dateien wurden geladen.", "Done! The offline files were downloaded."));
 
                 if (CleanupAfterUpdate)
@@ -1966,6 +2019,10 @@ public partial class MainWindowViewModel : ObservableObject
                            "Old builds were therefore not removed. Common causes: an interrupted internet " +
                            "connection or a proxy blocking the download. Simply try again - existing files are " +
                            "not downloaded again."));
+
+                // Die Liste zeigt sonst weiter den Stand von vor dem Versuch.
+                UiEnabled = true;
+                await Scan();
                 return;
             }
 
@@ -1980,6 +2037,9 @@ public partial class MainWindowViewModel : ObservableObject
                        $"The Office Deployment Tool exited with code {process.ExitCode}.\n\n" +
                        "Common causes: no write permission in the target folder, not enough disk space " +
                        "or an interrupted internet connection."));
+
+            UiEnabled = true;
+            await Scan();
         }
         catch (Exception ex)
         {
@@ -2158,7 +2218,17 @@ public partial class MainWindowViewModel : ObservableObject
                     var plan = await Task.Run(() => InstallRunner.PrepareBaseDownload(group.Entries), cts.Token);
 
                     var beobachtung = await PlanProgress(plan.SourcePath, group.Online);
-                    using var process = InstallRunner.Start(plan);
+                    using var process = await StartDownloadAsync(
+                        plan, group.Entries[0].Configuration.BaseFolder, window);
+                    if (process is null)
+                    {
+                        // Nicht vertrauenswuerdige setup.exe und "Abbrechen":
+                        // Das gilt dann fuer den ganzen Lauf.
+                        fehler++;
+                        abgebrochen = true;
+                        break;
+                    }
+
                     await WaitWithProgress(process, beobachtung);
 
                     if (process.ExitCode != 0)
@@ -2180,6 +2250,7 @@ public partial class MainWindowViewModel : ObservableObject
                         continue;
                     }
 
+                    OfflineSource.CompleteDownload(basis.Configuration.BaseFolder);
                     erfolg++;
                     Log(Tr("      fertig.", "      done."));
 
@@ -2233,12 +2304,14 @@ public partial class MainWindowViewModel : ObservableObject
         {
             await MessageBox.ShowInfo(fenster,
                 Tr("Abgeschlossen", "Finished"),
-                Tr($"{erfolg} von {Basen(groups.Count)} wurden verarbeitet." +
-                   (fehler > 0 ? $"\n{fehler} davon mit Fehler - Einzelheiten stehen im Protokoll." : "") +
+                Tr($"{Basen(groups.Count)}: {erfolg} erfolgreich, {fehler} fehlgeschlagen" +
+                   (groups.Count - erfolg - fehler > 0 ? $", {groups.Count - erfolg - fehler} nicht mehr begonnen." : ".") +
+                   (fehler > 0 ? "\nEinzelheiten zu den Fehlern stehen im Protokoll." : "") +
                    (freigegeben > 0 ? $"\nDurch das Entfernen alter Stände wurden {OfflineSource.FormatBytes(freigegeben)} frei." : "") +
                    (abgebrochen ? "\nDer Vorgang wurde vorzeitig abgebrochen." : ""),
-                   $"{erfolg} of {Basen(groups.Count)} were processed." +
-                   (fehler > 0 ? $"\n{fehler} of them failed - see the log for details." : "") +
+                   $"{Basen(groups.Count)}: {erfolg} succeeded, {fehler} failed" +
+                   (groups.Count - erfolg - fehler > 0 ? $", {groups.Count - erfolg - fehler} not started." : ".") +
+                   (fehler > 0 ? "\nSee the log for details on the failures." : "") +
                    (freigegeben > 0 ? $"\nRemoving old builds freed {OfflineSource.FormatBytes(freigegeben)}." : "") +
                    (abgebrochen ? "\nThe process was cancelled early." : "")));
         }
@@ -2392,9 +2465,17 @@ public partial class MainWindowViewModel : ObservableObject
         catch (Exception ex)
         {
             ActivityLog.Error("UpdateDeploymentTool", ex);
-            Log(Tr($"[FEHLER] {ex.Message}", $"[ERROR] {ex.Message}"));
+            Log(Tr($"[FEHLER] Das Deployment Tool ließ sich nicht holen: {ex.Message}",
+                   $"[ERROR] The deployment tool could not be fetched: {ex.Message}"));
             if (ActiveWindow is { } win)
-                await MessageBox.ShowInfo(win, Tr("Fehlgeschlagen", "Failed"), ex.Message);
+                await MessageBox.ShowInfo(win,
+                    Tr("Deployment Tool nicht geladen", "Deployment tool not downloaded"),
+                    Tr($"Das Office Deployment Tool ließ sich nicht herunterladen oder entpacken:\n\n{ex.Message}\n\n" +
+                       "Später noch einmal versuchen, oder die Datei über \"Downloadseite\" von Hand holen " +
+                       "und die setup.exe in den Paketordner legen.",
+                       $"The Office Deployment Tool could not be downloaded or extracted:\n\n{ex.Message}\n\n" +
+                       "Try again later, or get the file manually via \"Download page\" and place " +
+                       "setup.exe in the package folder."));
         }
         finally
         {
@@ -2445,6 +2526,133 @@ public partial class MainWindowViewModel : ObservableObject
 
     [RelayCommand]
     private void Exit() => ActiveWindow?.Close();
+
+    // ------------------------------------------------------------ Start der setup.exe
+
+    /// <summary>
+    /// true, solange ein Vorgang laeuft, den das Schliessen des Fensters im
+    /// Hintergrund weiterlaufen liesse - das Fenster fragt dann vorher nach.
+    /// </summary>
+    public bool IsOperationRunning
+    {
+        get
+        {
+            try { return IsBatchRunning || _runningSetup is { HasExited: false }; }
+            catch { return IsBatchRunning; }   // Vorgang bereits freigegeben, also beendet
+        }
+    }
+
+    /// <summary>Das zuletzt gestartete Deployment Tool - nur fuer <see cref="IsOperationRunning"/>.</summary>
+    private Process? _runningSetup;
+
+    /// <summary>
+    /// Vom Programm-Update gesetzt: Dort gehoert das Schliessen zum Ablauf,
+    /// eine Rueckfrage waere fehl am Platz.
+    /// </summary>
+    public bool CloseWithoutAsking { get; private set; }
+
+    public string CloseWhileBusyTitle => Tr("Es läuft noch ein Vorgang", "An operation is still running");
+
+    public string CloseWhileBusyStay => Tr("Offen lassen", "Keep open");
+
+    public string CloseWhileBusyLeave => Tr("Trotzdem schließen", "Close anyway");
+
+    public string CloseWhileBusyText => Tr(
+        "OfficeInstall arbeitet gerade noch.\n\n" +
+        "Wird das Fenster jetzt geschlossen, läuft das Deployment Tool unsichtbar im Hintergrund " +
+        "weiter - ein Download lässt sich dann weder verfolgen noch abbrechen, und ein Sammellauf " +
+        "endet nach der laufenden Basis.\n\n" +
+        "Trotzdem schließen?",
+        "OfficeInstall is still working.\n\n" +
+        "If the window is closed now, the deployment tool keeps running invisibly in the background - " +
+        "a download can then neither be followed nor cancelled, and a batch run ends after the " +
+        "current base.\n\n" +
+        "Close anyway?");
+
+    /// <summary>
+    /// Fuer diese Sitzung trotz fehlender Signatur freigegebene setup.exe -
+    /// damit ein Sammellauf nicht bei jeder Basis erneut fragt.
+    /// </summary>
+    private readonly HashSet<string> _acceptedSetups = new(StringComparer.OrdinalIgnoreCase);
+
+    private static string SetupKey(string file)
+    {
+        try
+        {
+            var info = new FileInfo(file);
+            return $"{info.FullName}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
+        }
+        catch { return file; }
+    }
+
+    /// <summary>
+    /// Startet einen Download und legt vorher den Merkzettel an: Bis zur
+    /// bestandenen Nachpruefung gilt nur, was jetzt schon vollstaendig da ist
+    /// (siehe <see cref="OfflineSource.BeginDownload"/>). Kommt der Start nicht
+    /// zustande, verschwindet ein eben erst angelegter Zettel wieder - sonst
+    /// stuende "Download unvollstaendig" da, ohne dass je einer lief.
+    /// </summary>
+    private async Task<Process?> StartDownloadAsync(InstallPlan plan, string baseFolder, Window? window)
+    {
+        var created = OfflineSource.BeginDownload(baseFolder);
+        try
+        {
+            var process = await StartSetupAsync(plan, window);
+            if (process is null && created) OfflineSource.CompleteDownload(baseFolder);
+            return process;
+        }
+        catch
+        {
+            if (created) OfflineSource.CompleteDownload(baseFolder);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Startet das Deployment Tool. Ist die setup.exe nicht gueltig von
+    /// Microsoft signiert, wird vorher gefragt - sie laeuft mit
+    /// Administratorrechten. Rueckgabe null heisst: nicht gestartet.
+    /// </summary>
+    private async Task<Process?> StartSetupAsync(InstallPlan plan, Window? window)
+    {
+        try
+        {
+            return _runningSetup = InstallRunner.Start(
+                plan, allowUntrusted: _acceptedSetups.Contains(SetupKey(plan.SetupExecutable)));
+        }
+        catch (UntrustedSetupException ex)
+        {
+            Log(Tr($"[!] Die setup.exe ist nicht gültig von Microsoft signiert: {ex.Message}",
+                   $"[!] setup.exe is not validly signed by Microsoft: {ex.Message}"));
+            Log($"    {ex.File}");
+
+            if (window is null) return null;
+
+            var choice = await MessageBox.ShowChoice(window,
+                Tr("setup.exe nicht von Microsoft signiert", "setup.exe not signed by Microsoft"),
+                Tr($"Diese Datei würde jetzt mit Administratorrechten gestartet:\n{ex.File}\n\n" +
+                   $"{ex.Message}\n\n" +
+                   "Das echte Office Deployment Tool ist immer von Microsoft signiert. Am sichersten ist es, " +
+                   "abzubrechen und die Datei über \"Deployment Tool laden\" neu zu holen.",
+                   $"This file would now be started with administrator rights:\n{ex.File}\n\n" +
+                   $"{ex.Message}\n\n" +
+                   "The genuine Office Deployment Tool is always signed by Microsoft. The safest choice is " +
+                   "to cancel and fetch the file again via \"Download deployment tool\"."),
+                new MessageBox.Choice(Tr("Abbrechen", "Cancel"), Primary: true),
+                new MessageBox.Choice(Tr("Trotzdem starten", "Start anyway"), Danger: true));
+
+            if (choice != 1)
+            {
+                Log(Tr("Abgebrochen - die setup.exe wurde nicht gestartet.",
+                       "Cancelled - setup.exe was not started."));
+                return null;
+            }
+
+            Log(Tr("Auf ausdrücklichen Wunsch trotzdem gestartet.", "Started anyway on explicit request."));
+            _acceptedSetups.Add(SetupKey(plan.SetupExecutable));
+            return _runningSetup = InstallRunner.Start(plan, allowUntrusted: true);
+        }
+    }
 
     // ------------------------------------------------------------ Arbeitsordner
 

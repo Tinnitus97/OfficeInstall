@@ -290,14 +290,7 @@ public static class DeploymentToolService
     }
 
     /// <summary>Oeffnet die Downloadseite im Browser - der Rueckfallweg von Hand.</summary>
-    public static void OpenDownloadPage()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo(DownloadPageUrl) { UseShellExecute = true });
-        }
-        catch { /* kein Browser hinterlegt */ }
-    }
+    public static void OpenDownloadPage() => Browser.Open(DownloadPageUrl);
 
     /// <summary>Arbeitsordner fuer den Download - Unterordner des Arbeitsordners.</summary>
     public static string DefaultWorkFolder => TempWorkspace.DeploymentFolder;

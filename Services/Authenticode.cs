@@ -36,7 +36,19 @@ public static class Authenticode
         if (!OperatingSystem.IsWindows()) return null;
         if (!File.Exists(file)) return $"Datei fehlt: {file}";
 
-        var trust = VerifyTrust(file);
+        int trust;
+        try
+        {
+            trust = VerifyTrust(file);
+        }
+        catch (Exception ex)
+        {
+            // Auch ein technischer Fehlschlag ist ein Urteil "nicht bestaetigt" -
+            // mit Begruendung, damit der Aufrufer nachfragen kann, statt mit
+            // einer nackten Ausnahme zu enden.
+            return $"Die Signatur von {Path.GetFileName(file)} ließ sich nicht prüfen: {ex.Message}";
+        }
+
         if (trust != 0)
             return $"{Path.GetFileName(file)} ist nicht gültig signiert (Code 0x{trust:X8}).";
 
@@ -100,6 +112,14 @@ public static class Authenticode
     private const uint WtdStateActionVerify = 1;
     private const uint WtdStateActionClose = 2;
 
+    // Nichts aus dem Netz nachladen (Sperrlisten, Zwischenzertifikate): Die
+    // Pruefung laeuft vor JEDEM Start der setup.exe, also auch ohne Internet -
+    // dort darf sie nicht in eine Zeitueberschreitung laufen.
+    private const uint WtdRevocationCheckNone = 0x00000010;
+    private const uint WtdCacheOnlyUrlRetrieval = 0x00001000;
+
+    private static readonly IntPtr InvalidHandle = new(-1);   // "kein Benutzer am Bildschirm"
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WinTrustFileInfo
     {
@@ -148,13 +168,14 @@ public static class Authenticode
                 fdwRevocationChecks = WtdRevokeNone,
                 dwUnionChoice = WtdChoiceFile,
                 pFile = filePointer,
-                dwStateAction = WtdStateActionVerify
+                dwStateAction = WtdStateActionVerify,
+                dwProvFlags = WtdRevocationCheckNone | WtdCacheOnlyUrlRetrieval
             };
             var action = GenericVerifyV2;
-            var result = WinVerifyTrust(IntPtr.Zero, ref action, ref data);
+            var result = WinVerifyTrust(InvalidHandle, ref action, ref data);
 
             data.dwStateAction = WtdStateActionClose;
-            WinVerifyTrust(IntPtr.Zero, ref action, ref data);
+            WinVerifyTrust(InvalidHandle, ref action, ref data);
             return result;
         }
         finally

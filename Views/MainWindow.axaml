@@ -403,7 +403,9 @@
                             <TextBlock Text="{Binding LegacyHint}" FontSize="10" TextWrapping="Wrap"
                                        Foreground="{DynamicResource SubtextBrush}" Margin="2,0,2,6"/>
 
-                            <ScrollViewer MaxHeight="188" VerticalScrollBarVisibility="Auto"
+                            <!-- Drei Zeilen hoch: Aufgeklappt blieb von der Produktliste
+                                 darueber sonst nur eine einzige Zeile sichtbar. -->
+                            <ScrollViewer MaxHeight="126" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled" Padding="0,0,3,0">
                                 <ItemsControl ItemsSource="{Binding LegacyEntries}">
                                     <ItemsControl.ItemTemplate>
@@ -428,7 +430,7 @@
 
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
                                                                 VerticalAlignment="Center">
-                                                        <Button Classes="action" Width="92"
+                                                        <Button Classes="action" Width="108"
                                                                 Content="{Binding ImageLabel}"
                                                                 ToolTip.Tip="{Binding ImageTip}"
                                                                 Command="{Binding OpenImageCommand}"/>

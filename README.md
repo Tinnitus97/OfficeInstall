@@ -4,7 +4,7 @@
 
 **Microsoft Office installieren — online oder aus vorliegenden Offline-Dateien, mit Warnung bei veraltetem Stand.**
 
-![Version](https://img.shields.io/badge/Version-1.5.0-blue)
+![Version](https://img.shields.io/badge/Version-1.5.1-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 
@@ -25,6 +25,17 @@ und die *Inventarisierung*.
 ![Hauptfenster in heller Darstellung](docs/bilder/hauptfenster-hell.png)
 
 </details>
+
+### Neu in 1.5.1
+
+- **Ein abgebrochener Download gilt nicht mehr als „aktueller Stand“.** Bis
+  ein Download bestätigt fertig ist, bleibt der vorherige Stand gültig; die
+  Zeile zeigt *Download unvollständig* und bietet **Offline fortsetzen** an.
+- **Nach der Installation wird nachgesehen**, ob das Produkt wirklich
+  eingetragen ist — erst dann heißt es „Fertig!“ und das Fenster schließt sich.
+- **`setup.exe` wird vor jedem Start geprüft** (Signatur von Microsoft), und der
+  Browser öffnet sich ohne Administratorrechte.
+- **Rückfrage beim Schließen**, solange das Deployment Tool noch arbeitet.
 
 ### Neu in 1.5.0
 
@@ -101,6 +112,12 @@ x64\PerpetualVL2021\Office\Data\v64.cab
 Gefundene Dateien erscheinen mit Version und Größe direkt an der jeweiligen
 Zeile. Es muss also niemand von Hand angeben, ob offline installiert werden kann.
 
+Als brauchbar gilt ein Bestand nur **mit** der passenden Cab-Datei und nur mit
+Versionsordnern, deren Download bestätigt abgeschlossen ist (siehe
+[Unfertige Downloads](#unfertige-downloads)). Fehlt eins von beidem, steht das
+an der Zeile, und im Modus *Automatisch* wird online installiert statt mitten
+in der Installation zu scheitern.
+
 ### Warum überhaupt zwei Modi
 
 Ohne `SourcePath` sucht das Deployment Tool die Quelldateien im Ordner der
@@ -126,7 +143,8 @@ laufenden Deployment Tool weg.
 
 Wird das Fenster geschlossen, während noch ein Vorgang läuft, bleibt der Ordner
 stehen: Dort liegt dann die Konfigurationsdatei, mit der `setup.exe` gerade
-arbeitet.
+arbeitet. Aus demselben Grund räumt ein später gestartetes Fenster die Ordner
+beendeter Fenster erst weg, wenn sie zwölf Stunden alt sind.
 
 ### Warum `SourcePath` allein nicht genügt
 
@@ -290,6 +308,10 @@ Schlägt das Ersetzen fehl — fehlende Schreibrechte, oder das Programm läuft 
 einem anderen Arbeitsplatz aus demselben Ordner —, startet die alte Fassung
 wieder und meldet den Grund.
 
+Unmittelbar vor dem Start der neuen Fassung wird ihre Prüfsumme ein zweites Mal
+verglichen, und die Datei bleibt bis nach dem Start gesperrt: Zwischen Download
+und Start lässt sie sich nicht austauschen.
+
 ---
 
 ## Suchen statt scrollen
@@ -386,6 +408,15 @@ gültig digital signiert sein, und zwar von *Microsoft Corporation* — wie unte
 *Eigenschaften → Digitale Signaturen*. Sonst wird nichts ausgeführt und nichts
 ersetzt.
 
+Dieselbe Prüfung läuft **vor jedem Start** der `setup.exe` — beim Installieren,
+Entfernen und Herunterladen. Die Datei startet mit Administratorrechten, liegt
+aber im Paketordner oder (bei der Online-Installation) als Kopie unter `%TEMP%`,
+wo auch Programme ohne diese Rechte schreiben dürfen. Von der Prüfung bis nach
+dem Start bleibt sie gesperrt, damit sie niemand dazwischen austauschen kann.
+Besteht eine `setup.exe` die Prüfung nicht, erscheint eine Rückfrage mit dem
+Grund; *Abbrechen* ist die Vorgabe, *Trotzdem starten* gilt für die laufende
+Sitzung. Die Prüfung braucht kein Internet.
+
 ---
 
 ## Offline-Bestand anlegen und nachziehen
@@ -398,6 +429,7 @@ Zustand richtet:
 | **Offline laden** | Es liegen noch keine Quelldateien vor |
 | **Offline aktualisieren** | Online gibt es einen neueren Stand |
 | **Offline erneuern** | Bestand ist aktuell, wird nur geprüft |
+| **Offline fortsetzen** | Ein früherer Download wurde nicht fertig |
 
 Dahinter steckt `setup.exe /download` mit ausdrücklich gesetztem `SourcePath`,
 damit die Dateien sicher im Ordner der jeweiligen Installationsbasis landen und
@@ -420,6 +452,28 @@ nicht leerer Versionsordner liegen, dazu die passende `v32.cab`/`v64.cab`, und
 die Version darf nicht älter sein als die online gemeldete. Fehlt etwas, wird
 der Download als fehlgeschlagen gemeldet und **nicht aufgeräumt** — der alte,
 brauchbare Stand bleibt also erhalten.
+
+### Unfertige Downloads
+
+Das Deployment Tool legt den Ordner der neuen Version gleich zu Beginn an.
+Bricht der Download ab — Netz weg, Fehler, Rechner aus —, bleibt ein halb
+gefüllter Ordner mit der höchsten Versionsnummer liegen. Der galt früher als
+„aktueller Stand“: grün in der Liste, und die Offline-Installation nahm genau
+ihn.
+
+Deshalb legt der Launcher vor jedem Download einen Merkzettel in `Office\Data`
+ab (`download-unvollstaendig.txt`). Darin steht, welche Versionen **vorher**
+vollständig da waren — nur die gelten, bis die Nachprüfung bestanden ist und
+der Zettel wieder verschwindet. Solange er liegt:
+
+- zeigt die Zeile den bisherigen Stand mit dem Zusatz *neuerer Download
+  unvollständig* (oder *Offline-Download unvollständig*, wenn vorher nichts da
+  war),
+- heißt die Schaltfläche **Offline fortsetzen** — das Deployment Tool lädt nur
+  nach, was fehlt,
+- installiert *Automatisch* aus dem bisherigen Stand beziehungsweise online.
+
+Das greift auch, wenn der Download in einem anderen Fenster noch läuft.
 
 ### Woher der Fortschritt kommt
 
@@ -610,6 +664,17 @@ Option steht bei jedem Start auf **An** und lässt sich abschalten.
 Schlägt die Installation fehl, bleibt das Fenster in jedem Fall offen — dann
 wird das Protokoll gebraucht.
 
+Als gelungen gilt die Installation nicht schon wegen des Rückgabewerts 0: Das
+Deployment Tool zeigt Fehler in seinem eigenen Fenster und endet danach mitunter
+trotzdem „erfolgreich“. Deshalb sieht der Launcher anschließend in der Registry
+nach, ob das Produkt eingetragen ist. Ist es das nicht, bleibt das Fenster offen
+und meldet *Installation nicht bestätigt*. Genauso wird nach dem Entfernen
+geprüft, ob das alte Office wirklich weg ist.
+
+**Schließen während eines Vorgangs.** Arbeitet das Deployment Tool noch, fragt
+der Launcher vor dem Schließen nach — sonst liefe ein Download unsichtbar im
+Hintergrund weiter. *Offen lassen* ist die Vorgabe.
+
 Das Protokoll geht dabei nicht verloren: Jede Zeile landet zusätzlich mit
 Uhrzeit in `%LOCALAPPDATA%\OfficeInstall\Protokoll.txt` (ab etwa 1 MB wird die
 Datei zu `Protokoll.alt.txt`, und eine neue beginnt).
@@ -686,6 +751,7 @@ Services/TempWorkspace.cs         Arbeitsordner je Fenster unter %TEMP% anlegen 
 Services/UpdateService.cs         update.json abfragen, Programm und Konfigurationen einspielen
 Services/SelfUpdate.cs            die neue EXE kopiert sich an die Stelle der alten
 Services/DeploymentToolService.cs setup.exe finden, holen, entpacken und verteilen
+Services/Browser.cs               Adressen nur über https und ohne Administratorrechte öffnen
 Services/Authenticode.cs          Microsoft-Signatur einer geladenen Datei prüfen
 Services/DownloadProgress.cs      Fortschritt beim Herunterladen aus dem Zielordner ablesen
 Services/ActivityLog.cs           Protokoll als Datei unter %LOCALAPPDATA%

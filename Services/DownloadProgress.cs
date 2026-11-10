@@ -124,7 +124,7 @@ public static class DownloadProgress
         long summe = 0;
         try
         {
-            foreach (var datei in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+            foreach (var datei in OfflineSource.EnumerateFilesNoLinks(folder))
             {
                 try { summe += MeasureFile(datei); } catch { /* einzelne Datei gesperrt */ }
             }
@@ -375,14 +375,14 @@ public static class DownloadProgress
         else if (report.Percent is { } prozent && report.ReferenceBytes > 0)
         {
             teile.Add(Loc.Tr(
-                $"{OfflineSource.FormatBytes(report.Bytes)} von ca. {OfflineSource.FormatBytes(report.ReferenceBytes)}",
-                $"{OfflineSource.FormatBytes(report.Bytes)} of approx. {OfflineSource.FormatBytes(report.ReferenceBytes)}"));
+                $"{Amount(report.Bytes)} von ca. {OfflineSource.FormatBytes(report.ReferenceBytes)}",
+                $"{Amount(report.Bytes)} of approx. {OfflineSource.FormatBytes(report.ReferenceBytes)}"));
             teile.Add(prozent.ToString("0", CultureInfo.CurrentCulture) + " %");
         }
         else
         {
-            teile.Add(Loc.Tr($"{OfflineSource.FormatBytes(report.Bytes)} geladen",
-                             $"{OfflineSource.FormatBytes(report.Bytes)} downloaded"));
+            teile.Add(Loc.Tr($"{Amount(report.Bytes)} geladen",
+                             $"{Amount(report.Bytes)} downloaded"));
         }
 
         if (report.BytesPerSecond > 0)
@@ -395,6 +395,12 @@ public static class DownloadProgress
 
         return string.Join(" · ", teile);
     }
+
+    /// <summary>
+    /// Menge fuer die Anzeige. FormatBytes liefert fuer 0 ein "?" (Groesse
+    /// unbekannt) - hier ist 0 aber eine Auskunft: Es ist noch nichts da.
+    /// </summary>
+    private static string Amount(long bytes) => bytes <= 0 ? "0 MB" : OfflineSource.FormatBytes(bytes);
 
     /// <summary>Dauer knapp und ohne Nachkommastellen.</summary>
     public static string FormatDuration(TimeSpan span)

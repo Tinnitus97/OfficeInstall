@@ -78,8 +78,8 @@ public sealed class InstallPlan
 ///   Online   - eine Kopie ohne SourcePath in einem leeren Arbeitsordner,
 ///              in den auch die setup.exe kopiert wird. Da dort keine
 ///              Quelldateien liegen, laedt das Tool aus dem Internet.
-///   Automatik- die XML wird unveraendert im Ordner der Basis ausgefuehrt;
-///              das ist genau das Verhalten der alten start.bat.
+///   Automatik- wird zu Offline, wenn vollstaendige Quelldateien vorliegen,
+///              sonst zu Online (siehe <see cref="ResolveMode"/>).
 /// </summary>
 public static class InstallRunner
 {
@@ -333,9 +333,25 @@ public static class InstallRunner
     ///
     /// Erhoehte Rechte braucht es dafuer nicht eigens - OfficeInstall laeuft
     /// bereits als Administrator, und der Prozess erbt das.
+    ///
+    /// GENAU DESHALB WIRD VORHER GEPRUEFT: Die setup.exe startet mit
+    /// Administratorrechten, liegt aber im Paketordner oder - bei der
+    /// Online-Installation - als Kopie unter %TEMP%, wo auch Programme ohne
+    /// diese Rechte schreiben duerfen. Vor jedem Start muss sie deshalb gueltig
+    /// von Microsoft signiert sein; sonst kommt <see cref="UntrustedSetupException"/>.
+    /// Der Aufrufer kann nach Rueckfrage mit <paramref name="allowUntrusted"/>
+    /// trotzdem starten.
+    ///
+    /// Von der Pruefung bis nach dem Start bleibt die Datei gesperrt: Niemand
+    /// kann sie in dem Augenblick dazwischen austauschen.
     /// </summary>
-    public static Process Start(InstallPlan plan)
+    public static Process Start(InstallPlan plan, bool allowUntrusted = false)
     {
+        using var guard = LockForStart(plan.SetupExecutable);
+
+        if (!allowUntrusted && Authenticode.VerifyMicrosoft(plan.SetupExecutable) is { } problem)
+            throw new UntrustedSetupException(plan.SetupExecutable, problem);
+
         var startInfo = new ProcessStartInfo
         {
             FileName = plan.SetupExecutable,
@@ -348,4 +364,32 @@ public static class InstallRunner
         return Process.Start(startInfo)
                ?? throw new InvalidOperationException("Der Installationsvorgang konnte nicht gestartet werden.");
     }
+
+    /// <summary>
+    /// Oeffnet die Datei zum Lesen und verbietet anderen solange das Schreiben
+    /// und Loeschen. Rueckgabe null, wenn das nicht geht - dann scheitert der
+    /// Start danach ohnehin mit einer verstaendlichen Meldung.
+    /// </summary>
+    internal static FileStream? LockForStart(string file)
+    {
+        try
+        {
+            return new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}
+
+/// <summary>Die setup.exe ist nicht gueltig von Microsoft signiert.</summary>
+public sealed class UntrustedSetupException : Exception
+{
+    public UntrustedSetupException(string file, string problem) : base(problem)
+    {
+        File = file;
+    }
+
+    public string File { get; }
 }

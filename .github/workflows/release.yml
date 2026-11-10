@@ -38,8 +38,15 @@ on:
         type: string
         required: true
 
+# Vorgabe: nur lesen. Schreiben duerfen allein die beiden Aufgaben, die eine
+# Veroeffentlichung anlegen und update.json fortschreiben.
 permissions:
-  contents: write
+  contents: read
+
+# Nie zwei Veroeffentlichungen zugleich - beide schrieben update.json in main.
+concurrency:
+  group: veroeffentlichen
+  cancel-in-progress: false
 
 jobs:
   # ================================================================= Prüfungen
@@ -63,6 +70,8 @@ jobs:
   # ==================================================================== Programm
   programm:
     needs: pruefungen
+    permissions:
+      contents: write
     if: >-
       (github.event_name == 'push' && startsWith(github.ref_name, 'v')) ||
       (github.event_name == 'workflow_dispatch' && inputs.art == 'Programm')
@@ -172,6 +181,8 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref_name, 'configs-')) ||
       (github.event_name == 'workflow_dispatch' && inputs.art == 'Konfigurationen')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
         with:

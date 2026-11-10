@@ -15,6 +15,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Hier wird nur gelesen und gebaut - das Zugriffskuerzel braucht kein Schreibrecht.
+permissions:
+  contents: read
+
 jobs:
   # Die Dienste ohne Oberfläche - läuft auf Linux und ist in Sekunden durch.
   pruefungen:

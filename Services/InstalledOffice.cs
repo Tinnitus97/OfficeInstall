@@ -354,6 +354,59 @@ public static class InstalledOffice
         return new OfficeConflictReport { ClickToRun = clickToRun, Msi = msi };
     }
 
+    /// <summary>true, wenn das Produkt als Click-to-Run eingetragen ist.</summary>
+    public static bool HasClickToRunProduct(OfficeInventory inventory, string? productId)
+        => !string.IsNullOrWhiteSpace(productId)
+           && inventory.ClickToRun?.ProductIds.Contains(productId.Trim(), StringComparer.OrdinalIgnoreCase) == true;
+
+    /// <summary>
+    /// Prueft nach einer Installation, ob das Produkt wirklich eingetragen ist.
+    /// Rueckgabe null, wenn ja - oder wenn es sich nicht pruefen laesst
+    /// (kein Windows, Registry nicht lesbar): Die Pruefung ist eine Hilfe und
+    /// darf keinen Erfolg in einen Fehlschlag umdeuten, nur weil sie selbst
+    /// nicht arbeiten konnte.
+    ///
+    /// WARUM: Der Rueckgabewert 0 des Deployment Tools allein sagt wenig. Es
+    /// zeigt Fehler in seinem eigenen Fenster und endet danach mitunter
+    /// trotzdem mit 0 - das Programm meldete dann "Fertig!" und schloss sich.
+    /// </summary>
+    public static string? VerifyInstalled(string? productId)
+    {
+        if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(productId)) return null;
+
+        try
+        {
+            return HasClickToRunProduct(ScanRegistry(), productId)
+                ? null
+                : $"Das Produkt {productId} ist danach nicht als installiert eingetragen.";
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Prueft nach dem Entfernen, ob wirklich kein Click-to-Run-Office mehr
+    /// eingetragen ist. Rueckgabe null, wenn es weg ist oder sich nicht
+    /// pruefen laesst.
+    /// </summary>
+    public static string? VerifyClickToRunRemoved()
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+
+        try
+        {
+            return ScanRegistry().ClickToRun is { } rest
+                ? $"Es ist weiterhin eingetragen: {string.Join(", ", rest.ProductIds)}."
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>
     /// Liest den Bestand aus der Registry. Ausserhalb von Windows gibt es
     /// nichts zu finden - dann kommt ein leerer Bestand zurueck.

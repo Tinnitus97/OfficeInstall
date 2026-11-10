@@ -155,18 +155,6 @@ public sealed class OfficeConfiguration
         => string.IsNullOrWhiteSpace(declaredChannel)
            || string.Equals(declaredChannel, folderName, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Liest die festgeschriebene Version einer Datei aus.</summary>
-    public static string? ReadVersion(string file)
-    {
-        try
-        {
-            var document = XDocument.Load(file);
-            var add = document.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Add");
-            return (string?)add?.Attribute("Version");
-        }
-        catch { return null; }
-    }
-
     /// <summary>
     /// Schreibt eine Kopie ohne SourcePath. Zusammen mit einem Arbeitsordner,
     /// in dem keine Office-Quelldateien liegen, erzwingt das die Installation

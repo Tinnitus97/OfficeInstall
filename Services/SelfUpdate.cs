@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace OfficeInstall.Services;
@@ -48,6 +49,28 @@ public static class SelfUpdate
         start.ArgumentList.Add(processId.ToString(CultureInfo.InvariantCulture));
 
         Process.Start(start)?.Dispose();
+    }
+
+    /// <summary>
+    /// Wie <see cref="StartSwap"/>, prueft aber unmittelbar davor noch einmal
+    /// die Pruefsumme - und haelt die Datei von der Pruefung bis nach dem Start
+    /// gesperrt.
+    ///
+    /// WARUM: Die neue EXE liegt unter %TEMP% und startet mit
+    /// Administratorrechten. Zwischen dem Vergleich der Pruefsumme nach dem
+    /// Download und dem Start lag bisher ein Augenblick, in dem ein Programm
+    /// ohne diese Rechte die Datei haette austauschen koennen.
+    /// </summary>
+    public static void StartSwapVerified(string newExe, string expectedSha256, string currentExe, int processId)
+    {
+        using var guard = new FileStream(newExe, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        var actual = Convert.ToHexString(SHA256.HashData(guard));
+        if (!string.Equals(actual, expectedSha256?.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "Die heruntergeladene Datei wurde nach der Prüfung verändert - sie wird nicht gestartet.");
+
+        StartSwap(newExe, currentExe, processId);
     }
 
     /// <summary>
