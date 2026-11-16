@@ -22,9 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.x'
+      - uses: ./.github/actions/dotnet-lts
 
       - name: Prüfungen ausführen
         run: dotnet run --project tests/OfficeTests -c Release
@@ -36,9 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.x'
+      - uses: ./.github/actions/dotnet-lts
 
       # Bewusst OHNE --warnaserror: Eine neue Avalonia-Fassung bringt gelegentlich
       # eine zusätzliche Warnung mit (zuletzt AVLN5001 zu TextBox.Watermark).

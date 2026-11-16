@@ -53,9 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.x'
+      - uses: ./.github/actions/dotnet-lts
 
       - name: Prüfungen ausführen
         run: dotnet run --project tests/OfficeTests -c Release
@@ -73,9 +71,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.x'
+      - uses: ./.github/actions/dotnet-lts
 
       # Eingabe und Etikett kommen ueber env: und NICHT als ${{ }} in das
       # Skript. Sonst wuerde eine Eingabe wie  1'; Remove-Item ...  als
